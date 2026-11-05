@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 860" width="1400" height="860" style="background:#070b14; font-family:'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <linearGradient id="browserBar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="windowShadow" x="-2%" y="-2%" width="104%" height="106%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Browser Window -->
+  <g transform="translate(20, 16)" filter="url(#windowShadow)">
+    <rect x="0" y="0" width="1360" height="828" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Browser Top Chrome -->
+    <path d="M 0 14 Q 0 0 14 0 L 1346 0 Q 1360 0 1360 14 L 1360 46 L 0 46 Z" fill="url(#browserBar)"/>
+    <line x1="0" y1="46" x2="1360" y2="46" stroke="#334155" stroke-width="1"/>
+    <circle cx="24" cy="23" r="6.5" fill="#ef4444"/>
+    <circle cx="44" cy="23" r="6.5" fill="#f59e0b"/>
+    <circle cx="64" cy="23" r="6.5" fill="#10b981"/>
+
+    <!-- Address Bar -->
+    <rect x="280" y="9" width="800" height="28" rx="6" fill="#0b1120" stroke="#334155" stroke-width="1"/>
+    <text x="680" y="28" fill="#94a3b8" font-size="12.5" text-anchor="middle" font-family="Consolas, monospace">🔒 http://127.0.0.1:8080/ — 文件轉檔與品管日誌儀表板 (FastAPI + Uvicorn)</text>
+
+    <!-- ==================== DASHBOARD CONTENT ==================== -->
+    <g transform="translate(32, 70)">
+      <!-- Header -->
+      <text x="0" y="28" fill="#f8fafc" font-size="24" font-weight="bold">★ 文件轉檔與品管日誌儀表板 (Conversion Web Dashboard)</text>
+      <text x="0" y="52" fill="#94a3b8" font-size="13.5">即時監控轉檔成功率、品管檢核評分、評判員裁判結果與系統技術日誌</text>
+
+      <!-- Header Right Actions -->
+      <g transform="translate(970, 10)">
+        <circle cx="0" cy="18" r="5" fill="#10b981"/>
+        <text x="12" y="23" fill="#94a3b8" font-size="13">即時連線 (FastAPI)</text>
+        <rect x="135" y="2" width="108" height="34" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="189" y="24" fill="#f8fafc" font-size="12.5" font-weight="bold" text-anchor="middle">📖 Swagger API</text>
+        <rect x="253" y="2" width="102" height="34" rx="6" fill="#0284c7"/>
+        <text x="304" y="24" fill="#ffffff" font-size="12.5" font-weight="bold" text-anchor="middle">🔄 重新整理</text>
+      </g>
+      <line x1="0" y1="68" x2="1296" y2="68" stroke="#334155" stroke-width="1"/>
+
+      <!-- 6 KPI Cards -->
+      <g transform="translate(0, 88)">
+        <!-- Card 1 -->
+        <rect x="0" y="0" width="202" height="104" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="16" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">總轉檔處理數</text>
+        <text x="16" y="66" fill="#f8fafc" font-size="28" font-weight="bold">184</text>
+        <text x="16" y="88" fill="#64748b" font-size="11.5">全歷次累計批次總數</text>
+
+        <!-- Card 2 -->
+        <rect x="218" y="0" width="202" height="104" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="234" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">轉換成功率</text>
+        <text x="234" y="66" fill="#10b981" font-size="28" font-weight="bold">98.9%</text>
+        <text x="234" y="88" fill="#64748b" font-size="11.5">182 筆成功合格</text>
+
+        <!-- Card 3 -->
+        <rect x="436" y="0" width="202" height="104" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="452" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">品管隔離數 (QUARANTINE)</text>
+        <text x="452" y="66" fill="#f59e0b" font-size="28" font-weight="bold">2</text>
+        <text x="452" y="88" fill="#64748b" font-size="11.5">規則評分低於 65 分自動隔離</text>
+
+        <!-- Card 4 -->
+        <rect x="654" y="0" width="202" height="104" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="670" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">系統異常數 (ERRORS)</text>
+        <text x="670" y="66" fill="#ef4444" font-size="28" font-weight="bold">0</text>
+        <text x="670" y="88" fill="#64748b" font-size="11.5">格式損毀或配額上限超額</text>
+
+        <!-- Card 5 -->
+        <rect x="872" y="0" width="202" height="104" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="888" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">平均品管規則分</text>
+        <text x="888" y="66" fill="#38bdf8" font-size="28" font-weight="bold">98.6</text>
+        <text x="888" y="88" fill="#64748b" font-size="11.5">確定性 5 大維度評分</text>
+
+        <!-- Card 6 -->
+        <rect x="1090" y="0" width="206" height="104" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="1106" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">獨立評判員平均分</text>
+        <text x="1106" y="66" fill="#c084fc" font-size="28" font-weight="bold">96.4</text>
+        <text x="1106" y="88" fill="#64748b" font-size="11.5">LLM-as-a-Judge 評分</text>
+      </g>
+
+      <!-- Navigation Tabs -->
+      <g transform="translate(0, 214)">
+        <rect x="0" y="0" width="265" height="40" rx="8" fill="#0284c7"/>
+        <text x="132" y="25" fill="#ffffff" font-size="13.5" font-weight="bold" text-anchor="middle">📊 轉檔品管稽核紀錄 (Audit Report)</text>
+
+        <rect x="275" y="0" width="220" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="385" y="25" fill="#94a3b8" font-size="13.5" font-weight="bold" text-anchor="middle">📜 系統技術日誌 (App Logs)</text>
+
+        <rect x="505" y="0" width="245" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="627" y="25" fill="#94a3b8" font-size="13.5" font-weight="bold" text-anchor="middle">🔍 智能履歷搜尋 (Resume Search)</text>
+      </g>
+
+      <!-- Filter Controls Bar -->
+      <g transform="translate(0, 270)">
+        <rect x="0" y="0" width="1296" height="54" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="18" y="32" fill="#94a3b8" font-size="13">狀態篩選：</text>
+        <rect x="88" y="11" width="160" height="32" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+        <text x="102" y="32" fill="#f8fafc" font-size="12.5">全部狀態 (ALL)  ▾</text>
+
+        <rect x="262" y="11" width="320" height="32" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+        <text x="278" y="32" fill="#64748b" font-size="12.5">🔎 搜尋檔名、警告或轉換模型...</text>
+
+        <text x="1165" y="32" fill="#94a3b8" font-size="13">共 184 筆稽核紀錄</text>
+      </g>
+
+      <!-- Audit Table -->
+      <g transform="translate(0, 338)">
+        <rect x="0" y="0" width="1296" height="346" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <!-- Table Header -->
+        <rect x="1" y="1" width="1294" height="44" rx="7" fill="#0f172a"/>
+        <text x="18" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">時間戳記</text>
+        <text x="185" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">檔案名稱 (範例脫敏資料)</text>
+        <text x="435" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">狀態</text>
+        <text x="545" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">品管規則分</text>
+        <text x="640" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">評判員分</text>
+        <text x="725" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">轉換模型與路由</text>
+        <text x="935" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">自審修復</text>
+        <text x="1015" y="28" fill="#94a3b8" font-size="12.5" font-weight="bold">品管診斷與健康探測摘要</text>
+        <line x1="0" y1="45" x2="1296" y2="45" stroke="#334155" stroke-width="1"/>
+
+        <!-- Row 1 -->
+        <g transform="translate(0, 45)">
+          <text x="18" y="36" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">2026-11-05 19:42:18</text>
+          <text x="185" y="36" fill="#f8fafc" font-size="13" font-weight="bold">sample_resume.pdf</text>
+          <rect x="435" y="18" width="84" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+          <text x="477" y="34" fill="#6ee7b7" font-size="11.5" font-weight="bold" text-anchor="middle">SUCCESS</text>
+          <text x="545" y="36" fill="#10b981" font-size="13.5" font-weight="bold">100 / 100</text>
+          <text x="640" y="36" fill="#c084fc" font-size="13.5" font-weight="bold">98 / 100</text>
+          <text x="725" y="36" fill="#cbd5e1" font-size="12" font-family="Consolas, monospace">gemini-3.8-flash (Text)</text>
+          <text x="935" y="36" fill="#34d399" font-size="12.5">✅ 已審核</text>
+          <text x="1015" y="36" fill="#94a3b8" font-size="12">健康度: HEALTHY | 篇幅保留率: 94.2% (結構完整)</text>
+          <line x1="0" y1="58" x2="1296" y2="58" stroke="#334155" stroke-width="0.8"/>
+        </g>
+
+        <!-- Row 2 -->
+        <g transform="translate(0, 103)">
+          <text x="18" y="36" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">2026-11-05 19:41:52</text>
+          <text x="185" y="36" fill="#f8fafc" font-size="13" font-weight="bold">candidate_one.pdf</text>
+          <rect x="435" y="18" width="84" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+          <text x="477" y="34" fill="#6ee7b7" font-size="11.5" font-weight="bold" text-anchor="middle">SUCCESS</text>
+          <text x="545" y="36" fill="#10b981" font-size="13.5" font-weight="bold">100 / 100</text>
+          <text x="640" y="36" fill="#c084fc" font-size="13.5" font-weight="bold">97 / 100</text>
+          <text x="725" y="36" fill="#38bdf8" font-size="12" font-family="Consolas, monospace">gemini-3.8-flash (Vision)</text>
+          <text x="935" y="36" fill="#34d399" font-size="12.5">✅ 已審核</text>
+          <text x="1015" y="36" fill="#bae6fd" font-size="12">偵測 104 防爬混淆字型 ➔ 自動切換視覺多模態重構</text>
+          <line x1="0" y1="58" x2="1296" y2="58" stroke="#334155" stroke-width="0.8"/>
+        </g>
+
+        <!-- Row 3 -->
+        <g transform="translate(0, 161)">
+          <text x="18" y="36" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">2026-11-05 19:41:15</text>
+          <text x="185" y="36" fill="#f8fafc" font-size="13" font-weight="bold">example.docx</text>
+          <rect x="435" y="18" width="84" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+          <text x="477" y="34" fill="#6ee7b7" font-size="11.5" font-weight="bold" text-anchor="middle">SUCCESS</text>
+          <text x="545" y="36" fill="#10b981" font-size="13.5" font-weight="bold">95 / 100</text>
+          <text x="640" y="36" fill="#c084fc" font-size="13.5" font-weight="bold">95 / 100</text>
+          <text x="725" y="36" fill="#cbd5e1" font-size="12" font-family="Consolas, monospace">gemini-3.8-flash (DOCX)</text>
+          <text x="935" y="36" fill="#34d399" font-size="12.5">✅ 已審核</text>
+          <text x="1015" y="36" fill="#94a3b8" font-size="12">Word 記憶體動態補樁 (修復 1 處破損圖片關聯)</text>
+          <line x1="0" y1="58" x2="1296" y2="58" stroke="#334155" stroke-width="0.8"/>
+        </g>
+
+        <!-- Row 4 -->
+        <g transform="translate(0, 219)">
+          <text x="18" y="36" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">2026-11-05 19:40:39</text>
+          <text x="185" y="36" fill="#f8fafc" font-size="13" font-weight="bold">demo.pdf</text>
+          <rect x="435" y="18" width="84" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+          <text x="477" y="34" fill="#6ee7b7" font-size="11.5" font-weight="bold" text-anchor="middle">SUCCESS</text>
+          <text x="545" y="36" fill="#10b981" font-size="13.5" font-weight="bold">95 / 100</text>
+          <text x="640" y="36" fill="#c084fc" font-size="13.5" font-weight="bold">96 / 100</text>
+          <text x="725" y="36" fill="#38bdf8" font-size="12" font-family="Consolas, monospace">gemini-3.8-flash (Vision)</text>
+          <text x="935" y="36" fill="#34d399" font-size="12.5">✅ 已審核</text>
+          <text x="1015" y="36" fill="#94a3b8" font-size="12">純掃描 PDF ➔ 兩階段 Chat 自我審核與跨頁斷句縫合</text>
+          <line x1="0" y1="58" x2="1296" y2="58" stroke="#334155" stroke-width="0.8"/>
+        </g>
+
+        <!-- Row 5 (Quarantine) -->
+        <g transform="translate(0, 277)">
+          <text x="18" y="36" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">2026-11-05 19:39:44</text>
+          <text x="185" y="36" fill="#fde68a" font-size="13" font-weight="bold">corrupt.pdf</text>
+          <rect x="435" y="18" width="96" height="24" rx="12" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+          <text x="483" y="34" fill="#fcd34d" font-size="11" font-weight="bold" text-anchor="middle">QUARANTINE</text>
+          <text x="545" y="36" fill="#f59e0b" font-size="13.5" font-weight="bold">50 / 100</text>
+          <text x="640" y="36" fill="#f59e0b" font-size="13.5" font-weight="bold">48 / 100</text>
+          <text x="725" y="36" fill="#cbd5e1" font-size="12" font-family="Consolas, monospace">gemini-3.8-flash (Text)</text>
+          <text x="935" y="36" fill="#34d399" font-size="12.5">✅ 已審核</text>
+          <text x="1015" y="36" fill="#fca5a5" font-size="12">[自動隔離] 缺少核心經歷區塊且保留率過低 (21.4%)</text>
+        </g>
+      </g>
+
+      <!-- Pagination Footer -->
+      <g transform="translate(530, 702)">
+        <rect x="0" y="0" width="84" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="42" y="21" fill="#64748b" font-size="12" text-anchor="middle">⬅ 上一頁</text>
+        <text x="128" y="21" fill="#cbd5e1" font-size="12.5" text-anchor="middle">第 1 / 19 頁</text>
+        <rect x="172" y="0" width="84" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="214" y="21" fill="#f8fafc" font-size="12" text-anchor="middle">下一頁 ➡</text>
+      </g>
+    </g>
+  </g>
+</svg>

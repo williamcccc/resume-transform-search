@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件轉檔與品管日誌儀表板 | Conversion Web Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --surface-hover: #334155;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #38bdf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #6366f1;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-title h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            background-color: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background-color: var(--surface-hover);
+            border-color: var(--accent-primary);
+        }
+
+        .btn-primary {
+            background-color: #0284c7;
+            border-color: #0284c7;
+        }
+
+        .btn-primary:hover {
+            background-color: #0369a1;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .kpi-subtext {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .color-success { color: var(--success) !important; }
+        .color-warning { color: var(--warning) !important; }
+        .color-danger { color: var(--danger) !important; }
+        .color-accent { color: var(--accent-primary) !important; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 18px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Controls / Filter Bar */
+        .controls-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+            background-color: var(--surface-color);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .filters-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .input-control, .select-control {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            outline: none;
+        }
+
+        .input-control:focus, .select-control:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .input-search {
+            min-width: 260px;
+        }
+
+        /* Table */
+        .table-responsive {
+            overflow-x: auto;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+
+        thead {
+            background-color: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            padding: 12px 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(51, 65, 85, 0.4);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .badge-success { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-warning { background-color: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-danger { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-neutral { background-color: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+        /* Log Terminal */
+        .terminal-box {
+            background-color: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            height: 580px;
+            overflow-y: auto;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .log-row {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.15);
+            display: flex;
+            gap: 8px;
+            word-break: break-all;
+        }
+
+        .log-time { color: #64748b; flex-shrink: 0; }
+        .log-lvl { font-weight: 700; flex-shrink: 0; min-width: 50px; }
+        .log-lvl.INFO { color: #38bdf8; }
+        .log-lvl.WARNING { color: #fbbf24; }
+        .log-lvl.ERROR { color: #f87171; }
+        .log-logger { color: #a78bfa; flex-shrink: 0; }
+        .log-msg { color: #f1f5f9; flex-grow: 1; white-space: pre-wrap; }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            background-color: var(--success);
+        }
+
+        /* Search Tab Specific Styles */
+        .search-box-container {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .search-main-input {
+            flex-grow: 1;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-main-input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .quick-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+
+        .pill-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .pill-btn {
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent-primary);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 9999px;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pill-btn:hover {
+            background-color: rgba(56, 189, 248, 0.25);
+            border-color: var(--accent-primary);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Candidate Results Cards */
+        .results-summary-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .candidate-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.2s;
+        }
+
+        .candidate-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .candidate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .candidate-info h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .candidate-sub {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .score-box {
+            text-align: right;
+        }
+
+        .score-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent-primary);
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar-container {
+            width: 120px;
+            height: 6px;
+            background-color: var(--bg-color);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38bdf8, #10b981);
+            border-radius: 3px;
+        }
+
+        .skills-tag-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 10px 0;
+        }
+
+        .skill-tag {
+            background-color: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+        }
+
+        .chunks-list {
+            margin-top: 14px;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 12px;
+        }
+
+        .chunk-item {
+            background-color: rgba(15, 23, 42, 0.5);
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-primary);
+            font-size: 0.875rem;
+        }
+
+        .chunk-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .chunk-snippet {
+            color: #e2e8f0;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-box {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 960px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+            background-color: #0b1120;
+        }
+
+        .modal-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title">
+                <h1>⚡ 文件轉檔與品管日誌儀表板</h1>
+                <p>即時監控轉檔成功率、品管檢核評分、評判員裁判結果與系統技術日誌</p>
+            </div>
+            <div class="header-actions">
+                <span class="status-dot"></span>
+                <span style="font-size: 0.875rem; color: var(--text-secondary); margin-right: 8px;" id="serverTime">即時連線</span>
+                <a href="/docs" target="_blank" class="btn" style="text-decoration: none;">📖 Swagger API</a>
+                <button class="btn btn-primary" onclick="refreshAll()">🔄 重新整理</button>
+            </div>
+        </header>
+
+        <!-- KPI Summary Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">總轉檔處理數</div>
+                <div class="kpi-value" id="kpiTotal">0</div>
+                <div class="kpi-subtext">全歷次累計批次總數</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">轉換成功率</div>
+                <div class="kpi-value color-success" id="kpiSuccessRate">0%</div>
+                <div class="kpi-subtext"><span id="kpiSuccessCount">0</span> 筆成功合格</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">品管隔離數 (Quarantine)</div>
+                <div class="kpi-value color-warning" id="kpiQuarantine">0</div>
+                <div class="kpi-subtext">規則評分低於 65 分</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">系統異常數 (Errors)</div>
+                <div class="kpi-value color-danger" id="kpiError">0</div>
+                <div class="kpi-subtext">格式或配額上限超額</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">平均品管規則分</div>
+                <div class="kpi-value color-accent" id="kpiAvgScore">0.0</div>
+                <div class="kpi-subtext">確定性 5 大維度評分</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">獨立評判員平均分</div>
+                <div class="kpi-value" style="color: #c084fc;" id="kpiAvgJudge">0.0</div>
+                <div class="kpi-subtext">LLM-as-a-Judge 評分</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('auditTab')">📊 轉檔品管稽核紀錄 (Audit Report)</button>
+            <button class="tab-btn" onclick="switchTab('logsTab')">📜 系統技術日誌 (App Logs)</button>
+            <button class="tab-btn" onclick="switchTab('searchTab')">🔍 智能履歷搜尋 (Resume Search)</button>
+        </div>
+
+        <!-- Tab 1: Audit Log Table -->
+        <div id="auditTab" class="tab-content active">
+            <div class="controls-bar">
+                <div class="filters-group">
+                    <label style="font-size: 0.875rem; color: var(--text-secondary);">狀態篩選：</label>
+                    <select id="statusFilter" class="select-control" onchange="fetchAuditRecords()">
+                        <option value="ALL">全部狀態 (ALL)</option>
+                        <option value="SUCCESS">成功 (SUCCESS)</option>
+                        <option value="QUARANTINE">已隔離 (QUARANTINE)</option>
+                        <option value="ERROR">異常錯誤 (ERROR)</option>
+                    </select>
+                    <input type="text" id="auditSearch" class="input-control input-search" placeholder="搜尋檔名、警告或模型..." oninput="debounce(fetchAuditRecords, 300)()">
+                </div>
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                    共 <span id="auditTotalCount" style="font-weight: 700; color: var(--text-primary);">0</span> 筆紀錄
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>時間戳記</th>
+                            <th>檔案名稱</th>
+                            <th>狀態</th>
+                            <th>品管規則分</th>
+                            <th>評判員分數</th>
+                            <th>轉換模型</th>
+                            <th>Review</th>
+                            <th>警示 / 診斷訊息</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                        <tr>
+                            <td colspan="8" class="empty-state">資料載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <button class="btn" id="btnPrevPage" onclick="prevPage()" disabled>⬅ 上一頁</button>
+                <span id="pageInfo">第 1 頁</span>
+                <button class="btn" id="btnNextPage" onclick="nextPage()">下一頁 ➡</button>
+            </div>
+        </div>
+
+        <!-- Tab 2: System Logs Terminal -->
+        <div id="logsTab" class="tab-content">
+            <div class="controls-bar">
+                <div class="filters-group">
+                    <label style="font-size: 0.875rem; color: var(--text-secondary);">等級篩選：</label>
+                    <select id="logLevelFilter" class="select-control" onchange="fetchSystemLogs()">
+                        <option value="ALL">全部等級 (ALL)</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                    <input type="text" id="logSearch" class="input-control input-search" placeholder="搜尋日誌內容或模組..." oninput="debounce(fetchSystemLogs, 300)()">
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="font-size: 0.875rem; color: var(--text-secondary); cursor: pointer;">
+                        <input type="checkbox" id="autoScroll" checked> 自動滾動置底
+                    </label>
+                    <button class="btn" onclick="fetchSystemLogs()">刷新日誌</button>
+                </div>
+            </div>
+
+            <div class="terminal-box" id="terminalBox">
+                <!-- Log rows dynamically injected -->
+            </div>
+        </div>
+
+        <!-- Tab 3: Resume Search -->
+        <div id="searchTab" class="tab-content">
+            <div class="search-box-container">
+                <div class="search-input-group">
+                    <input type="text" id="resumeSearchQuery" class="search-main-input" placeholder="輸入自然語言職務需求 (例如：具備 3 年以上 Python 微服務與高並發架構、熟悉 Redis 與 Docker 的資深工程師)..." onkeydown="if(event.key==='Enter') executeResumeSearch()">
+                    <button class="btn btn-primary" style="padding: 12px 28px; font-size: 1rem;" onclick="executeResumeSearch()">🚀 語意檢索</button>
+                </div>
+
+                <!-- Quick Pills -->
+                <div class="quick-pills">
+                    <span class="pill-label">💡 熱門推薦查詢：</span>
+                    <button class="pill-btn" onclick="applyQuickSearch('微服務高並發後端架構師')">微服務高並發</button>
+                    <button class="pill-btn" onclick="applyQuickSearch('Kubernetes 容器化與 CI/CD 自動化部署')">K8s &amp; CI/CD</button>
+                    <button class="pill-btn" onclick="applyQuickSearch('分散式電商系統與大型金流高可用')">電商金流架構</button>
+                    <button class="pill-btn" onclick="applyQuickSearch('軟體品管 SQA 自動化測試與壓力測試')">SQA 自動化測試</button>
+                    <button class="pill-btn" onclick="applyQuickSearch('React Vue 前端現代化狀態管理與效能調校')">前端 React/Vue</button>
+                    <button class="pill-btn" onclick="applyQuickSearch('AI 應用開發 LLM Agent 與向量檢索')">LLM &amp; 向量搜尋</button>
+                </div>
+
+                <!-- Filters Grid -->
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label class="filter-label">最低工作年資 (Years)：</label>
+                        <select id="filterMinYears" class="select-control">
+                            <option value="">不限年資 (All)</option>
+                            <option value="1">1 年以上 (1+ yr)</option>
+                            <option value="2">2 年以上 (2+ yrs)</option>
+                            <option value="3">3 年以上 (3+ yrs)</option>
+                            <option value="5">5 年以上 (5+ yrs)</option>
+                            <option value="8">8 年以上 (8+ yrs)</option>
+                            <option value="10">10 年以上 (10+ yrs)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-item">
+                        <label class="filter-label">指定關鍵技能 (Skills, 逗號分隔)：</label>
+                        <input type="text" id="filterSkills" class="input-control" placeholder="如: Python, Docker, Redis">
+                    </div>
+
+                    <div class="filter-item">
+                        <label class="filter-label">指定履歷區塊 (Chunk Type)：</label>
+                        <select id="filterChunkType" class="select-control">
+                            <option value="">全部區塊 (All Chunks)</option>
+                            <option value="experience">工作經歷 (Experience)</option>
+                            <option value="skills">專業技能 (Skills)</option>
+                            <option value="summary">個人簡介/自傳 (Summary)</option>
+                            <option value="projects">專案成果 (Projects)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-item">
+                        <label class="filter-label">相似度門檻 (Min Score: <span id="scoreValDisplay">50%</span>)：</label>
+                        <input type="range" id="filterMinScore" min="0" max="100" value="50" style="accent-color: var(--accent-primary); cursor: pointer;" oninput="document.getElementById('scoreValDisplay').textContent = this.value + '%'">
+                    </div>
+
+                    <div class="filter-item">
+                        <label class="filter-label">搜尋偏好：</label>
+                        <div style="display: flex; gap: 16px; align-items: center; margin-top: 6px;">
+                            <label style="font-size: 0.85rem; color: var(--text-primary); cursor: pointer;">
+                                <input type="checkbox" id="filterGroupBy" checked> 按求職者整合呈現
+                            </label>
+                            <select id="filterTopK" class="select-control" style="padding: 4px 8px; font-size: 0.8rem;">
+                                <option value="20">Top 20</option>
+                                <option value="50">Top 50</option>
+                                <option value="100">Top 100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results Area -->
+            <div class="results-summary-bar" id="searchSummaryBar" style="display: none;">
+                <div>
+                    找到 <span id="resultCount" style="font-weight: 700; color: var(--accent-primary);">0</span> 筆結果，耗時 <span id="searchLatency" style="font-weight: 700; color: var(--text-primary);">0</span> ms
+                </div>
+                <div id="filterEcho" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+            </div>
+
+            <div id="searchResultsList">
+                <div class="empty-state">
+                    請輸入自然語言描述或點選上方熱門查詢詞開始搜尋履歷。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resume Full Markdown Modal -->
+    <div class="modal-overlay" id="resumeModalOverlay" onclick="if(event.target===this) closeResumeModal()">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modalCandidateTitle">履歷詳情</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;" id="modalCandidateMeta"></div>
+                </div>
+                <button class="btn" style="padding: 4px 10px;" onclick="closeResumeModal()">✕ 關閉</button>
+            </div>
+            <div class="modal-body" id="modalResumeBody">
+                載入中...
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="copyResumeContent()">📋 複製履歷內文</button>
+                <button class="btn btn-primary" onclick="closeResumeModal()">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentOffset = 0;
+        const pageLimit = 50;
+        let debounceTimer = null;
+
+        function debounce(func, delay) {
+            return function(...args) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            const hashKey = tabId.replace('Tab', '');
+            if (window.location.hash.toLowerCase() !== '#' + hashKey) {
+                history.replaceState(null, '', '#' + hashKey);
+            }
+
+            if (tabId === 'auditTab') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('auditTab').classList.add('active');
+                fetchAuditRecords();
+            } else if (tabId === 'logsTab') {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('logsTab').classList.add('active');
+                fetchSystemLogs();
+            } else if (tabId === 'searchTab') {
+                document.querySelectorAll('.tab-btn')[2].classList.add('active');
+                document.getElementById('searchTab').classList.add('active');
+                setTimeout(() => {
+                    const el = document.getElementById('resumeSearchQuery');
+                    if (el) el.focus();
+                }, 100);
+            }
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                if (!res.ok) throw new Error('API 回應異常');
+                const data = await res.json();
+                
+                document.getElementById('kpiTotal').textContent = data.total_files || 0;
+                document.getElementById('kpiSuccessRate').textContent = (data.success_rate || 0) + '%';
+                document.getElementById('kpiSuccessCount').textContent = data.success_count || 0;
+                document.getElementById('kpiQuarantine').textContent = data.quarantined_count || 0;
+                document.getElementById('kpiError').textContent = data.error_count || 0;
+                document.getElementById('kpiAvgScore').textContent = data.avg_score || '0.0';
+                document.getElementById('kpiAvgJudge').textContent = data.avg_judge_score || '0.0';
+            } catch (err) {
+                console.error('取得統計失敗:', err);
+            }
+        }
+
+        async function fetchAuditRecords() {
+            const status = document.getElementById('statusFilter').value;
+            const search = document.getElementById('auditSearch').value;
+            const tbody = document.getElementById('auditTableBody');
+
+            try {
+                const url = `/api/audit?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}&offset=${currentOffset}&limit=${pageLimit}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('取得稽核紀錄失敗');
+                const data = await res.json();
+
+                document.getElementById('auditTotalCount').textContent = data.total || 0;
+
+                if (!data.items || data.items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">查無符合條件之轉檔紀錄</td></tr>`;
+                    updatePagination(0);
+                    return;
+                }
+
+                tbody.innerHTML = data.items.map(item => {
+                    let badgeClass = 'badge-neutral';
+                    const st = (item.status || '').toUpperCase();
+                    if (st === 'SUCCESS') badgeClass = 'badge-success';
+                    else if (st === 'QUARANTINE') badgeClass = 'badge-warning';
+                    else if (st === 'ERROR') badgeClass = 'badge-danger';
+
+                    return `
+                        <tr>
+                            <td style="white-space: nowrap; color: var(--text-secondary);">${escapeHtml(item.timestamp)}</td>
+                            <td style="font-weight: 600;">${escapeHtml(item.filename)}</td>
+                            <td><span class="badge ${badgeClass}">${escapeHtml(item.status)}</span></td>
+                            <td style="font-weight: 700; color: ${item.score >= 65 ? 'var(--success)' : 'var(--danger)'};">${item.score}</td>
+                            <td style="font-weight: 600;">${escapeHtml(item.judge_score || 'N/A')}</td>
+                            <td><span style="font-family: var(--font-mono); font-size: 0.8rem;">${escapeHtml(item.model || 'N/A')}</span></td>
+                            <td>${item.reviewed ? '✅ 是' : '❌ 否'}</td>
+                            <td style="max-width: 320px; font-size: 0.8rem; color: var(--text-secondary); word-break: break-word;">${escapeHtml(item.warnings || '無')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                updatePagination(data.total);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: var(--danger);">載入失敗: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        async function fetchSystemLogs() {
+            const level = document.getElementById('logLevelFilter').value;
+            const search = document.getElementById('logSearch').value;
+            const terminal = document.getElementById('terminalBox');
+
+            try {
+                const url = `/api/logs?level=${encodeURIComponent(level)}&search=${encodeURIComponent(search)}&limit=300`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('取得系統日誌失敗');
+                const data = await res.json();
+
+                if (!data.logs || data.logs.length === 0) {
+                    terminal.innerHTML = `<div class="empty-state">尚無符合之日誌紀錄</div>`;
+                    return;
+                }
+
+                terminal.innerHTML = data.logs.map(log => `
+                    <div class="log-row">
+                        <span class="log-time">[${escapeHtml(log.timestamp)}]</span>
+                        <span class="log-lvl ${escapeHtml(log.level)}">[${escapeHtml(log.level)}]</span>
+                        <span class="log-logger">[${escapeHtml(log.logger)}]</span>
+                        <span class="log-msg">${escapeHtml(log.message)}</span>
+                    </div>
+                `).join('');
+
+                if (document.getElementById('autoScroll').checked) {
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
+            } catch (err) {
+                terminal.innerHTML = `<div class="empty-state" style="color: var(--danger);">日誌載入異常: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function updatePagination(total) {
+            const pageNum = Math.floor(currentOffset / pageLimit) + 1;
+            const totalPages = Math.max(1, Math.ceil(total / pageLimit));
+            document.getElementById('pageInfo').textContent = `第 ${pageNum} / ${totalPages} 頁 (每頁 ${pageLimit} 筆)`;
+            document.getElementById('btnPrevPage').disabled = currentOffset <= 0;
+            document.getElementById('btnNextPage').disabled = currentOffset + pageLimit >= total;
+        }
+
+        function nextPage() {
+            currentOffset += pageLimit;
+            fetchAuditRecords();
+        }
+
+        function prevPage() {
+            currentOffset = Math.max(0, currentOffset - pageLimit);
+            fetchAuditRecords();
+        }
+
+        function refreshAll() {
+            fetchStats();
+            fetchAuditRecords();
+            document.getElementById('serverTime').textContent = '最後更新: ' + new Date().toLocaleTimeString();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        /* Resume Search & Modal Logic */
+        let currentModalMarkdown = '';
+
+        function applyQuickSearch(text) {
+            document.getElementById('resumeSearchQuery').value = text;
+            executeResumeSearch();
+        }
+
+        async function executeResumeSearch() {
+            const query = document.getElementById('resumeSearchQuery').value.trim();
+            if (!query) {
+                alert('請先輸入搜尋關鍵字或自然語言條件！');
+                return;
+            }
+
+            const minYears = document.getElementById('filterMinYears').value;
+            const skills = document.getElementById('filterSkills').value.trim();
+            const chunkType = document.getElementById('filterChunkType').value;
+            const minScoreVal = parseFloat(document.getElementById('filterMinScore').value) / 100.0;
+            const groupBy = document.getElementById('filterGroupBy').checked;
+            const topK = document.getElementById('filterTopK').value;
+
+            const resultsContainer = document.getElementById('searchResultsList');
+            const summaryBar = document.getElementById('searchSummaryBar');
+            resultsContainer.innerHTML = '<div class="empty-state"><span class="status-dot"></span> 正在執行 AI 語意向量計算與 Redis 檢索中，請稍候...</div>';
+
+            const startTime = performance.now();
+            try {
+                let url = `/api/search?query=${encodeURIComponent(query)}&top_k=${topK}&min_score=${minScoreVal}&group_by_candidate=${groupBy}`;
+                if (minYears) url += `&min_years=${encodeURIComponent(minYears)}`;
+                if (skills) url += `&skills=${encodeURIComponent(skills)}`;
+                if (chunkType) url += `&chunk_type=${encodeURIComponent(chunkType)}`;
+
+                const res = await fetch(url);
+                const latency = Math.round(performance.now() - startTime);
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || errData.error || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                summaryBar.style.display = 'flex';
+                document.getElementById('searchLatency').textContent = latency;
+
+                const filterParts = [];
+                if (minYears) filterParts.push(`工作年資 ≥ ${minYears} 年`);
+                if (skills) filterParts.push(`技能包含 [${skills}]`);
+                if (chunkType) filterParts.push(`限定區塊 [${chunkType}]`);
+                filterParts.push(`相似度門檻 ≥ ${Math.round(minScoreVal * 100)}%`);
+                document.getElementById('filterEcho').textContent = filterParts.join(' | ');
+
+                if (groupBy && data.candidates && data.candidates.length > 0) {
+                    document.getElementById('resultCount').textContent = `${data.candidates.length} 位候選人 (共 ${data.total_matched_chunks} 個切片)`;
+                    renderCandidateList(data.candidates);
+                } else if (!groupBy && data.items && data.items.length > 0) {
+                    document.getElementById('resultCount').textContent = `${data.items.length} 個切片`;
+                    renderChunkList(data.items);
+                } else {
+                    document.getElementById('resultCount').textContent = '0';
+                    resultsContainer.innerHTML = `
+                        <div class="empty-state">
+                            <p style="font-size: 1.1rem; color: var(--text-primary); margin-bottom: 8px;">未找到符合條件的履歷紀錄</p>
+                            <p>請嘗試調降相似度門檻、放寬年資限制，或使用更通用的語意描述。</p>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error('搜尋失敗:', err);
+                resultsContainer.innerHTML = `
+                    <div class="empty-state" style="color: var(--danger);">
+                        <p style="font-weight: 700; margin-bottom: 6px;">搜尋失敗</p>
+                        <p>${escapeHtml(err.message)}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderCandidateList(candidates) {
+            const container = document.getElementById('searchResultsList');
+            container.innerHTML = candidates.map((c, idx) => {
+                const scorePercent = Math.round(c.max_similarity * 100);
+                const expBadge = c.parsed_years !== null && c.parsed_years !== undefined
+                    ? `<span class="badge badge-success" style="font-size: 0.8rem;">💼 工作年資: 約 ${c.parsed_years} 年</span>`
+                    : `<span class="badge badge-neutral" style="font-size: 0.8rem;">💼 工作年資: 經歷不拘/未明記</span>`;
+
+                const skillTagsHtml = (c.skills && c.skills.length > 0)
+                    ? c.skills.map(s => `<span class="skill-tag">${escapeHtml(s)}</span>`).join('')
+                    : '<span style="font-size: 0.75rem; color: var(--text-secondary);">未標註技能標籤</span>';
+
+                const chunksHtml = (c.matched_chunks || []).map(ch => {
+                    const chPercent = Math.round(ch.similarity * 100);
+                    return `
+                        <div class="chunk-item">
+                            <div class="chunk-meta">
+                                <span><strong>${escapeHtml(ch.chunk_type || '內容')}</strong> (切片 #${ch.chunk_id})</span>
+                                <span style="color: var(--accent-primary); font-weight: 700;">匹配度: ${chPercent}%</span>
+                            </div>
+                            <div class="chunk-snippet">${escapeHtml(ch.content)}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                const collapseId = `cand-chunks-${idx}`;
+
+                return `
+                    <div class="candidate-card">
+                        <div class="candidate-header">
+                            <div class="candidate-info">
+                                <h3>
+                                    👤 ${escapeHtml(c.candidate_name || c.candidate_id)}
+                                    ${expBadge}
+                                </h3>
+                                <div class="candidate-sub">
+                                    識別碼 (Candidate ID): <code style="font-family: var(--font-mono); color: var(--text-secondary);">${escapeHtml(c.candidate_id)}</code>
+                                    <span style="margin: 0 8px;">|</span>
+                                    匹配切片數: <strong>${c.total_chunks}</strong> 筆
+                                </div>
+                            </div>
+                            <div class="score-box">
+                                <div class="score-value">${scorePercent}%</div>
+                                <div class="score-label">最高語意匹配度</div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" style="width: ${scorePercent}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="skills-tag-group">
+                            ${skillTagsHtml}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+                            <button class="btn" style="font-size: 0.8rem; padding: 6px 12px;" onclick="toggleCandidateChunks('${collapseId}')">
+                                📑 切換匹配切片 (${c.total_chunks})
+                            </button>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 14px;" onclick="openResumeModal('${escapeHtml(c.candidate_id)}', '${escapeHtml(c.candidate_name)}')">
+                                📄 查看履歷全文
+                            </button>
+                        </div>
+
+                        <div id="${collapseId}" class="chunks-list" style="display: none;">
+                            ${chunksHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderChunkList(items) {
+            const container = document.getElementById('searchResultsList');
+            container.innerHTML = items.map(item => {
+                const scorePercent = Math.round(item.similarity * 100);
+                const skillTagsHtml = (item.skills && item.skills.length > 0)
+                    ? item.skills.map(s => `<span class="skill-tag">${escapeHtml(s)}</span>`).join('')
+                    : '';
+
+                return `
+                    <div class="candidate-card">
+                        <div class="candidate-header">
+                            <div class="candidate-info">
+                                <h3>
+                                    👤 ${escapeHtml(item.candidate_name || item.candidate_id)}
+                                    <span class="badge badge-neutral" style="font-size: 0.75rem;">${escapeHtml(item.chunk_type || '區塊')}</span>
+                                </h3>
+                                <div class="candidate-sub">
+                                    識別碼: <code>${escapeHtml(item.candidate_id)}</code> | 切片 #${item.chunk_id}
+                                </div>
+                            </div>
+                            <div class="score-box">
+                                <div class="score-value">${scorePercent}%</div>
+                                <div class="score-label">語意相似度</div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" style="width: ${scorePercent}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${skillTagsHtml ? `<div class="skills-tag-group">${skillTagsHtml}</div>` : ''}
+
+                        <div class="chunk-snippet" style="margin-top: 10px; max-height: 200px;">${escapeHtml(item.content)}</div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 14px;" onclick="openResumeModal('${escapeHtml(item.candidate_id)}', '${escapeHtml(item.candidate_name)}')">
+                                📄 查看完整履歷
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleCandidateChunks(elemId) {
+            const el = document.getElementById(elemId);
+            if (!el) return;
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function openResumeModal(candidateId, candidateName) {
+            const overlay = document.getElementById('resumeModalOverlay');
+            const titleEl = document.getElementById('modalCandidateTitle');
+            const metaEl = document.getElementById('modalCandidateMeta');
+            const bodyEl = document.getElementById('modalResumeBody');
+
+            titleEl.textContent = `📄 ${candidateName || candidateId} 的履歷全文`;
+            metaEl.textContent = `識別碼: ${candidateId}`;
+            bodyEl.textContent = '正在載入履歷 Markdown 內容...';
+            currentModalMarkdown = '';
+            overlay.style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/resume?candidate_id=${encodeURIComponent(candidateId)}`);
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || errData.error || `HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                currentModalMarkdown = data.markdown || '';
+                bodyEl.textContent = currentModalMarkdown || '（該履歷為空內容）';
+            } catch (err) {
+                bodyEl.textContent = `載入履歷失敗: ${err.message}`;
+            }
+        }
+
+        function closeResumeModal() {
+            document.getElementById('resumeModalOverlay').style.display = 'none';
+        }
+
+        function copyResumeContent() {
+            if (!currentModalMarkdown) {
+                alert('無可複製的履歷內容');
+                return;
+            }
+            navigator.clipboard.writeText(currentModalMarkdown)
+                .then(() => alert('已成功複製履歷 Markdown 內容至剪貼簿！'))
+                .catch(err => alert('複製失敗: ' + err));
+        }
+
+        // 初始化
+        fetchStats();
+        document.getElementById('serverTime').textContent = '最後更新: ' + new Date().toLocaleTimeString();
+
+        // 支援 URL Hash 深度連結 (如 #search, #logs, #audit)
+        function initTabFromHash() {
+            const hash = window.location.hash.toLowerCase();
+            if (hash === '#search') {
+                switchTab('searchTab');
+            } else if (hash === '#logs') {
+                switchTab('logsTab');
+            } else {
+                switchTab('auditTab');
+            }
+        }
+        window.addEventListener('hashchange', initTabFromHash);
+        initTabFromHash();
+    </script>
+</body>
+</html>

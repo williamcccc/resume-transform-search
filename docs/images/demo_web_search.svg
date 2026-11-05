@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 940" width="1400" height="940" style="background:#070b14; font-family:'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <linearGradient id="browserBar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <filter id="windowShadow" x="-2%" y="-2%" width="104%" height="106%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Browser Window -->
+  <g transform="translate(20, 16)" filter="url(#windowShadow)">
+    <rect x="0" y="0" width="1360" height="908" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Browser Top Chrome -->
+    <path d="M 0 14 Q 0 0 14 0 L 1346 0 Q 1360 0 1360 14 L 1360 46 L 0 46 Z" fill="url(#browserBar)"/>
+    <line x1="0" y1="46" x2="1360" y2="46" stroke="#334155" stroke-width="1"/>
+    <circle cx="24" cy="23" r="6.5" fill="#ef4444"/>
+    <circle cx="44" cy="23" r="6.5" fill="#f59e0b"/>
+    <circle cx="64" cy="23" r="6.5" fill="#10b981"/>
+
+    <!-- Address Bar -->
+    <rect x="280" y="9" width="800" height="28" rx="6" fill="#0b1120" stroke="#334155" stroke-width="1"/>
+    <text x="680" y="28" fill="#94a3b8" font-size="12.5" text-anchor="middle" font-family="Consolas, monospace">🔒 http://127.0.0.1:8080/#searchTab — 智能履歷語意檢索介面 (Redis HNSW 768d)</text>
+
+    <!-- ==================== CONTENT ==================== -->
+    <g transform="translate(32, 66)">
+      <!-- Header -->
+      <text x="0" y="26" fill="#f8fafc" font-size="22" font-weight="bold">★ 文件轉檔與品管日誌儀表板 — 智能履歷語意檢索</text>
+      <g transform="translate(970, 4)">
+        <circle cx="0" cy="18" r="5" fill="#10b981"/>
+        <text x="12" y="23" fill="#94a3b8" font-size="13">Redis HNSW 索引已就緒</text>
+        <rect x="165" y="2" width="108" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="219" y="23" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">📖 Swagger API</text>
+      </g>
+
+      <!-- Navigation Tabs -->
+      <g transform="translate(0, 48)">
+        <rect x="0" y="0" width="250" height="38" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="125" y="24" fill="#94a3b8" font-size="13" font-weight="bold" text-anchor="middle">📊 轉檔品管稽核紀錄 (Audit Report)</text>
+
+        <rect x="260" y="0" width="210" height="38" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="365" y="24" fill="#94a3b8" font-size="13" font-weight="bold" text-anchor="middle">📜 系統技術日誌 (App Logs)</text>
+
+        <rect x="480" y="0" width="245" height="38" rx="8" fill="#0284c7"/>
+        <text x="602" y="24" fill="#ffffff" font-size="13" font-weight="bold" text-anchor="middle">🔍 智能履歷搜尋 (Resume Search)</text>
+      </g>
+
+      <!-- Search Box Container -->
+      <g transform="translate(0, 100)">
+        <rect x="0" y="0" width="1296" height="176" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+
+        <!-- Main Search Input -->
+        <rect x="20" y="18" width="1105" height="46" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+        <text x="38" y="46" fill="#f8fafc" font-size="14.5">具備 3 年以上 Python 微服務與高併發架構、熟悉 Redis 與 Docker 的資深後端工程師</text>
+
+        <rect x="1138" y="18" width="138" height="46" rx="8" fill="#0284c7"/>
+        <text x="1207" y="46" fill="#ffffff" font-size="14.5" font-weight="bold" text-anchor="middle">🚀 語意檢索</text>
+
+        <!-- Quick Pills -->
+        <g transform="translate(20, 76)">
+          <text x="0" y="18" fill="#94a3b8" font-size="12">💡 熱門推薦查詢：</text>
+          <rect x="108" y="2" width="108" height="24" rx="12" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="162" y="18" fill="#cbd5e1" font-size="11.5" text-anchor="middle">微服務高並發</text>
+          <rect x="224" y="2" width="112" height="24" rx="12" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="280" y="18" fill="#cbd5e1" font-size="11.5" text-anchor="middle">K8s &amp; CI/CD</text>
+          <rect x="344" y="2" width="108" height="24" rx="12" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="398" y="18" fill="#cbd5e1" font-size="11.5" text-anchor="middle">電商金流架構</text>
+          <rect x="460" y="2" width="118" height="24" rx="12" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="519" y="18" fill="#cbd5e1" font-size="11.5" text-anchor="middle">SQA 自動化測試</text>
+          <rect x="586" y="2" width="124" height="24" rx="12" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="648" y="18" fill="#cbd5e1" font-size="11.5" text-anchor="middle">LLM &amp; 向量搜尋</text>
+        </g>
+
+        <!-- Filters Grid -->
+        <g transform="translate(20, 114)">
+          <text x="0" y="14" fill="#94a3b8" font-size="11.5">最低工作年資 (Years)：</text>
+          <rect x="0" y="20" width="210" height="30" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="12" y="40" fill="#38bdf8" font-size="12.5" font-weight="bold">3 年以上 (3+ yrs)  ▾</text>
+
+          <text x="235" y="14" fill="#94a3b8" font-size="11.5">指定關鍵技能 (Skills Tag)：</text>
+          <rect x="235" y="20" width="260" height="30" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="248" y="40" fill="#f8fafc" font-size="12.5" font-family="Consolas, monospace">python, redis, docker</text>
+
+          <text x="520" y="14" fill="#94a3b8" font-size="11.5">指定履歷區塊 (Chunk Type)：</text>
+          <rect x="520" y="20" width="220" height="30" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+          <text x="532" y="40" fill="#f8fafc" font-size="12.5">全部區塊 (All Chunks)  ▾</text>
+
+          <text x="765" y="14" fill="#94a3b8" font-size="11.5">相似度門檻 (Min Score: <tspan fill="#38bdf8" font-weight="bold">65%</tspan>)：</text>
+          <line x1="765" y1="35" x2="965" y2="35" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>
+          <line x1="765" y1="35" x2="895" y2="35" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="895" cy="35" r="7" fill="#38bdf8"/>
+
+          <text x="1000" y="14" fill="#94a3b8" font-size="11.5">搜尋聚合偏好：</text>
+          <text x="1000" y="40" fill="#f8fafc" font-size="12.5">☑ 按求職者整合呈現 (Top 20)</text>
+        </g>
+      </g>
+
+      <!-- Results Summary Bar -->
+      <g transform="translate(0, 290)">
+        <rect x="0" y="0" width="1296" height="38" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+        <text x="16" y="24" fill="#f8fafc" font-size="13">找到 <tspan fill="#38bdf8" font-weight="bold">2</tspan> 位高度匹配候選人（共命中 <tspan fill="#38bdf8" font-weight="bold">6</tspan> 筆語意切片），檢索耗時 <tspan fill="#10b981" font-weight="bold">38 ms</tspan></text>
+        <text x="1280" y="24" fill="#94a3b8" font-size="12" text-anchor="end">混合檢索條件：Min Years ≥ 3.0 | Skills: python, redis, docker | Cosine ≥ 65%</text>
+      </g>
+
+      <!-- ==================== CANDIDATE CARD 1 (王小明) ==================== -->
+      <g transform="translate(0, 342)">
+        <rect x="0" y="0" width="1296" height="248" rx="10" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+
+        <!-- Candidate Header -->
+        <text x="22" y="34" fill="#f8fafc" font-size="18" font-weight="bold">👤 王小明</text>
+        <rect x="115" y="14" width="110" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+        <text x="170" y="30" fill="#6ee7b7" font-size="11.5" font-weight="bold" text-anchor="middle">年資約 6.5 年</text>
+        <text x="238" y="31" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">來源檔案: sample_resume.md (範例脫敏資料)</text>
+
+        <!-- View Full Markdown Button -->
+        <rect x="935" y="12" width="175" height="32" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+        <text x="1022" y="32" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="middle">📄 檢視完整履歷 Markdown</text>
+
+        <!-- Score Box -->
+        <text x="1274" y="30" fill="#38bdf8" font-size="22" font-weight="bold" text-anchor="end">94.8%</text>
+        <text x="1274" y="46" fill="#94a3b8" font-size="11" text-anchor="end">最佳語意匹配度</text>
+        <rect x="1154" y="52" width="120" height="6" rx="3" fill="#0f172a"/>
+        <rect x="1154" y="52" width="114" height="6" rx="3" fill="#10b981"/>
+
+        <!-- Skills Tags -->
+        <g transform="translate(22, 50)">
+          <rect x="0" y="0" width="64" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="32" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">python</text>
+          <rect x="72" y="0" width="72" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="108" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">fastapi</text>
+          <rect x="152" y="0" width="58" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="181" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">redis</text>
+          <rect x="218" y="0" width="64" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="250" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">docker</text>
+          <rect x="290" y="0" width="90" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="335" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">kubernetes</text>
+          <rect x="388" y="0" width="106" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="441" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">microservices</text>
+          <rect x="502" y="0" width="90" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="547" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">postgresql</text>
+        </g>
+
+        <line x1="22" y1="84" x2="1274" y2="84" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+        <!-- Matched Chunk 1 -->
+        <g transform="translate(22, 96)">
+          <rect x="0" y="0" width="1252" height="66" rx="6" fill="#0f172a"/>
+          <rect x="0" y="0" width="4" height="66" rx="2" fill="#38bdf8"/>
+          <text x="16" y="22" fill="#38bdf8" font-size="12" font-weight="bold">[工作經歷 • 雲端系統科技股份有限公司｜資深後端架構師 (2022/03 - Present)]</text>
+          <text x="1236" y="22" fill="#10b981" font-size="12" font-weight="bold" text-anchor="end">切片相似度: 94.8%</text>
+          <text x="16" y="48" fill="#e2e8f0" font-size="12.5" font-family="Consolas, monospace">• 主導核心高併發微服務重構 (Python / FastAPI)，導入 Redis Cluster 快取與分散式鎖，支撐每秒 15,000+ QPS 峰值流量，API P99 延遲降低 62%。</text>
+        </g>
+
+        <!-- Matched Chunk 2 -->
+        <g transform="translate(22, 170)">
+          <rect x="0" y="0" width="1252" height="64" rx="6" fill="#0f172a"/>
+          <rect x="0" y="0" width="4" height="64" rx="2" fill="#10b981"/>
+          <text x="16" y="22" fill="#6ee7b7" font-size="12" font-weight="bold">[專案成果 • 企業級非同步任務調度與容器化部署平台]</text>
+          <text x="1236" y="22" fill="#38bdf8" font-size="12" font-weight="bold" text-anchor="end">切片相似度: 89.2%</text>
+          <text x="16" y="46" fill="#e2e8f0" font-size="12.5" font-family="Consolas, monospace">• 採用 Docker 與 Kubernetes (EKS) 建置自動化容器編排管線，結合 Redis Streams 實現高可靠事件驅動架構，系統可用度達 99.99%。</text>
+        </g>
+      </g>
+
+      <!-- ==================== CANDIDATE CARD 2 (林小華) ==================== -->
+      <g transform="translate(0, 606)">
+        <rect x="0" y="0" width="1296" height="218" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+        <!-- Candidate Header -->
+        <text x="22" y="34" fill="#f8fafc" font-size="18" font-weight="bold">👤 林小華</text>
+        <rect x="115" y="14" width="110" height="24" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+        <text x="170" y="30" fill="#6ee7b7" font-size="11.5" font-weight="bold" text-anchor="middle">年資約 4.2 年</text>
+        <text x="238" y="31" fill="#94a3b8" font-size="12.5" font-family="Consolas, monospace">來源檔案: candidate_one.md (範例脫敏資料)</text>
+
+        <!-- View Full Markdown Button -->
+        <rect x="935" y="12" width="175" height="32" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+        <text x="1022" y="32" fill="#cbd5e1" font-size="12" font-weight="bold" text-anchor="middle">📄 檢視完整履歷 Markdown</text>
+
+        <!-- Score Box -->
+        <text x="1274" y="30" fill="#38bdf8" font-size="22" font-weight="bold" text-anchor="end">88.5%</text>
+        <text x="1274" y="46" fill="#94a3b8" font-size="11" text-anchor="end">最佳語意匹配度</text>
+        <rect x="1154" y="52" width="120" height="6" rx="3" fill="#0f172a"/>
+        <rect x="1154" y="52" width="106" height="6" rx="3" fill="#38bdf8"/>
+
+        <!-- Skills Tags -->
+        <g transform="translate(22, 50)">
+          <rect x="0" y="0" width="64" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="32" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">python</text>
+          <rect x="72" y="0" width="64" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="104" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">django</text>
+          <rect x="144" y="0" width="58" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="173" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">redis</text>
+          <rect x="210" y="0" width="64" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="242" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">docker</text>
+          <rect x="282" y="0" width="64" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="314" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">celery</text>
+          <rect x="354" y="0" width="52" height="22" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+          <text x="380" y="15" fill="#a5b4fc" font-size="11.5" font-family="Consolas, monospace" text-anchor="middle">aws</text>
+        </g>
+
+        <line x1="22" y1="84" x2="1274" y2="84" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+        <!-- Matched Chunk 1 -->
+        <g transform="translate(22, 96)">
+          <rect x="0" y="0" width="1252" height="104" rx="6" fill="#0f172a"/>
+          <rect x="0" y="0" width="4" height="104" rx="2" fill="#38bdf8"/>
+          <text x="16" y="24" fill="#38bdf8" font-size="12" font-weight="bold">[工作經歷 • 數位金融科技股份有限公司｜後端研發工程師 (2021/07 - 2025/09)]</text>
+          <text x="1236" y="24" fill="#10b981" font-size="12" font-weight="bold" text-anchor="end">切片相似度: 88.5%</text>
+          <text x="16" y="52" fill="#e2e8f0" font-size="12.5" font-family="Consolas, monospace">• 負責核心帳務微服務與分散式工作佇列開發 (Python / Django / Celery / Redis)，日處理百萬筆交易批次結算。</text>
+          <text x="16" y="80" fill="#e2e8f0" font-size="12.5" font-family="Consolas, monospace">• 透過 Docker 多階段建置與 AWS ECS 實現無狀態服務自動擴縮容，整合 Prometheus 監控指標降低維運成本 40%。</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

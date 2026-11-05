@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" style="background:#070b14; font-family:'Microsoft JhengHei', Consolas, 'Courier New', monospace;">
+  <defs>
+    <linearGradient id="termHeader" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="termShadow" x="-2%" y="-2%" width="104%" height="106%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(20, 16)" filter="url(#termShadow)">
+    <rect x="0" y="0" width="1160" height="688" rx="14" fill="#0b1120" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Terminal Title Bar -->
+    <path d="M 0 14 Q 0 0 14 0 L 1146 0 Q 1160 0 1160 14 L 1160 44 L 0 44 Z" fill="url(#termHeader)"/>
+    <line x1="0" y1="44" x2="1160" y2="44" stroke="#334155" stroke-width="1"/>
+    <circle cx="24" cy="22" r="6.5" fill="#ef4444"/>
+    <circle cx="44" cy="22" r="6.5" fill="#f59e0b"/>
+    <circle cx="64" cy="22" r="6.5" fill="#10b981"/>
+    <text x="580" y="27" fill="#94a3b8" font-size="13" font-weight="bold" text-anchor="middle">💻 Terminal — Resume-to-Markdown CLI (智慧自動分流 + 四層品管 + Redis 向量入庫)</text>
+
+    <!-- Terminal Body -->
+    <g transform="translate(28, 72)" font-size="13.5">
+      <!-- Command Line -->
+      <text x="0" y="0" fill="#38bdf8" font-weight="bold">PS &gt; <tspan fill="#f8fafc">python convert_to_md.py -i resume/ -o output_md/ -r --review --index-to-redis</tspan></text>
+      <text x="0" y="24" fill="#64748b">===================================================================================</text>
+
+      <!-- File 1: Healthy PDF -->
+      <text x="0" y="50" fill="#cbd5e1">[1/3] [資訊] 正在處理: <tspan fill="#38bdf8" font-weight="bold">sample_resume.pdf</tspan></text>
+      <text x="0" y="74" fill="#94a3b8">[1/3] [探測] PDF 健康度: <tspan fill="#34d399" font-weight="bold">HEALTHY</tspan> (文字層完整，採用 Text-First 高效語意重構)</text>
+      <text x="0" y="98" fill="#94a3b8">[1/3] [品管] 確定性評分: <tspan fill="#10b981" font-weight="bold">100/100 [PASS]</tspan> | 篇幅保留率: <tspan fill="#f8fafc">94.2%</tspan> | 自我審核: <tspan fill="#38bdf8">True</tspan></text>
+      <text x="0" y="122" fill="#34d399">[1/3] [成功] 轉換完成！檔案已儲存至: output_md/sample_resume.md</text>
+      <text x="0" y="146" fill="#a5b4fc">[1/3] [索引] 已切分為 6 個語意區塊 ➔ 寫入 RediSearch HNSW (idx:resumes:v1)</text>
+      <text x="0" y="170" fill="#475569">-----------------------------------------------------------------------------------</text>
+
+      <!-- File 2: 104 Obfuscated Font PDF -->
+      <text x="0" y="196" fill="#cbd5e1">[2/3] [資訊] 正在處理: <tspan fill="#38bdf8" font-weight="bold">candidate_one.pdf</tspan></text>
+      <text x="0" y="220" fill="#fbbf24">[2/3] [探測] PDF 健康度: <tspan fill="#f59e0b" font-weight="bold">OBFUSCATED_FONT</tspan> (偵測到 104 防爬亂碼 \ufffd ➔ 自動切換視覺多模態管線)</text>
+      <text x="0" y="244" fill="#94a3b8">[2/3] [修復] 啟動兩階段 Chat 自我審核 (Self-Refinement): 對照原圖完成 5 大維度校正與斷句縫合</text>
+      <text x="0" y="268" fill="#94a3b8">[2/3] [品管] 確定性評分: <tspan fill="#10b981" font-weight="bold">100/100 [PASS]</tspan> | 篇幅保留率: <tspan fill="#f8fafc">108.5%</tspan> | 自我審核: <tspan fill="#38bdf8">True</tspan></text>
+      <text x="0" y="292" fill="#34d399">[2/3] [成功] 轉換完成！檔案已儲存至: output_md/candidate_one.md</text>
+      <text x="0" y="316" fill="#a5b4fc">[2/3] [索引] SHA-256 指紋未變更 ➔ 命中增量快取 (略過 Embedding API 呼叫，消耗 0 Token)</text>
+      <text x="0" y="340" fill="#475569">-----------------------------------------------------------------------------------</text>
+
+      <!-- File 3: Corrupted / Quarantined PDF -->
+      <text x="0" y="366" fill="#cbd5e1">[3/3] [資訊] 正在處理: <tspan fill="#fde68a" font-weight="bold">corrupt.pdf</tspan></text>
+      <text x="0" y="390" fill="#f87171">[3/3] [品管] 確定性評分: <tspan fill="#ef4444" font-weight="bold">50/100 [FAIL]</tspan> (低於門檻 65 分：缺少核心工作經歷區塊、保留率僅 21.4%)</text>
+      <text x="0" y="414" fill="#fbbf24">[3/3] [隔離] 已攔截瑕疵檔案並自動移送隔離區: quarantine/corrupt.md (阻斷污染向量庫)</text>
+
+      <!-- Batch Summary Box -->
+      <text x="0" y="448" fill="#64748b">===================================================================================</text>
+      <text x="0" y="474" fill="#38bdf8" font-weight="bold">【批次轉檔與品管稽核彙總報表】</text>
+      <text x="0" y="500" fill="#f8fafc">  • 總處理檔案數      : <tspan fill="#38bdf8" font-weight="bold">3</tspan> 份</text>
+      <text x="0" y="524" fill="#f8fafc">  • 轉換合格放行數    : <tspan fill="#10b981" font-weight="bold">2</tspan> 份 (自動入庫 RediSearch HNSW 向量索引)</text>
+      <text x="0" y="548" fill="#f8fafc">  • 品管自動隔離數    : <tspan fill="#f59e0b" font-weight="bold">1</tspan> 份 (&lt; 65 分，已隔離至 quarantine/)</text>
+      <text x="0" y="572" fill="#f8fafc">  • 合格平均品管得分  : <tspan fill="#10b981" font-weight="bold">100.0</tspan> / 100 分 | 批量稽核日誌: <tspan fill="#94a3b8">logs/audit_report.csv</tspan></text>
+      <text x="0" y="596" fill="#64748b">===================================================================================</text>
+    </g>
+  </g>
+</svg>
