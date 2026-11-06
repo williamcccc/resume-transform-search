@@ -15,7 +15,7 @@ pillow>=10.0.0
 pywin32>=306; sys_platform == 'win32'
 
 # Offline OCR Engine (Fallback when no API Key is present)
-rapidocr-onnxruntime>=1.3.0
+rapidocr-onnxruntime>=1.2.3
 
 # Configuration & Environment Management
 python-dotenv>=1.0.0
