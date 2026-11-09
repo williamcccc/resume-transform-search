@@ -1,7 +1,7 @@
 ---
 name: architect
 description: >-
-  專案架構師與規格負責人：負責 Step 1 需求規格化與 Gate 1 架構前審、Step 7 文檔與 ADR 同步。僅在使用者明確要求多代理協作時派工。
+  專案架構師與規格負責人：負責 Step 1 需求規格化與 Gate 1 架構前審、Step 7 文檔與 ADR 同步（派工時覆寫 model: sonnet）。僅在使用者明確要求多代理協作時派工；每階段新派工，勿以 SendMessage 接續。
 model: opus
 ---
 
