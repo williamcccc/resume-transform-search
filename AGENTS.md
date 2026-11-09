@@ -126,6 +126,10 @@ flowchart TD
      ```
 8. **Step 6 (Auto-Fix) 增量日誌防禦 (Delta-only Traceback)**：
    - 在自動修復的三振輪次中，每次重試僅保留最新一輪的失敗影格 (Last Frame Traceback) 與失敗假設，徹底捨棄前幾輪累積的舊錯誤日誌與終端流水帳，防範上下文雪崩。
+9. **規範與角色檔零重複讀取 (No Redundant Context Loading)**：
+   - 本文件（AGENTS.md）由各工具於主對話與子 Agent 啟動時**自動載入**，嚴禁再以讀檔工具重複讀取。
+   - 角色檔（`.agents/<role>/AGENT.md`）與 Skill 檔（`SKILL.md`）於同一上下文中已讀過者不重讀；僅於上下文壓縮致內容遺失時重新讀取。
+   - 各工具之原生轉接層（如 `.claude/skills/`、`.claude/agents/`）僅含 frontmatter 與指向正本之讀取指示，嚴禁複製正本內容；一致性由 `verify_doc_sync.py` 自動校驗。
 
 ---
 

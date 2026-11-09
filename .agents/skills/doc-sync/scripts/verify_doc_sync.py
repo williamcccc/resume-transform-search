@@ -9,6 +9,7 @@ verify_doc_sync.py
 2. ADR 編號是否符合連續編號格式 (XXXX-*.md)。
 3. ADR 文件中狀態是否明確標註。
 4. REQUIREMENTS.md 與 ARCHITECTURE.md 是否存在且未損毀。
+5. .claude/ 原生轉接層與 .agents/ 正本一一對應、frontmatter 一致且未複製正本內容。
 """
 
 import os
@@ -25,6 +26,10 @@ DOCS_README = DOCS_DIR / "README.md"
 ADR_README = DOCS_ADR_DIR / "README.md"
 REQUIREMENTS_FILE = ROOT_DIR / "REQUIREMENTS.md"
 ARCHITECTURE_FILE = ROOT_DIR / "ARCHITECTURE.md"
+
+# Claude Code 原生轉接層規則
+SKILL_ALIASES = {"code-review": "gate2-code-review"}  # 避免與 Claude Code 內建指令撞名
+ADAPTER_MAX_LINES = 20  # 轉接檔行數上限，超過視為複製正本內容
 
 
 def check_basic_docs_exist() -> bool:
@@ -115,14 +120,106 @@ def check_adr_sync() -> bool:
     return all_ok
 
 
+def parse_frontmatter(text: str) -> dict[str, str]:
+    """解析 Markdown frontmatter 之頂層鍵值（支援 >- / | 多行摺疊），值以單一空白正規化。"""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    fields: dict[str, list[str]] = {}
+    current = None
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        key_match = re.match(r"^([A-Za-z_][\w-]*):\s*(.*)$", line)
+        if key_match:
+            current = key_match.group(1)
+            value = key_match.group(2).strip()
+            fields[current] = [] if value in (">-", ">", "|", "|-") else [value]
+        elif current is not None:
+            fields[current].append(line.strip())
+    return {k: " ".join(v for v in vals if v) for k, vals in fields.items()}
+
+
+def _check_adapter(adapter: Path, source: Path, expected_name: str, root: Path) -> bool:
+    rel = adapter.relative_to(root).as_posix()
+    if not adapter.exists():
+        print(f"[FAIL] 缺少 Claude Code 轉接檔: {rel}（正本: {source.relative_to(root).as_posix()}）")
+        return False
+    text = adapter.read_text(encoding="utf-8")
+    meta = parse_frontmatter(text)
+    ok = True
+    if meta.get("name") != expected_name:
+        print(f"[FAIL] 轉接檔 name 應為 {expected_name!r}，實際為 {meta.get('name')!r}: {rel}")
+        ok = False
+    if not meta.get("description"):
+        print(f"[FAIL] 轉接檔缺少 description: {rel}")
+        ok = False
+    source_ref = source.relative_to(root).as_posix()
+    if source_ref not in text:
+        print(f"[FAIL] 轉接檔未指向正本 {source_ref}: {rel}")
+        ok = False
+    if len(text.splitlines()) > ADAPTER_MAX_LINES:
+        print(f"[FAIL] 轉接檔超過 {ADAPTER_MAX_LINES} 行，疑似複製正本內容: {rel}")
+        ok = False
+    return ok
+
+
+def check_claude_adapters(root: Path = ROOT_DIR) -> bool:
+    """校驗 .agents/ 正本之 Skill 與角色皆有對應之 .claude/ 轉接檔，且無孤兒轉接檔。"""
+    agents_dir = root / ".agents"
+    skills_src = agents_dir / "skills"
+    skills_dst = root / ".claude" / "skills"
+    agents_dst = root / ".claude" / "agents"
+    if not agents_dir.exists():
+        print("[WARN] 未發現 .agents/ 目錄，略過 Claude Code 轉接層校驗")
+        return True
+
+    all_ok = True
+    expected_skill_dirs = set()
+    for source in sorted(skills_src.glob("*/SKILL.md")):
+        src_name = source.parent.name
+        alias = SKILL_ALIASES.get(src_name, src_name)
+        expected_skill_dirs.add(alias)
+        adapter = skills_dst / alias / "SKILL.md"
+        if not _check_adapter(adapter, source, alias, root):
+            all_ok = False
+            continue
+        src_desc = parse_frontmatter(source.read_text(encoding="utf-8")).get("description")
+        dst_desc = parse_frontmatter(adapter.read_text(encoding="utf-8")).get("description")
+        if src_desc != dst_desc:
+            print(f"[FAIL] 轉接檔 description 與正本不一致: {adapter.relative_to(root).as_posix()}")
+            all_ok = False
+
+    expected_roles = set()
+    for source in sorted(agents_dir.glob("*/AGENT.md")):
+        role = source.parent.name
+        expected_roles.add(role)
+        if not _check_adapter(agents_dst / f"{role}.md", source, role, root):
+            all_ok = False
+
+    if skills_dst.exists():
+        for orphan in sorted(d.name for d in skills_dst.iterdir() if d.is_dir() and d.name not in expected_skill_dirs):
+            print(f"[FAIL] 孤兒 Skill 轉接檔（無對應正本）: .claude/skills/{orphan}")
+            all_ok = False
+    if agents_dst.exists():
+        for orphan in sorted(f.stem for f in agents_dst.glob("*.md") if f.stem not in expected_roles):
+            print(f"[FAIL] 孤兒角色轉接檔（無對應正本）: .claude/agents/{orphan}.md")
+            all_ok = False
+
+    if all_ok:
+        print(f"[PASS] Claude Code 轉接層與 .agents/ 正本一致 (Skill {len(expected_skill_dirs)} 個、角色 {len(expected_roles)} 個)")
+    return all_ok
+
+
 def main():
     print("=== [doc-sync] 文檔雙向同步一致性檢驗 ===")
     ok1 = check_basic_docs_exist()
     ok2 = check_adr_sync()
     ok3 = check_directory_docs(DOCS_SPECS_DIR, "需求與技術實作規格 (Specs)", DOCS_README)
     ok4 = check_directory_docs(DOCS_QA_DIR, "QA 實測驗收報告 (QA Reports)", DOCS_README)
+    ok5 = check_claude_adapters()
 
-    if ok1 and ok2 and ok3 and ok4:
+    if ok1 and ok2 and ok3 and ok4 and ok5:
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")
         sys.exit(0)
     else:

@@ -14,4 +14,7 @@
    - 機械化探索、檔案清單掃描、語法檢查、測試執行：`haiku`。
    - Gate 1 架構前審、Gate 2 對抗式代碼審查、深度 RCA：沿用主對話模型（Opus）或指定 `opus`。
 2. **報告雙寫 (Dual-Persistence)**：超過 30 行之 PRD、Tech Spec、QA 報告寫入 `docs/specs/`、`docs/qa_reports/` 之獨立 Markdown 檔案；需分享檢視時再以 Artifact 發布。
-3. **Skill 路徑**：閉環各階段之 Skill 位於 `.agents/skills/<skill>/SKILL.md`（非 Claude Code 內建 Skill），階段開始前以 Read 讀取後依其指示執行。
+3. **Skill 路徑與原生探索**：閉環各階段 Skill 之正本位於 `.agents/skills/<skill>/SKILL.md`；`.claude/skills/<skill>/SKILL.md` 僅為 Claude Code 原生探索之轉接層（僅含 frontmatter 與一行讀取指示），可經 Skill 工具或 `/<skill>` 呼叫，載入後仍以 Read 讀取正本並依其指示執行。
+   - 新增或修改 Skill 時只改正本；若變更 `name`/`description` 或新增 Skill，須同步更新對應轉接檔。
+   - 專案之 `code-review` 技能於 Claude Code 中命名為 `gate2-code-review`，以避免與 Claude Code 內建 `/code-review` 指令衝突。
+4. **角色子 Agent 轉接層**：`.claude/agents/<role>.md` 僅含 frontmatter（`name`、`description`、`model`）與讀取 `.agents/<role>/AGENT.md` 之指示，**僅於使用者明確要求多代理協作時派工**；子 Agent 已自動載入 AGENTS.md，轉接檔嚴禁指示重複讀取。

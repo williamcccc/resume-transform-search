@@ -94,6 +94,10 @@ resume-to-markdown/
 │   ├── gatekeeper/                     # 對抗式 QA 與資安審查官代理定義 (AGENT.md)
 │   └── skills/                         # 8 大專屬技能庫 (feature-design, unit-testing, qa-testing, code-review, auto-fix, doc-sync, resume-vector-indexing, resume-vector-search)
 │
+├── .claude/
+│   ├── agents/                         # Claude Code 角色子 Agent 轉接層（僅 frontmatter + 指向 .agents/<role>/AGENT.md 正本）
+│   └── skills/                         # Claude Code 原生 Skill 轉接層（僅 frontmatter + 指向 .agents/skills/ 正本）
+│
 ├── convert_to_md.py                    # CLI 主啟動進入點 (保持既有命令 100% 向下相容)
 ├── index_to_redis.py                   # 履歷切片、向量化入庫 Redis 專用 CLI
 ├── search_resumes.py                   # 自然語言與條件混合語意檢索 CLI (含互動終端)
