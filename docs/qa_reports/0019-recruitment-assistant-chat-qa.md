@@ -273,3 +273,172 @@
 | G3-05 | P3 | 逾時後孤兒抽取浪費 Token |
 | TC-17 | P3 | 瀏覽器手動點測未執行 |
 | P3-STREAM | P3 | 串流回覆（SSE） |
+
+---
+
+## 10. Rev2 QA（ADR-0019 Rev2，AC-34 ~ AC-43 / TC-23 ~ TC-31）
+
+> **範圍**：[Spec-0019 第六部](../specs/0019-recruitment-assistant-chat-spec.md) 之三項實測缺陷修正（真實寫法技能比對、OR 多選項、次級瓶頸診斷、敘述不截斷、模板零誤刪、JD/Profile 版本拆分）。
+> **結論**：**PASS（零功能缺陷）**，附 2 項測試側修正與 3 項觀察（O-01 ~ O-03，皆非阻斷）。
+
+### 10.1 執行摘要
+
+| 項目 | 結果 |
+| :--- | :--- |
+| 單元測試 | `Ran 392 ... OK` |
+| `audit_guardrails.py` | 100% PASSED |
+| E2E 新增 | [test_recruitment_chat_e2e.py](../../tests/e2e/test_recruitment_chat_e2e.py) 新增 `TestRecruitmentChatRev2FakeE2E`（4 項）、`TestRecruitmentChatRev2LiveE2E`（1 項）；E2E 檔共 28 項 |
+| FAKE 軌（含 Redis Checkpointer db0） | 4/4 綠燈（重跑 3 次穩定） |
+| LIVE 軌（真實 Gemini + 真實 Redis 臨時索引 `qa0019rev2live:`） | 通過；舊 LIVE 兩輪對話於修正測試詞彙後連跑 3/3 綠燈 |
+| 正式庫實測（`web_dashboard.py` 8080，已遮罩人名） | 通過（見 10.3）；伺服器已關閉、8080 釋放（僅餘 TIME_WAIT） |
+| Redis 殘留 | `*qa0019*` 鍵 0 個；正式索引 `idx:resumes:v1` 仍為 2211 筆 |
+
+### 10.2 需求追溯矩陣（RTM）
+
+| AC | TC | 驗證方式 | 結果 |
+| :---: | :---: | :--- | :---: |
+| AC-34 OR 多選項 | TC-23 / TC-24 | 單元（392 項內）；E2E 經 `GET /api/chat/{sid}` 確認 `R1.skills == {python, go}` 為單一條件；LIVE：真實 Gemini 對「精通 Python 或 Go」「PostgreSQL / MySQL 其一」抽出 `skills ⊇ {python,go}`、`⊇ {postgresql,mysql}` | PASS |
+| AC-35 版本/變體容錯 | TC-25 | 單元參數化表；E2E 履歷含 `Python3`、`Python 3.11`、`PostgreSQL 12`、`postgres 14`、`Golang`、`Go 1.21`、`k8s`、`Kubernetes (EKS)` 全數正確比對 | PASS |
+| AC-36 缺席判定 | TC-26 / TC-31 | 單元七規則；E2E：僅內文出現之 `Golang` 經詞面回退為 MET 且附 `verified=true` 證據；全文零命中者 UNMET | PASS |
+| AC-37 次級瓶頸 | TC-27 | E2E（3 人 delta 全 0）：`strictest_requirement_ids` 等於 `met_count` 最小者，回覆含「通過率最低之條件」；正式庫：回覆「R6（2/15 位）」與表格一致；存在 delta>0 時為空（TC-31 斷言） | PASS |
+| AC-38 版本拆分 | TC-28 | E2E：JD 版本改變後 `jd_cache_hit=false`、`profile_cache_misses=0`、Profile 抽取 0 次 | PASS |
+| AC-39 敘述輸出上限 | TC-29 | 單元 Spy（各操作 `max_output_tokens`、thinking 參數傳/不傳）；`.env.example` 同步由 audit 驗證 | PASS |
+| AC-40 截斷降級 | TC-24 / TC-29 | 單元注入 `MAX_TOKENS`/括號不成對；LIVE 與正式庫回覆皆無警告「超出長度上限」、`has_unbalanced_brackets(reply)=False`、結尾完整 | PASS |
+| AC-41 模板零誤刪 | TC-30 | E2E（FAKE/LIVE/正式庫）回覆均不含「引文未通過原文驗證」，註記「履歷未提及」保留 | PASS |
+| AC-42 LLM 段落持續驗證 | TC-30 | 單元（虛構「」『』引文移除並警告、系統詞彙保留） | PASS |
+| AC-43 真實寫法技能 E2E | TC-31 | E2E：`baseline_qualified=3`（>0）；OR 條件三位各以不同寫法命中皆 MET；刻意瓶頸 `R3 delta=1`、`strictest=[]`；Redis Checkpointer 與記憶體兩種後端結果一致 | PASS |
+
+回歸：舊 E2E（TC-01 ~ TC-22）全數維持綠燈（見 10.4 之測試側修正與單次未重現錯誤）。
+
+### 10.3 正式庫實測（背景啟動 `python web_dashboard.py`，port 8080）
+
+| 指標 | Turn 1（冷啟，JD 版本與 Profile 版本皆變更） | Turn 2 |
+| :--- | :--- | :--- |
+| HTTP / 耗時 | 200 / 42.9 s | 200 / 29.4 s |
+| LLM 呼叫 | 17（Profile 抽取 15 次，快取因版本變更一次性失效） | 2 |
+| 快取 | `profile_cache_misses=15`，`jd_cache_hit=false` | 0 miss |
+| degraded / warnings | false / 2 則（1 位結構化抽取失敗回退、1 位欄位證據降級，均為既有 Fail-Safe 提示） | false / 無 |
+| 瓶頸診斷 | `baseline_qualified=0`，所有 `delta=0`，**`strictest` = 帶領團隊條件（2/15 位符合、13 位履歷未提及）**；回覆表格、文字與 `relaxation` 數字一致 | 沿用 |
+| 敘述完整性 | 「推薦理由」四段與「條件瓶頸說明」結尾完整，無截斷；無「引文未通過原文驗證」假警告；「履歷未提及」註記保留 | 追問 `SUPPORTED` 附 1 則逐字引文；面試題 3 題，對應 R2 / R4 / R7 |
+
+與 Rev1 實測對照：Rev1 為 `baseline=0` 且 `strictest` 無資訊、敘述停在「Message Queue (」、模板註記被剝除；Rev2 三項缺陷皆消失。正式庫 `baseline=0` 屬資料性（領導力條件在 13/15 份履歷中無相關描述），診斷已改為指出最嚴格條件，符合 AC-37 設計。
+
+LIVE 臨時索引（8 + 6 位虛構人選）量測：典型兩輪對話冷啟 27 ~ 31 s、同 JD 重查 9.1 s 且 `profile_cache_hits=8`、`llm_calls=1`；Rev2 情境冷啟 27 ~ 36 s、`llm_calls=8`。
+
+### 10.4 缺陷、測試側修正與觀察
+
+| ID | 類型 | 描述 | 處置 |
+| :---: | :---: | :--- | :--- |
+| T-01 | 測試側修正 | 舊 LIVE 測試（AC-08）要求回覆中所有「」引文都須可溯源，因 Rev1 缺陷把模板的「履歷未提及」剝除而隱性通過；Rev2 依 AC-41 保留後該斷言誤報 | 已把系統詞彙「履歷未提及」納入允許集合；修正後連跑 3/3 綠燈 |
+| T-02 | 測試側修正 | 預設 `FakeNarrator` 敘述引述他組履歷的證據，被 AC-42 正確剝除並出現移除註記 | Rev2 E2E 改用中性敘述，確保只驗模板行為 |
+| O-01 | 觀察（非缺陷） | 單字「Go」屬歧義短詞，只出現在履歷內文（如「Go 1.21 開發閘道」）且未被結構化抽取時，依規則 5 判為 UNKNOWN 而非 MET；需結構化 `core_skills` 命中才 MET | 符合 AC-36 設計；建議 HR 端以 `Golang` 或結構化抽取補強，列入 Backlog 評估 |
+| O-02 | 觀察 | LIVE 真實 Gemini 之 JD 抽取具非確定性：同一 Rev2 JD 有時抽成 3 項、有時多抽 1 項必要條件（本次一次 `baseline=0` 且 `R1 delta=3`，另一次 `baseline=3`） | E2E 僅斷言集合包含與不變式（baseline>0 或 strictest/delta 有值），不鎖定具體人數 |
+| O-03 | 觀察 | 舊 LIVE 兩輪測試的 `rank1 == a` 斷言有 1/6 次因 LLM Profile 抽取不確定而失敗（G3-03 同類），單次重跑即轉綠 | 沿用既有 Backlog G3-03，不新增缺陷 |
+| F-01 | 未重現 | 全套件第二次執行時 `test_tc18b_builtin_engine_returns_501` 出現 1 次 ERROR（單獨重跑與連跑 2 次皆通過，第一次全套件亦通過） | 判定為本機埠號/連線瞬時問題；若再現再列為缺陷 |
+
+### 10.5 結論
+
+* **Rev2 QA：PASS**。AC-34 ~ AC-43 共 10 項皆有對應 TC 且實測通過，RTM 43/43 覆蓋；零 P0/P1 缺陷。
+* 測試產出：E2E 新增 5 項、舊 LIVE 測試 1 處詞彙修正；未修改 `src/`。
+* 已知成本：Profile 版本變更使 181 份快取一次性失效（已接受）；正式庫實測寫入的 15 份 Profile 快取屬正式快取，保留。
+
+## 11. Rev2 Gate 2（對抗式代碼審查）
+
+> **範圍**：分支 `feat/recruitment-assistant-chat` 相對 `123a081` 之工作區未提交變更（16 檔修改 + 3 個新單元測試檔），對照 [Spec-0019 第六部](../specs/0019-recruitment-assistant-chat-spec.md) §2 ~ §5。
+> **結論**：**Gate 2 PASS（零 P0）**；2 項 P1 建議於合併前修正，或於 Step 7 寫入 ADR-0019 偏差紀錄作為已接受風險。
+
+### 11.1 自動化與回歸
+
+| 項目 | 結果 |
+| :--- | :--- |
+| `audit_guardrails.py` | Exit 0，8 項全數 PASS（Domain 純潔、DIP、with、例外鏈、零硬編碼、Prompt 資產化、Git 衛生、`.env.example` 對齊） |
+| 單元測試 | `Ran 392 tests ... OK`（約 15 秒，全離線 Mock） |
+| 對抗探針（scratchpad 腳本，未入庫） | 以預設別名/豁免表直接呼叫 Domain 純函式，重現下列 P1-01、P1-02、P2-01、P2-02 |
+
+### 11.2 Checklist 覆核
+
+| 維度 | 結論 | 說明 |
+| :--- | :---: | :--- |
+| DDD 依賴邊界 | PASS | 新增純函式全在 Domain，零第三方 import；`thinking_budget`、`include_raw` 僅在 Gemini Adapter |
+| Prompt 圍欄 / 注入 | PASS | `match_text` 僅用於伺服器端確定性比對，不送 LLM；詞面證據片段只經 `facts_json`（`neutralize_fences` + `<facts_json>` 圍欄）進入敘述 Prompt |
+| 受保護屬性遮蔽 | PASS | `prepare_match_text` 與 `prepare_llm_text` 共用 `redact_resume` → `mask_contact_info`，片段取自已遮蔽文本；`filter_requirements` 已改掃 `skill_options` |
+| 引文驗證範圍 | PASS | 所有 LLM 輸出路徑（敘述、追問 `answer_text`、一般問答、LLM 面試題本文與理由）皆走 `add_llm`；模板段落僅含系統字串或已驗證引文；白名單（狀態標籤、`jd.title`、條件 label）來源皆為系統或 HR 輸入，無法被 LLM 擴充 |
+| 例外鏈 / 降級 | PASS | `LlmOutputTruncatedError` 繼承 `RecruitmentLlmError`，`parsing_error` 以 `from` 串接；截斷不重試、改用模板並加警告 |
+| 日誌零洩漏 | PASS | 截斷日誌只記 `op_name`、`finish_reason`、token 計數；例外訊息不含輸出文字 |
+| ReDoS / 正規式成本 | PASS | `_term_pattern` 為跳脫字面量加無歧義版本群組（線性）；`_VERSION_TAIL` 等尾錨樣式僅作用於短技能字串。對抗輸入（10 萬字元版本鏈）耗時 < 20 ms |
+| 配置治理 | PASS | 新增 5 個環境變數由 `AppConfig` → `RecruitmentSettings` 注入，並已同步 `.env.example`；`_MIN_STEM_CHARS=3`、`JD_SCHEMA_REVISION` 屬規格明定之演算法/程式碼版本常數 |
+| 測試隔離 | PASS | 新測試皆以記憶體虛構履歷建構（`王小明`），零 `data/`、`resume/` 讀取 |
+
+### 11.3 發現清單
+
+| ID | 等級 | 位置 | 描述 | 建議修法 |
+| :---: | :---: | :--- | :--- | :--- |
+| P1-01 | P1 | [recruitment_services.py:179](../../src/domain/recruitment_services.py) + [config.py:63](../../src/infrastructure/config.py) | 預設別名 `node:nodejs` 經詞面反查後變成搜尋詞 `node`（4 字元，非歧義）。重現：履歷「管理 worker node 擴縮容」對 `nodejs` 條件被判為 MET，並附上 `verified=true` 證據。這不屬於 R9「列名但未使用」，而是同形異義造成的誤判 | 反查別名詞時排除通用英文詞（可新增設定 `RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST`，或規定反查詞須含 `.`/`js` 等技術特徵）；或從預設別名移除 `node:nodejs`，只保留 `node.js:nodejs` |
+| P1-02 | P1 | [recruitment_services.py:224](../../src/domain/recruitment_services.py) | 證據片段固定取「命中行開頭」的前 `snippet_chars` 字。若履歷以長段落為一行，命中詞可能落在 80 字之後，片段就不含該技能。重現：120 字前綴後接「Kafka」→ 片段不含 `kafka`。R9 的緩解手段（讓 HR 依片段判讀）因此失效 | 以 `match.start()` 換算成行內位置，取以命中詞為中心、長度 `snippet_chars` 的視窗（仍以原文切片，`verify` 不受影響） |
+| P2-01 | P2 | [recruitment_services.py:113](../../src/domain/recruitment_services.py) | `split_skill_options` 把 `pl/sql`、`tcp/ip`、`a/b testing` 切成 OR 選項，僅會 `sql` 的人就符合 `PL/SQL` 條件 | 在預設別名補 `pl/sql:plsql`、`tcp/ip:tcpip`、`a/b testing:abtesting`，或規定任一切分段短於 3 字元時不切 |
+| P2-02 | P2 | [recruitment_services.py:683](../../src/domain/recruitment_services.py) | 若敘述逐字引用被截斷的證據片段（內含未閉合的「(」）或含表情符號「:(」，括號檢查會誤判為截斷，造成不必要的模板降級（屬 Fail-Safe，不會產生錯誤輸出） | 判定前先移除已驗證的「」引文內容；或只檢查文末未閉合的開括號 |
+| P2-03 | P2 | [recruitment_nodes.py:352](../../src/application/recruitment_nodes.py) | `_lexical_evidence` 對每個 MET 的 SKILL 條件重算一次 `_skill_decision`；`find_skill_mention` 每次呼叫都對全文重做 NFKC 正規化（最多 30 人 × 12 條，目前可接受） | 讓 `evaluate_candidate` 一併回傳 mention，或快取正規化後的文本 |
+| P2-04 | P2 | [gemini_recruitment_llm.py:327](../../src/infrastructure/llm/gemini_recruitment_llm.py) | `skills` 的選項數與單一選項長度皆無上限 | 套用與 `label` 相同的截斷，並限制選項數（例如 ≤ 8） |
+| P2-05 | P2 | [recruitment_services.py:110](../../src/domain/recruitment_services.py) | 去版本尾碼會把 `base64`→`base`、`utf8`→`utf`、`sha256`→`sha`、`arm64`→`arm` | 視需要加入 `RECRUIT_SKILL_VERSION_STRIP_EXEMPT` 預設值 |
+| P2-06 | P2 | [recruitment_services.py:226](../../src/domain/recruitment_services.py) | `min_chars` 以字元數計算，未區分文字系統。2 字的中文技能詞（例如「爬蟲」）一律落入歧義 → UNKNOWN | 依 CJK 與拉丁字母分別設定門檻，或列為 Backlog |
+| P2-07 | P2 | [test_recruitment_rev2_nodes.py:336](../../tests/unit/test_recruitment_rev2_nodes.py) | 條件式斷言 `assertEqual(...) if second.cache_hits else None`：若未命中快取，測試會靜默通過（目前實測 hits=4，確實有覆蓋）。同檔第 354 行 `assertIsNotNone(search)` 為無意義斷言 | 改為無條件的 `assertGreater(second.cache_hits, 0)` + `assertEqual(second.cache_misses, 0)`；並移除第 354 行 |
+| P2-08 | P2 | [server.py:265](../../src/interfaces/web/server.py) | （F-01 根因假設，Rev1 既有程式碼，非 Rev2 引入）內建引擎的 501 路徑沒有讀取 POST 請求本體就回應並關閉連線。Windows 在接收緩衝區尚有未讀資料時關閉 socket 會送出 RST，用戶端可能間歇收到 `ConnectionResetError (WinError 10054)` → 測試記為 ERROR 而非 FAIL，與 QA 觀察到的「單次 ERROR、無法重現」吻合。這不是共享狀態問題（`port=0`，每次使用獨立 server） | 在 `send_chat_not_implemented` 前依 `Content-Length` 讀掉請求本體；或讓測試的 POST 不帶本體 |
+
+### 11.4 Developer 偏差裁定
+
+| # | 偏差 | 裁定 | 理由 |
+| :---: | :--- | :---: | :--- |
+| 1 | `has_unbalanced_brackets` 只判未關閉的開括號與巢狀錯位，孤立的關括號不算 | 接受 | 截斷必定留下未關閉的開括號；忽略條列「1)」可避免誤判。殘餘誤判見 P2-02 |
+| 2 | 規則 3 的詞面證據只在 `verify` 為真時才寫入 | 接受 | 下游證據流程原本就只採用 `verified=True` 的證據，此做法較規格更嚴格；當片段短於 `min_chars` 時會出現「MET 但無證據」，可接受 |
+| 3 | 瓶頸表「符合人數」放在最後一欄 | 接受 | 規格未規定欄位順序，且只增欄、不改既有欄位 |
+| 4 | `ReplySection` 多一個 `join` 欄位；`compose` 以起始段為單位整塊去重 | 接受 | 能保留原本的區塊組裝語意；各節點的起始段標頭彼此不同（追問／面試題／名單），整塊去重不會誤刪不同內容 |
+| 5 | `find_skill_mention` 依 exempt 排除版本尾碼（`web3` ≠ `web`） | 接受 | 符合 AC-35 的豁免意旨，並補齊詞面路徑 |
+| 6 | `RECRUIT_LLM_THINKING_BUDGET` 套用到主模型的所有操作；`0` 與空值分開處理 | 接受（附註） | 預設為空，行為不變；Step 7 須在 ADR 與 `.env.example` 註明「會作用於意圖分類與抽取」，以及正整數設定在不支援 thinking 的模型上可能導致每次呼叫失敗 |
+| 7 | codec 只在沒有 `skills` 鍵時才以 `[skill]` 回填 | 接受 | 若 `skills=[]`，`skill_options` 仍會回退為 `(skill,)`，語意等價 |
+| 8 | `extractor_version` 保留且等同 `jd_extractor_version` | 接受 | 只是相容屬性；兩個 Adapter 已分別回傳對應版本，Protocol 簽章不變 |
+
+### 11.5 Gate 2 判定
+
+* **PASS（零 P0）**：架構分層、圍欄、遮蔽、例外鏈、配置同步與測試隔離皆合格。
+* P1-01、P1-02 屬比對精確度與證據可讀性的問題，不違反紅線。建議進入 Step 7 前以 Step 6 修正；若不修正，須在 ADR-0019 偏差紀錄中列為已接受風險（擴充 R9）。
+* F-01 歸類為既有程式碼的間歇性測試問題（P2-08），與 Rev2 變更無關，不阻斷。
+
+## 12. Rev2 Gate 2 複審（Step 6 第 1 輪：P1-01、P1-02、P2-01、P2-05、P2-07）
+
+> **範圍**：只審 Step 6 第 1 輪的差異，不重審整個 Rev2。對象為 [recruitment_services.py](../../src/domain/recruitment_services.py) 中的 `_mention_terms`、`_centered_snippet`、`find_skill_mention`、`RequirementMatcher.__init__`，[config.py](../../src/infrastructure/config.py) 的預設值，`RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST` 的注入鏈（`.env.example` → `AppConfig` → [server.py](../../src/interfaces/web/server.py) → [recruitment_settings.py](../../src/application/recruitment_settings.py) → [recruitment_nodes.py](../../src/application/recruitment_nodes.py) → Domain），以及兩個測試檔的修正。
+> **結論**：**Gate 2 PASS（零 P0、零新增 P1）**。原 P1-01、P1-02 的重現案例已無法重現；複審新增 3 項 P2，不阻斷進入 Step 7。
+
+### 12.1 自動化重跑（Gatekeeper 自行執行）
+
+| 項目 | 結果 |
+| :--- | :--- |
+| `python -m unittest discover -s tests/unit` | `Ran 398 tests ... OK`（約 14 秒），與 Developer 自報一致 |
+| `audit_guardrails.py` | Exit 0，8 項全數 PASS |
+| 對抗探針（scratchpad 腳本，未入庫） | 以 `config.py` 預設別名、豁免表、denylist 直接呼叫 Domain 純函式 |
+
+### 12.2 修正驗證
+
+| 原 ID | 驗證結果 | 證據 |
+| :---: | :---: | :--- |
+| P1-01 | 已修正 | 履歷「管理 worker node 擴縮容」對 `Node.js`、`nodejs`、`Node` 三種寫法的條件皆無詞面命中（不再誤判 MET）；`精通 Node.js`、`NodeJS`、全形 `Ｎｏｄｅ．ｊｓ`、`node.js18` 仍為 MET。denylist 只過濾別名**反查詞**；當 `canon` 本身即為 denylist 詞時不受影響，結構化路徑（`skill_variants`）也不受影響 |
+| P1-02 | 主情境已修正 | 120 字前綴＋`Kafka`、命中詞位於行首/行尾/行中、行首尾空白、前後各 100 個 emoji（非 BMP 字元）：片段皆含命中詞、長度 ≤ 80，`EvidenceVerifier.verify` 皆為 True。Python `str` 以碼位為單位切片，不會切斷代理對。片段取自已遮蔽的 `match_text` 同一行，遮蔽是以整行/整格為單位，切片不會使遮蔽失效。殘餘情境見 P2-09 |
+| P2-01 | 已修正 | `PL/SQL`、`TCP/IP`、`A/B testing` 不再被切開（分別正規化為 `plsql`、`tcpip`、`abtesting`）；只寫「SQL」的履歷不再符合 `PL/SQL`；`Java/Go` 仍會切成兩個選項 |
+| P2-05 | 部分修正 | `base64`、`sha256`、`arm64`、`utf8` 不再被去除版本尾碼，`base` 也不會誤命中 `base64`；但加入 `utf-8` 後衍生 P2-10 |
+| P2-07 | 已修正 | [test_recruitment_rev2_nodes.py:336-337](../../tests/unit/test_recruitment_rev2_nodes.py) 改為無條件的 `assertGreater(cache_hits, 0)` 與 `assertEqual(cache_misses, 0)`；無意義的 `assertIsNotNone(search)` 已移除 |
+
+**設定注入**：Domain 的預設值為 `()`（未寫死）。預設值 `node` 定義於 `config.py`（`DEFAULT_SKILL_LEXICAL_ALIAS_DENYLIST`），`RecruitmentSettings` 另有應用層預設 `("node",)`；`.env.example:247` 已同步，`test_app_config.py` 涵蓋預設值與覆寫情境。Domain 會以 `normalize_skill` 正規化 denylist，與別名鍵的正規化方式一致。
+
+### 12.3 複審新發現
+
+| ID | 等級 | 位置 | 描述 | 建議修法 |
+| :---: | :---: | :--- | :--- | :--- |
+| P2-09 | P2 | [recruitment_services.py:239-240](../../src/domain/recruitment_services.py) | `_centered_snippet` 使用的 `match.start()` 是 **NFKC＋lower 之後**的行內偏移，卻用來切**原文**行。若命中詞之前出現會因正規化而變長的字元（中文常見的「……」→`......`、`㎏`、`ﬁ`、`İ` 等），視窗會向左偏移。重現：同一行有 12 次「負責專案規劃……」後接 `Kafka` → 80 字片段不含 `kafka`（但 verify 仍為 True）。這是 P1-02 的殘餘情境，觸發條件較窄 | 以逐字 NFKC 累計長度建立「正規化偏移 → 原文偏移」對照表後再取視窗；或在原文行內以 NFKC 不敏感的方式重新定位命中詞 |
+| P2-10 | P2 | [recruitment_services.py:231-232](../../src/domain/recruitment_services.py) + [config.py:67](../../src/infrastructure/config.py) | 豁免表加入 `utf-8` 後，條件 `UTF-8` 的唯一搜尋詞是 `utf-8`。但命中後 `token = re.sub("[\s-]", "", "utf-8") = "utf8"`，`token != term` 且 `utf8 ∈ exempt`，命中就被跳過。重現：履歷「處理 UTF-8 編碼」對 `UTF-8` 條件無詞面命中 → 落入 UNMET（偽陰性） | 豁免判斷改為比較去除連字號後的 term（`token != re.sub("[\s-]","",term)`），或從預設豁免表移除 `utf-8`、改以別名 `utf-8:utf8` 處理 |
+| P2-11 | P2 | [recruitment_services.py:181](../../src/domain/recruitment_services.py) | denylist 直接**丟棄**反查詞，代價是偽陰性：JD 為 `Node.js`、履歷只寫「Node 18 後端」「Node JS」「node-js」，且 LLM 畫像漏抽時，原本為 MET，現在落入 **UNMET**（硬條件可能因此剔除候選人）。同形異義詞的正確語意應為「不確定」 | 將 denylist 詞改為產生 `ambiguous=True` 的命中（→ UNKNOWN，由 HR 判讀），而非直接移除；worker node 案例同樣只會變成 UNKNOWN，不會變成 MET |
+
+附註（不列等級）：`RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST=`（空值）會因 `or DEFAULT` 退回 `node`，無法以空值停用 denylist。這與其他清單型設定的行為一致，應在 `.env.example` 註明。
+
+### 12.4 判定
+
+* **Gate 2 PASS（零 P0、零 P1）**：P1-01、P1-02 原重現案例皆已消除；修正未違反 DDD 邊界、配置治理與遮蔽紅線。
+* P2-09 ~ P2-11 屬比對精確度問題，可於 Step 7 列入 ADR-0019 Backlog（擴充 R9），或另開一輪 Step 6 修正。

@@ -106,6 +106,10 @@ def build_recruitment_settings(config: AppConfig):
         history_max_chars=config.chat_history_max_chars,
         protected_attr_terms=tuple(config.recruit_protected_attr_terms),
         skill_aliases=dict(config.recruit_skill_aliases),
+        skill_lexical_min_chars=config.recruit_skill_lexical_min_chars,
+        skill_mention_snippet_chars=config.recruit_skill_mention_snippet_chars,
+        skill_version_strip_exempt=tuple(config.recruit_skill_version_strip_exempt),
+        skill_lexical_alias_denylist=tuple(config.recruit_skill_lexical_alias_denylist),
     )
 
 
@@ -152,6 +156,9 @@ def build_chat_use_case(
             max_output_tokens=config.recruit_llm_max_output_tokens,
             timeout_seconds=config.recruit_llm_timeout_seconds,
             profile_max_output_tokens=config.recruit_profile_max_output_tokens,
+            narrative_max_output_tokens=config.recruit_narrative_max_output_tokens,
+            skill_aliases=config.recruit_skill_aliases,
+            thinking_budget=config.recruit_llm_thinking_budget,
             circuit_breaker=breaker,
             max_retries=config.api_max_retries,
             retry_delay=config.api_retry_delay,

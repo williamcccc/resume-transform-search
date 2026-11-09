@@ -32,6 +32,7 @@ def requirement_to_dict(req: JobRequirement) -> Dict[str, Any]:
         "priority": req.priority.value,
         "label": req.label,
         "skill": req.skill,
+        "skills": list(req.skills),
         "min_value": req.min_value,
         "min_level": int(req.min_level) if req.min_level is not None else None,
     }
@@ -39,14 +40,21 @@ def requirement_to_dict(req: JobRequirement) -> Dict[str, Any]:
 
 def requirement_from_dict(data: Dict[str, Any]) -> JobRequirement:
     level = data.get("min_level")
+    skill = data.get("skill")
+    raw_skills = data.get("skills")
+    if raw_skills is not None:
+        skills = tuple(str(x) for x in raw_skills if x)
+    else:
+        skills = (str(skill),) if skill else ()  # 舊格式（無 skills 鍵）以 [skill] 回填
     return JobRequirement(
         requirement_id=str(data["requirement_id"]),
         category=RequirementCategory(data["category"]),
         priority=RequirementPriority(data["priority"]),
         label=str(data.get("label", "")),
-        skill=data.get("skill"),
+        skill=skill,
         min_value=data.get("min_value"),
         min_level=SeniorityLevel(int(level)) if level is not None else None,
+        skills=skills,
     )
 
 
@@ -183,11 +191,13 @@ def relaxation_to_dict(rep: RelaxationReport) -> Dict[str, Any]:
                 "qualified_if_relaxed": i.qualified_if_relaxed,
                 "delta": i.delta,
                 "unknown_count": i.unknown_count,
+                "met_count": i.met_count,
             }
             for i in rep.items
         ],
         "bottleneck_requirement_ids": list(rep.bottleneck_requirement_ids),
         "scope_note": rep.scope_note,
+        "strictest_requirement_ids": list(rep.strictest_requirement_ids),
     }
 
 
@@ -203,11 +213,13 @@ def relaxation_from_dict(data: Dict[str, Any]) -> RelaxationReport:
                 qualified_if_relaxed=int(i["qualified_if_relaxed"]),
                 delta=int(i["delta"]),
                 unknown_count=int(i["unknown_count"]),
+                met_count=int(i.get("met_count", 0)),
             )
             for i in data.get("items", [])
         ),
         bottleneck_requirement_ids=tuple(data.get("bottleneck_requirement_ids", [])),
         scope_note=str(data.get("scope_note", "僅統計語意檢索候選池 Top-N")),
+        strictest_requirement_ids=tuple(data.get("strictest_requirement_ids", [])),
     )
 
 

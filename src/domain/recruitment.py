@@ -67,6 +67,22 @@ class JobRequirement:
     skill: Optional[str] = None
     min_value: Optional[float] = None
     min_level: Optional[SeniorityLevel] = None
+    skills: Tuple[str, ...] = ()  # OR 選項：任一命中即 MET（Rev2）；skill 保留為相容欄位 = skills[0]
+
+    @property
+    def skill_options(self) -> Tuple[str, ...]:
+        """skills 優先；為空時回退 (skill,)；皆無則 ()"""
+        if self.skills:
+            return tuple(self.skills)
+        return (self.skill,) if self.skill else ()
+
+
+@dataclass(frozen=True)
+class SkillMention:
+    """履歷全文詞面掃描命中（Rev2）：term 為命中詞、snippet 為所在行片段、ambiguous 表示詞長過短"""
+    term: str
+    snippet: str
+    ambiguous: bool = False
 
 
 @dataclass(frozen=True)
@@ -157,6 +173,7 @@ class RelaxationItem:
     qualified_if_relaxed: int
     delta: int
     unknown_count: int
+    met_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -167,6 +184,7 @@ class RelaxationReport:
     items: Tuple[RelaxationItem, ...]
     bottleneck_requirement_ids: Tuple[str, ...]
     scope_note: str = "僅統計語意檢索候選池 Top-N"
+    strictest_requirement_ids: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

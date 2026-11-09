@@ -11,7 +11,8 @@ import threading
 import time
 import unicodedata
 from dataclasses import replace
-from typing import Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from bisect import bisect_right
+from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from src.domain.recruitment import (
     CandidateEvaluation,
@@ -29,6 +30,7 @@ from src.domain.recruitment import (
     RequirementEvidence,
     RequirementPriority,
     ShortlistEntry,
+    SkillMention,
 )
 
 # 意圖固定優先序（數字越小越先執行）
@@ -100,28 +102,204 @@ def normalize_skill(skill: str, aliases: Mapping[str, str]) -> str:
     return aliases.get(key, key)
 
 
+# ---------------------------------------------------------------------------
+# Rev2 技能正規化 / 變體 / 詞面掃描（純函式；閥值與別名表一律由參數注入）
+# ---------------------------------------------------------------------------
+_BRACKET_SEGMENT = re.compile(r"[(（][^)）]*[)）]")
+_BRACKET_INNER = re.compile(r"[(（]([^)）]*)[)）]")
+_VERSION_TAIL = re.compile(r"[-_]?v?\d+(?:\.\d+)*(?:\.x)?$")
+_SPACED_VERSION_TAIL = re.compile(r"^(.*\S)\s+v?\d+(?:\.\d+)*(?:\.x)?$")
+_CANDIDATE_SPLIT = re.compile(r"[/／,，、|]")
+_OPTION_SPLIT = re.compile(r"\s*[/／|]\s*|\s+or\s+|\s*或\s*")
+_MIN_STEM_CHARS = 3  # 去版本尾碼時詞幹最短長度（保護 s3、ec2 等）；屬正規化演算法常數而非可調業務閥值
+
+
+def normalize_alias_map(aliases: Optional[Mapping[str, str]]) -> Dict[str, str]:
+    """別名表鍵值皆經 normalize_skill（NFKC、小寫、去空白）"""
+    return {normalize_skill(k, {}): normalize_skill(v, {}) for k, v in (aliases or {}).items()}
+
+
+def _nfkc_lower(text: str) -> str:
+    return unicodedata.normalize("NFKC", text or "").lower().strip()
+
+
+def canonical_skill(raw: str, aliases: Mapping[str, str], exempt: Collection[str] = ()) -> str:
+    """技能正規名：NFKC+小寫、去括號段、去空白、別名、去版本尾碼（exempt 與短詞幹受保護）、再別名。
+
+    aliases / exempt 之鍵值須已正規化（見 normalize_alias_map）。
+    """
+    text = _BRACKET_SEGMENT.sub("", _nfkc_lower(raw)).strip()
+    spaced = _SPACED_VERSION_TAIL.match(text)
+    if spaced and re.search(r"[a-z]", spaced.group(1)):
+        stem = re.sub(r"\s+", "", spaced.group(1))
+        if stem not in exempt:
+            text = spaced.group(1)
+    key = re.sub(r"\s+", "", text)
+    key = aliases.get(key, key)
+    if key not in exempt:
+        tail = _VERSION_TAIL.search(key)
+        if tail:
+            stem = key[: tail.start()]
+            if len(stem) >= _MIN_STEM_CHARS and re.search(r"[a-z]", stem):
+                key = stem
+    return aliases.get(key, key)
+
+
+def skill_variants(raw: str, aliases: Mapping[str, str], exempt: Collection[str] = ()) -> FrozenSet[str]:
+    """候選人側技能變體：分隔符切分＋括號內文，各段取正規名，連同整體正規名取聯集"""
+    text = _nfkc_lower(raw)
+    inners = _BRACKET_INNER.findall(text)
+    parts = [raw or ""]
+    parts.extend(_CANDIDATE_SPLIT.split(_BRACKET_SEGMENT.sub("", text)))
+    for inner in inners:
+        parts.extend(_CANDIDATE_SPLIT.split(inner))
+    result = set()
+    for part in parts:
+        if part and part.strip():
+            canon = canonical_skill(part, aliases, exempt)
+            if canon:
+                result.add(canon)
+    return frozenset(result)
+
+
+def split_skill_options(raw: str, aliases: Mapping[str, str], exempt: Collection[str] = ()) -> Tuple[str, ...]:
+    """JD 側：OR 分隔（/ ／ | 或 or）切為多選項；整體為別名表之鍵（如 ci/cd）則不切。去重保序"""
+    text = _nfkc_lower(raw)
+    if not text:
+        return ()
+    if re.sub(r"\s+", "", text) in aliases:
+        return (text,)
+    options = [p.strip() for p in _OPTION_SPLIT.split(text) if p and p.strip()]
+    return tuple(dict.fromkeys(options))
+
+
+def _mention_terms(option: str, aliases: Mapping[str, str], exempt: Collection[str],
+                   alias_denylist: Collection[str] = ()) -> List[str]:
+    canon = canonical_skill(option, aliases, exempt)
+    terms = [canon] if canon else []
+    # 別名反查詞若為同形異義通用詞（如 node）則不作詞面搜尋詞，避免 worker node 誤判 nodejs
+    terms.extend(k for k, v in aliases.items() if v == canon and k and k not in alias_denylist)
+    spaced = _nfkc_lower(_BRACKET_SEGMENT.sub("", option))
+    spaced_ver = _SPACED_VERSION_TAIL.match(spaced)
+    if spaced_ver:
+        spaced = spaced_ver.group(1)
+    spaced = re.sub(r"\s+", " ", spaced).strip()
+    if spaced and " " in spaced:
+        terms.append(spaced)
+    return list(dict.fromkeys(t for t in terms if t))
+
+
+def _term_pattern(term: str) -> "re.Pattern[str]":
+    body = r"[ \t]+".join(re.escape(piece) for piece in term.split(" "))
+    return re.compile(rf"(?<![a-z0-9]){body}(?:[ \t-]?v?\d+(?:\.\d+)*)?(?![a-z]|[+#])")
+
+
+def _centered_snippet(line: str, start: int, end: int, snippet_chars: int) -> str:
+    """以命中位置為中心取 snippet_chars 字視窗（原文切片）；行長不足視窗時等同整行"""
+    size = max(int(snippet_chars), 1)
+    stripped_lead = len(line) - len(line.lstrip())
+    body = line.strip()
+    if len(body) <= size:
+        return body
+    center = (max(start - stripped_lead, 0) + max(end - stripped_lead, 0)) // 2
+    left = min(max(center - size // 2, 0), len(body) - size)
+    return body[left:left + size].strip()
+
+
+def find_skill_mention(text: str, options: Sequence[str], aliases: Mapping[str, str], exempt: Collection[str],
+                       min_chars: int, snippet_chars: int,
+                       alias_denylist: Collection[str] = ()) -> Optional[SkillMention]:
+    """履歷全文詞面掃描；優先回傳非歧義命中，否則回傳歧義命中（詞長 < min_chars）"""
+    if not text or not options:
+        return None
+    orig_lines = text.splitlines()
+    norm_lines = [unicodedata.normalize("NFKC", ln).lower() for ln in orig_lines]
+    big = "\n".join(norm_lines)
+    starts, offset = [], 0
+    for ln in norm_lines:
+        starts.append(offset)
+        offset += len(ln) + 1
+    ambiguous_hit: Optional[SkillMention] = None
+    seen = set()
+    for option in options:
+        for term in _mention_terms(option, aliases, exempt, alias_denylist):
+            if term in seen:
+                continue
+            seen.add(term)
+            match = None
+            for candidate in _term_pattern(term).finditer(big):
+                token = re.sub(r"[\s-]", "", candidate.group(0))
+                if token != term and token in exempt:  # 豁免詞（如 web3）不得被去版本尾碼後誤併為 web
+                    continue
+                match = candidate
+                break
+            if match is None:
+                continue
+            line_no = max(bisect_right(starts, match.start()) - 1, 0)
+            snippet = _centered_snippet(orig_lines[line_no], match.start() - starts[line_no],
+                                        match.end() - starts[line_no], snippet_chars)
+            hit = SkillMention(term=term, snippet=snippet, ambiguous=len(term) < int(min_chars))
+            if not hit.ambiguous:
+                return hit
+            ambiguous_hit = ambiguous_hit or hit
+    return ambiguous_hit
+
+
 class RequirementMatcher:
     """單一條件 × 單一候選人之三態比對 (MET / UNMET / UNKNOWN)"""
 
-    def __init__(self, skill_aliases: Optional[Mapping[str, str]] = None):
-        self._aliases = {
-            normalize_skill(k, {}): normalize_skill(v, {}) for k, v in (skill_aliases or {}).items()
-        }
+    def __init__(self, skill_aliases: Optional[Mapping[str, str]] = None,
+                 version_strip_exempt: Iterable[str] = (), lexical_min_chars: int = 3,
+                 snippet_chars: int = 80, lexical_alias_denylist: Iterable[str] = ()):
+        self._alias_denylist = frozenset(normalize_skill(x, {}) for x in lexical_alias_denylist if x)
+        self._aliases = normalize_alias_map(skill_aliases)
+        self._exempt = frozenset(normalize_skill(x, {}) for x in version_strip_exempt if x)
+        self._min_chars = int(lexical_min_chars)
+        self._snippet_chars = int(snippet_chars)
+
+    def _skill_decision(self, req: JobRequirement, profile: CandidateProfile, chunk_skills: Iterable[str],
+                        resume_text: Optional[str]) -> Tuple[MatchStatus, Optional[SkillMention]]:
+        """Rev2 三態判定（規格 §2.3 規則 1~7）；回傳 (狀態, 規則 3 之詞面證據)"""
+        options = req.skill_options
+        if not options:
+            return MatchStatus.UNKNOWN, None
+        targets = {canonical_skill(t, self._aliases, self._exempt) for t in options}
+        have = set()
+        for s in tuple(profile.core_skills) + tuple(chunk_skills):
+            if s:
+                have |= skill_variants(s, self._aliases, self._exempt)
+        if targets & have:
+            return MatchStatus.MET, None
+        mention = None
+        if resume_text and resume_text.strip():
+            mention = find_skill_mention(resume_text, options, self._aliases, self._exempt,
+                                         self._min_chars, self._snippet_chars, self._alias_denylist)
+            if mention is not None and not mention.ambiguous:
+                return MatchStatus.MET, mention
+        unverified = set()
+        for s in profile.unverified_skills:
+            if s:
+                unverified |= skill_variants(s, self._aliases, self._exempt)
+        if targets & unverified or (mention is not None and mention.ambiguous):
+            return MatchStatus.UNKNOWN, None
+        if resume_text is None:
+            return (MatchStatus.UNKNOWN if not have else MatchStatus.UNMET), None
+        if not resume_text.strip():
+            return MatchStatus.UNKNOWN, None
+        return MatchStatus.UNMET, None
+
+    def lexical_mention(self, req: JobRequirement, profile: CandidateProfile, chunk_skills: Iterable[str] = (),
+                        resume_text: Optional[str] = None) -> Optional[SkillMention]:
+        """僅當 SKILL 條件係經詞面回退（規則 3）判 MET 時回傳其證據，否則 None"""
+        if req.category != RequirementCategory.SKILL:
+            return None
+        return self._skill_decision(req, profile, tuple(chunk_skills), resume_text)[1]
 
     def evaluate(self, req: JobRequirement, profile: CandidateProfile,
-                 chunk_skills: Iterable[str] = ()) -> MatchStatus:
+                 chunk_skills: Iterable[str] = (), resume_text: Optional[str] = None) -> MatchStatus:
         cat = req.category
         if cat == RequirementCategory.SKILL:
-            skills = {normalize_skill(s, self._aliases) for s in tuple(profile.core_skills) + tuple(chunk_skills) if s}
-            if not req.skill:
-                return MatchStatus.UNKNOWN
-            target = normalize_skill(req.skill, self._aliases)
-            if target in skills:
-                return MatchStatus.MET
-            unverified = {normalize_skill(s, self._aliases) for s in profile.unverified_skills if s}
-            if target in unverified or not skills:
-                return MatchStatus.UNKNOWN
-            return MatchStatus.UNMET
+            return self._skill_decision(req, profile, tuple(chunk_skills), resume_text)[0]
         if cat == RequirementCategory.YEARS:
             return self._compare(profile.years_of_experience, req.min_value)
         if cat == RequirementCategory.TEAM_SIZE:
@@ -145,9 +323,11 @@ class RequirementMatcher:
 
     def evaluate_candidate(self, jd: JdRequirements, candidate_id: str, candidate_name: str,
                            semantic_score: float, profile: CandidateProfile,
-                           chunk_skills: Iterable[str] = ()) -> CandidateEvaluation:
+                           chunk_skills: Iterable[str] = (),
+                           resume_text: Optional[str] = None) -> CandidateEvaluation:
         chunk_skills = tuple(chunk_skills)
-        statuses = {r.requirement_id: self.evaluate(r, profile, chunk_skills) for r in jd.all_requirements}
+        statuses = {r.requirement_id: self.evaluate(r, profile, chunk_skills, resume_text)
+                    for r in jd.all_requirements}
         return CandidateEvaluation(
             candidate_id=candidate_id,
             candidate_name=candidate_name,
@@ -213,15 +393,21 @@ class ConstraintRelaxationAnalyzer:
                 qualified_if_relaxed=q_r,
                 delta=q_r - baseline,
                 unknown_count=unknown,
+                met_count=sum(1 for ev in evals if ev.statuses.get(req.requirement_id) == MatchStatus.MET),
             ))
         max_delta = max((i.delta for i in items), default=0)
         bottleneck = tuple(i.requirement_id for i in items if max_delta > 0 and i.delta == max_delta)
+        strictest: Tuple[str, ...] = ()
+        if not bottleneck and items:
+            lowest = min(i.met_count for i in items)
+            strictest = tuple(i.requirement_id for i in items if i.met_count == lowest)
         return RelaxationReport(
             pool_size=len(evals),
             baseline_qualified=baseline,
             requested_k=k,
             items=tuple(items),
             bottleneck_requirement_ids=bottleneck,
+            strictest_requirement_ids=strictest,
         )
 
 
@@ -337,7 +523,7 @@ class ProtectedAttributeGuard:
     def filter_requirements(self, reqs: Sequence[JobRequirement]) -> Tuple[Tuple[JobRequirement, ...], Tuple[str, ...]]:
         kept, hits = [], []
         for req in reqs:
-            matched = self.scan_text(f"{req.label} {req.skill or ''}")
+            matched = self.scan_text(f"{req.label} {' '.join(req.skill_options)}")
             if matched:
                 hits.extend(matched)
             else:
@@ -467,42 +653,76 @@ def evidence_field_for(req: JobRequirement, aliases: Mapping[str, str]) -> str:
         return "team_size"
     if req.category == RequirementCategory.SENIORITY:
         return "seniority"
-    return f"skill:{normalize_skill(req.skill or '', aliases)}"
+    options = req.skill_options
+    return f"skill:{normalize_skill(options[0] if options else '', aliases)}"
+
+
+def evidence_fields_for(req: JobRequirement, aliases: Mapping[str, str],
+                        exempt: Collection[str] = ()) -> Tuple[str, ...]:
+    """條件可對應之證據欄位；SKILL 條件對 skill_options 每一選項（正規名）皆登錄"""
+    if req.category != RequirementCategory.SKILL:
+        return (evidence_field_for(req, aliases),)
+    norm = normalize_alias_map(aliases)
+    fields = tuple(dict.fromkeys(f"skill:{canonical_skill(t, norm, exempt)}" for t in req.skill_options))
+    return fields or (evidence_field_for(req, aliases),)
 
 
 def collect_requirement_evidence(requirements: Sequence[JobRequirement], profile: CandidateProfile,
-                                 aliases: Optional[Mapping[str, str]] = None) -> Tuple[RequirementEvidence, ...]:
+                                 aliases: Optional[Mapping[str, str]] = None,
+                                 exempt: Collection[str] = ()) -> Tuple[RequirementEvidence, ...]:
     """將已驗證之 Profile 證據對應至條件編號；未對應條件之證據 requirement_id 為 None"""
     aliases = aliases or {}
+    norm = normalize_alias_map(aliases)
+    exempt_norm = frozenset(normalize_skill(x, {}) for x in exempt if x)
     field_to_req: Dict[str, str] = {}
     for req in requirements:
-        field_to_req.setdefault(evidence_field_for(req, aliases), req.requirement_id)
+        for fld in evidence_fields_for(req, aliases, exempt_norm):
+            field_to_req.setdefault(fld, req.requirement_id)
     result = []
     for ev in profile.evidence:
         if not ev.verified:
             continue
-        key = ev.field
-        if key.startswith("skill:"):
-            key = f"skill:{normalize_skill(key[len('skill:'):], aliases)}"
-        result.append(RequirementEvidence(requirement_id=field_to_req.get(key), field=ev.field,
-                                          quote=ev.quote, verified=True))
+        req_id = field_to_req.get(ev.field)
+        if req_id is None and ev.field.startswith("skill:"):
+            for variant in sorted(skill_variants(ev.field[len("skill:"):], norm, exempt_norm)):
+                req_id = field_to_req.get(f"skill:{variant}")
+                if req_id is not None:
+                    break
+        result.append(RequirementEvidence(requirement_id=req_id, field=ev.field, quote=ev.quote, verified=True))
     return tuple(result)
 
 
-_BRACKET_QUOTE = re.compile(r"「([^「」]{1,500})」")
+_BRACKET_QUOTE = re.compile(r"[「『]([^「」『』]{1,500})[」』]")
+_BRACKET_PAIRS = {")": "(", "）": "（", "」": "「", "』": "『", "]": "[", "】": "【"}
+_BRACKET_OPENERS = frozenset(_BRACKET_PAIRS.values())
+
+
+def has_unbalanced_brackets(text: str) -> bool:
+    """括號成對檢查（() （） 「」 『』 [] 【】）：存在未關閉之開括號，或巢狀錯位之關括號即視為截斷跡象。
+
+    無對應開括號之孤立關括號（如條列「1)」）不視為不成對，避免誤判。
+    """
+    stack: List[str] = []
+    for ch in text or "":
+        if ch in _BRACKET_OPENERS:
+            stack.append(ch)
+        elif ch in _BRACKET_PAIRS and stack:
+            if stack[-1] != _BRACKET_PAIRS[ch]:
+                return True
+            stack.pop()
+    return bool(stack)
 
 
 def sanitize_reply_quotes(reply: str, sources: Sequence[str], verifier: EvidenceVerifier,
                           placeholder: str) -> Tuple[str, int]:
-    """回覆中「」引文須可於來源中逐字找到，否則以佔位文字取代（AC-08）"""
+    """回覆中「」與『』引文須可於來源中逐字找到，否則以佔位文字取代（AC-08、AC-42）"""
     removed = 0
-    joined = "\n".join(s for s in sources if s)
+    joined = verifier.normalize("\n".join(s for s in sources if s))
 
     def _sub(match: "re.Match[str]") -> str:
         nonlocal removed
-        quote = match.group(1)
-        normalized = verifier.normalize(quote)
-        if normalized and normalized in verifier.normalize(joined):
+        normalized = verifier.normalize(match.group(1))
+        if normalized and normalized in joined:
             return match.group(0)
         removed += 1
         return placeholder

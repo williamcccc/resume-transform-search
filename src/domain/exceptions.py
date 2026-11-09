@@ -46,6 +46,11 @@ class RecruitmentLlmError(DomainError):
     pass
 
 
+class LlmOutputTruncatedError(RecruitmentLlmError):
+    """LLM 長文輸出被截斷（finish_reason=MAX_TOKENS、結構化解析失敗或括號不成對），呼叫端降級為模板"""
+    pass
+
+
 class SessionBusyError(DomainError):
     """同一 Session 上一輪尚未完成"""
     pass

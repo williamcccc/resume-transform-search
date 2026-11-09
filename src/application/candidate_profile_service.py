@@ -57,6 +57,7 @@ class TurnBudget:
 class ProfileBatchResult:
     profiles: Dict[str, CandidateProfile] = field(default_factory=dict)
     llm_texts: Dict[str, str] = field(default_factory=dict)
+    match_texts: Dict[str, str] = field(default_factory=dict)  # 遮蔽後、未截斷全文（詞面比對用；載入失敗為 ""）
     warnings: List[str] = field(default_factory=list)
     cache_hits: int = 0
     cache_misses: int = 0
@@ -89,11 +90,14 @@ class CandidateProfileService:
         self._negative: Dict[Tuple[str, str, str], float] = {}
         self._negative_lock = threading.Lock()
 
+    def prepare_match_text(self, resume_text: str, names: Sequence[str], alias: str) -> str:
+        """受保護欄位行遮蔽 → 姓名/聯絡方式遮蔽（不截斷，僅供伺服器端確定性比對，不送 LLM）"""
+        redacted = self._guard.redact_resume(resume_text)
+        return mask_contact_info(redacted, names, alias)
+
     def prepare_llm_text(self, resume_text: str, names: Sequence[str], alias: str) -> str:
         """受保護欄位行遮蔽 → 姓名/聯絡方式遮蔽 → 截斷"""
-        redacted = self._guard.redact_resume(resume_text)
-        masked = mask_contact_info(redacted, names, alias)
-        return masked[: self._max_chars]
+        return self.prepare_match_text(resume_text, names, alias)[: self._max_chars]
 
     def get_profiles(
         self,
@@ -111,7 +115,9 @@ class CandidateProfileService:
         for cand in pool:
             raw_text = self._tools.load_resume_text(cand)
             content_hash = compute_content_hash(raw_text)
-            llm_text = self.prepare_llm_text(raw_text, [cand.candidate_name], "候選人")
+            match_text = self.prepare_match_text(raw_text, [cand.candidate_name], "候選人")
+            llm_text = match_text[: self._max_chars]
+            result.match_texts[cand.candidate_id] = match_text
             result.llm_texts[cand.candidate_id] = llm_text
             cached = self._safe_cache_get(cand.candidate_id, content_hash, version)
             if cached is not None:

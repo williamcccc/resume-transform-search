@@ -45,4 +45,14 @@
 | DV-6 | 受保護屬性遮蔽強化（G2-02、G3-02） | 逐行遮蔽 | Markdown/HTML 表格依表頭整欄遮蔽；詞表補英文與「生日」等詞 | Word 轉出之履歷常見表格欄位 |
 | DV-7 | Redis 隔離（D-03） | 測試與 Checkpointer 用 db15 | Redis 8 RediSearch 不允許在 `db != 0` 建索引，Redis Checkpointer 與 E2E 臨時索引改用 db0 + 專屬前綴隔離；非 db0 時錯誤訊息附可行動提示 | 環境限制 |
 
+### Rev2 偏差紀錄（實測缺陷修正：SKILL 比對、敘述截斷、引文驗證範圍；[Spec-0019 第六部](../specs/0019-recruitment-assistant-chat-spec.md)）
+
+| 編號 | 偏差 / 補強 | 原規劃 | 實際落地 | 理由 |
+| :---: | :--- | :--- | :--- | :--- |
+| DV-8 | 抽取器版本拆分與 Profile 快取一次性失效 | JD 與 Profile 共用 `_version = sha256(system + jd + profile + model)` | 拆為 `jd_extractor_version`（含 `JD_SCHEMA_REVISION`）與 `profile_extractor_version`；Protocol 簽章不變，`extractor_version` 保留為等同 JD 版本之相容屬性 | 日後 JD Prompt 迭代不再使 181 份 Profile 快取失效。**本次公式變更使 Profile 快取一次性全量失效並重抽（已知且接受之成本）**，舊鍵依 TTL 自然過期 |
+| DV-9 | `RECRUIT_LLM_THINKING_BUDGET` 作用範圍 | 僅影響敘述輸出 | 套用於主模型所有 LLM 操作（意圖分類、JD 抽取、敘述）；空值＝不傳、`0`＝關閉 thinking、正整數＝上限 | 單一建構參數。**風險**：不支援 thinking 的模型設為正整數時，可能使每次呼叫失敗；預設空值行為不變。已於 `.env.example` 註明 |
+| DV-10 | SKILL 三態判定與次級瓶頸診斷 | 精確集合包含，僅 leave-one-out | `skills` OR 選項；結構化命中 → 全文詞面回退（非歧義 MET、歧義短詞或未驗證宣稱 UNKNOWN）→ 全文可得且零命中 UNMET；`RelaxationReport.strictest_requirement_ids` 與 `RelaxationItem.met_count`（全部 delta=0 時指出通過率最低條件）；詞面證據為中心視窗片段 | 修正 `baseline_qualified=0`、delta 全 0 導致瓶頸診斷失效。已接受風險（擴充 R9）：履歷詞面「提及」不等於「具備」，由 HR 依證據片段判讀；殘餘 P2 見 [Spec-0019 Backlog](../specs/0019-recruitment-assistant-chat-spec.md) |
+
+**Rev2 實施後評估**：unit 398 項 OK、`audit_guardrails.py` Exit 0；QA 與 Gate 2（含複審）零 P0/P1，RTM 43/43。詳見 [QA-0019 §10~§12](../qa_reports/0019-recruitment-assistant-chat-qa.md)。
+
 **實施後評估**：unit 298 項 OK、E2E FAKE 22 項 OK、LIVE 兩輪對話達標；`audit_guardrails.py` 100% PASSED；Gate 2 零 P0/P1（Step 6 共 3 輪）。LIVE 冷啟 Turn 1 約 23~28 s，同 JD 重查 0 次抽取，延遲抽取 + 快取策略確認可行。未結項目見 [QA-0019 待辦 Backlog](../qa_reports/0019-recruitment-assistant-chat-qa.md)。

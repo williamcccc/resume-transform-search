@@ -14,7 +14,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from src.application.candidate_profile_service import CandidateProfileService, TurnBudget
 from src.application.recruitment_settings import RecruitmentSettings
 from src.application.recruitment_tools import RecruitmentTools
-from src.domain.exceptions import LlmQuotaExhaustedError, TurnTimeoutError
+from src.domain.exceptions import LlmOutputTruncatedError, LlmQuotaExhaustedError, TurnTimeoutError
 from src.domain.interfaces import (
     ICandidateProfileCache,
     IIntentClassifier,
@@ -41,6 +41,8 @@ from src.domain.recruitment import (
     ReferenceKind,
     ReferenceResolution,
     RelaxationReport,
+    RequirementCategory,
+    RequirementEvidence,
     ShortlistEntry,
     TurnUsage,
     WeaknessFact,
@@ -75,6 +77,17 @@ _REMOVED_QUOTE_PLACEHOLDER = "（引文未通過原文驗證，已移除）"
 _STATUS_LABELS = {MatchStatus.MET: "符合", MatchStatus.UNMET: "明確不符", MatchStatus.UNKNOWN: "履歷未提及"}
 
 
+@dataclass(frozen=True)
+class ReplySection:
+    """回覆段落：llm_generated=True 者於 compose 逐字驗證引文；模板段落（系統產出）不驗證。
+
+    join 為 None 時獨立成區塊（以分隔線相連）；否則以該字串接續上一段（同一區塊內）。
+    """
+    text: str
+    llm_generated: bool = False
+    join: Optional[str] = None
+
+
 class _BudgetExhausted(Exception):
     """單輪 LLM 預算用罄（內部控制流程，必轉為模板降級）"""
 
@@ -89,7 +102,7 @@ class TurnContext:
     clock: Callable[[], float] = time.monotonic
     intents: List[ChatIntent] = field(default_factory=list)
     reference: Optional[ReferenceResolution] = None
-    sections: List[str] = field(default_factory=list)
+    sections: List[ReplySection] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     followup: Optional[FollowupAnswer] = None
     interview_questions: List[InterviewQuestion] = field(default_factory=list)
@@ -110,6 +123,15 @@ class TurnContext:
     def warn(self, message: str) -> None:
         if message not in self.warnings:
             self.warnings.append(message)
+
+    def add_template(self, text: str, join: Optional[str] = None) -> None:
+        self.sections.append(ReplySection(text=text, llm_generated=False, join=join))
+
+    def add_llm(self, text: str, join: Optional[str] = None) -> None:
+        self.sections.append(ReplySection(text=text, llm_generated=True, join=join))
+
+    def has_text(self, text: str) -> bool:
+        return any(sec.text == text for sec in self.sections)
 
 
 @dataclass
@@ -149,7 +171,13 @@ class RecruitmentNodeHandlers:
         self._settings = settings
         self._jd_cache = jd_cache
         self._clock = clock
-        self._matcher = RequirementMatcher(settings.skill_aliases)
+        self._matcher = RequirementMatcher(
+            settings.skill_aliases,
+            version_strip_exempt=settings.skill_version_strip_exempt,
+            lexical_min_chars=settings.skill_lexical_min_chars,
+            snippet_chars=settings.skill_mention_snippet_chars,
+            lexical_alias_denylist=settings.skill_lexical_alias_denylist,
+        )
         self._ranker = CandidateRanker()
         self._relaxation = ConstraintRelaxationAnalyzer()
         self._resolver = OrdinalReferenceResolver()
@@ -243,7 +271,7 @@ class RecruitmentNodeHandlers:
         jd = self._load_jd(turn)
         if jd is None:
             turn.degraded = True
-            turn.sections.append("JD 條件解析暫時失敗，請稍後再試或精簡 JD 內容後重新送出。")
+            turn.add_template("JD 條件解析暫時失敗，請稍後再試或精簡 JD 內容後重新送出。")
             return NodeUpdate(session=state)
 
         protected_hits = self._guard.scan_text(turn.message)
@@ -262,7 +290,7 @@ class RecruitmentNodeHandlers:
         pool = self._tools.retrieve_candidate_pool(jd.retrieval_query or jd.title, s.retrieval_top_k_chunks,
                                                    pool_size, s.retrieval_min_score)
         if not pool:
-            turn.sections.append("資料庫中無相關人選，建議調整 JD 描述或放寬條件後再試。")
+            turn.add_template("資料庫中無相關人選，建議調整 JD 描述或放寬條件後再試。")
             new_state = replace(state, jd_requirements=jd, shortlist=(), pool_evaluations=(), relaxation=None,
                                 last_referenced_candidate_id=None)
             return NodeUpdate(session=new_state)
@@ -280,13 +308,16 @@ class RecruitmentNodeHandlers:
         for cand in pool:
             profile = batch.profiles[cand.candidate_id]
             evals.append(self._matcher.evaluate_candidate(jd, cand.candidate_id, cand.candidate_name,
-                                                          cand.max_score, profile, cand.all_skills))
+                                                          cand.max_score, profile, cand.all_skills,
+                                                          resume_text=batch.match_texts.get(cand.candidate_id, "")))
         ranked = self._ranker.rank(evals, requested_k)
         eval_map = {e.candidate_id: e for e in evals}
+        pool_map = {c.candidate_id: c for c in pool}
         shortlist = tuple(
-            replace(entry, evidence=collect_requirement_evidence(jd.all_requirements,
-                                                                  eval_map[entry.candidate_id].profile,
-                                                                  s.skill_aliases))
+            replace(entry, evidence=collect_requirement_evidence(
+                jd.all_requirements, eval_map[entry.candidate_id].profile, s.skill_aliases,
+                s.skill_version_strip_exempt) + self._lexical_evidence(
+                jd, eval_map[entry.candidate_id], pool_map[entry.candidate_id], batch.match_texts))
             for entry in ranked
         )
         baseline = sum(1 for e in evals if e.fully_qualified)
@@ -297,20 +328,33 @@ class RecruitmentNodeHandlers:
             turn.quote_sources.append(batch.llm_texts.get(entry.candidate_id, ""))
         turn.quote_sources.extend(r.label for r in jd.all_requirements)
 
-        sections = [self._render_shortlist(jd, shortlist, requested_k)]
+        turn.add_template(self._render_shortlist(jd, shortlist, requested_k))
         if relaxation is not None:
-            sections.append(self._render_relaxation(jd, relaxation))
+            turn.add_template(self._render_relaxation(jd, relaxation), join="\n\n")
         facts = self._match_facts(jd, shortlist, requested_k, len(pool), relaxation)
         narration = self._narrate(turn, self._narrator.narrate_match, facts)
         if narration:
-            sections.append("### 推薦理由\n" + narration)
+            turn.add_llm("### 推薦理由\n" + narration, join="\n\n")
         else:
-            sections.append("### 推薦理由\n" + self._template_match_reason(shortlist, jd))
-        turn.sections.append("\n\n".join(sections))
+            turn.add_template("### 推薦理由\n" + self._template_match_reason(shortlist, jd), join="\n\n")
 
         new_state = replace(state, jd_requirements=jd, shortlist=shortlist, pool_evaluations=tuple(evals),
                             relaxation=relaxation, last_referenced_candidate_id=None)
         return NodeUpdate(session=new_state)
+
+    def _lexical_evidence(self, jd: JdRequirements, ev: CandidateEvaluation, cand,
+                          match_texts: Dict[str, str]) -> Tuple[RequirementEvidence, ...]:
+        """規則 3（履歷全文詞面回退）判 MET 之技能條件，補入已逐字驗證之原文片段作為證據"""
+        text = match_texts.get(ev.candidate_id, "")
+        result: List[RequirementEvidence] = []
+        for req in jd.all_requirements:
+            if req.category != RequirementCategory.SKILL or ev.statuses.get(req.requirement_id) != MatchStatus.MET:
+                continue
+            mention = self._matcher.lexical_mention(req, ev.profile, cand.all_skills, text)
+            if mention is not None and self._verifier.verify(mention.snippet, text):
+                result.append(RequirementEvidence(requirement_id=req.requirement_id, field=f"skill:{mention.term}",
+                                                  quote=mention.snippet, verified=True))
+        return tuple(result)
 
     def _load_jd(self, turn: TurnContext) -> Optional[JdRequirements]:
         jd_hash = compute_content_hash(turn.message)
@@ -391,15 +435,21 @@ class RecruitmentNodeHandlers:
             f"完全符合必要條件者 {rep.baseline_qualified} 位，少於需求之 {rep.requested_k} 位"
             f"（{rep.scope_note}，候選池共 {rep.pool_size} 人）。",
             "",
-            "| 條件 | 單獨放寬後合格人數 | 增加人數 | 履歷未提及人數 |",
-            "| :--- | ---: | ---: | ---: |",
+            "| 條件 | 單獨放寬後合格人數 | 增加人數 | 履歷未提及人數 | 符合人數 |",
+            "| :--- | ---: | ---: | ---: | ---: |",
         ]
         for item in rep.items:
             lines.append(f"| {item.requirement_id} {item.label} | {item.qualified_if_relaxed} | {item.delta} "
-                         f"| {item.unknown_count} |")
+                         f"| {item.unknown_count} | {item.met_count} |")
         if rep.bottleneck_requirement_ids:
             names = "、".join(f"{rid} {self._label(jd, rid)}" for rid in rep.bottleneck_requirement_ids)
             lines.append(f"\n最主要瓶頸：{names}。")
+        elif rep.strictest_requirement_ids:
+            by_id = {i.requirement_id: i for i in rep.items}
+            names = "、".join(f"{rid} {self._label(jd, rid)}" for rid in rep.strictest_requirement_ids)
+            met = by_id[rep.strictest_requirement_ids[0]].met_count if rep.strictest_requirement_ids[0] in by_id else 0
+            lines.append(f"\n單一條件放寬無法增加合格人數；通過率最低之條件為 {names}"
+                         f"（{met}/{rep.pool_size} 位符合），建議優先檢討。")
         else:
             lines.append("\n單一條件放寬皆無法增加合格人數，需考慮複合放寬。")
         lines.append("註：「履歷未提及」視為未滿足；建議面試或補件確認，而非直接判定不符。")
@@ -420,7 +470,7 @@ class RecruitmentNodeHandlers:
     def candidate_followup(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
         target, rank, message = self._resolve_target(state, turn)
         if target is None:
-            turn.sections.append(message)
+            turn.add_template(message)
             return NodeUpdate(session=state)
         alias = self._alias(rank) if rank else "該候選人"
         llm_text = self._load_llm_text(target, alias)
@@ -437,17 +487,22 @@ class RecruitmentNodeHandlers:
             resume_excerpt=llm_text,
         )
         narration = self._narrate(turn, self._narrator.answer_followup, facts)
+        text_is_llm = False
         if isinstance(narration, FollowupNarration):
             status, text, quotes = self._verify_followup(narration, llm_text, turn, target, alias)
+            text_is_llm = text == (narration.answer_text or "")
         else:
             status, text, quotes = self._template_followup(target, alias, turn.message)
         if status == AnswerStatus.NOT_MENTIONED and "履歷未提及" not in text:
             text = "履歷未提及相關資訊。" + text
         turn.quote_sources.extend(quotes)
-        shortlist = state.shortlist
-        lines = [f"### {alias} 追問回覆", text]
-        lines.extend(f"- 引用：「{q}」" for q in quotes)
-        turn.sections.append("\n".join(lines))
+        turn.add_template(f"### {alias} 追問回覆")
+        if text_is_llm:
+            turn.add_llm(text, join="\n")
+        else:
+            turn.add_template(text, join="\n")
+        for q in quotes:
+            turn.add_template(f"- 引用：「{q}」", join="\n")
         turn.followup = FollowupAnswer(candidate_rank=rank, candidate_id=target.candidate_id,
                                        answer_status=status, evidence=tuple(quotes))
         turn.referenced_candidate_id = target.candidate_id
@@ -489,8 +544,8 @@ class RecruitmentNodeHandlers:
     def interview_questions(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
         target, rank, message = self._resolve_target(state, turn)
         if target is None:
-            if message not in turn.sections:
-                turn.sections.append(message)
+            if not turn.has_text(message):
+                turn.add_template(message)
             return NodeUpdate(session=state)
         jd = state.jd_requirements
         s = self._settings
@@ -507,23 +562,34 @@ class RecruitmentNodeHandlers:
             jd_title=jd.title if jd else "",
         )
         questions = self._generate_questions(turn, facts, count, allowed)
+        from_llm = questions is not None
         if questions is None:
             questions = self._template_questions(weaknesses, count)
         if len(questions) < count:
             turn.warn(f"符合規範之面試題僅 {len(questions)} 題（已剔除不合規或未對應弱點之題目）")
         turn.interview_questions = questions
-        lines = [f"### {alias} 面試題"]
+        turn.add_template(f"### {alias} 面試題")
         if note:
-            lines.append(note)
+            turn.add_template(note, join="\n")
         label_map = {w.requirement_id: w.label for w in weaknesses}
         for q in questions:
-            lines.append(f"{q.no}. {q.question}"
-                         f"（對應：{q.target_requirement_id} {label_map.get(q.target_requirement_id, '')}）")
+            # 題目本文僅在 LLM 產生時驗證引文；「（對應：…）」與模板題之「」皆為系統產出
+            turn.add_template(f"{q.no}. ", join="\n")
+            self._add_part(turn, q.question, from_llm, join="")
+            turn.add_template(f"（對應：{q.target_requirement_id} {label_map.get(q.target_requirement_id, '')}）",
+                              join="")
             if q.rationale:
-                lines.append(f"   - 設計理由：{q.rationale}")
-        turn.sections.append("\n".join(lines))
+                turn.add_template("   - 設計理由：", join="\n")
+                self._add_part(turn, q.rationale, from_llm, join="")
         turn.referenced_candidate_id = target.candidate_id
         return NodeUpdate(session=state)
+
+    @staticmethod
+    def _add_part(turn: TurnContext, text: str, llm_generated: bool, join: Optional[str]) -> None:
+        if llm_generated:
+            turn.add_llm(text, join=join)
+        else:
+            turn.add_template(text, join=join)
 
     def _weaknesses(self, jd: Optional[JdRequirements],
                     target: CandidateEvaluation) -> Tuple[Tuple[WeaknessFact, ...], str]:
@@ -595,9 +661,10 @@ class RecruitmentNodeHandlers:
             history=tuple(ChatMessage(m.role, self._deidentify(m.content, state)) for m in history),
         )
         answer = self._narrate(turn, self._narrator.answer_general, facts)
-        if not answer:
-            answer = self._template_general(jd)
-        turn.sections.append(answer)
+        if answer:
+            turn.add_llm(answer)
+        else:
+            turn.add_template(self._template_general(jd))
         if jd:
             turn.quote_sources.extend(r.label for r in jd.all_requirements)
         return NodeUpdate(session=state)
@@ -611,21 +678,45 @@ class RecruitmentNodeHandlers:
         return f"目前職缺「{jd.title}」之條件如下：\n\n**必要條件**\n{must}\n\n**加分條件**\n{nice}"
 
     def out_of_scope(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
-        turn.sections.append("抱歉，我是招募助手，僅能協助職缺媒合、人選追問與面試題設計等招募相關事務。")
+        turn.add_template("抱歉，我是招募助手，僅能協助職缺媒合、人選追問與面試題設計等招募相關事務。")
         return NodeUpdate(session=state)
 
     # ------------------------------------------------------------------
     # compose：合併回覆、引文後置驗證、更新狀態與歷史
     # ------------------------------------------------------------------
     def compose(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
-        sections = list(dict.fromkeys(s for s in turn.sections if s))
-        reply = _SECTION_SEPARATOR.join(sections) or "目前無法處理此請求，請換個說法再試一次。"
         sources = list(turn.quote_sources)
         for entry in state.shortlist:
             sources.extend(e.quote for e in entry.evidence)
-        reply, removed = sanitize_reply_quotes(reply, sources, self._verifier, _REMOVED_QUOTE_PLACEHOLDER)
-        if removed:
-            turn.warn(f"回覆中 {removed} 段引文未通過原文驗證，已移除")
+        # 系統詞彙白名單：狀態標籤、職缺名稱與條件 label 為系統產出，LLM 合法引述時不得剝除
+        sources.extend(_STATUS_LABELS.values())
+        if state.jd_requirements:
+            sources.append(state.jd_requirements.title)
+            sources.extend(r.label for r in state.jd_requirements.all_requirements)
+        blocks: List[List[str]] = []
+        removed_total = 0
+        seen_starters = set()
+        skipping = False
+        for sec in turn.sections:
+            if not sec.text:
+                continue
+            if sec.join is None:  # 區塊起點：與先前完全相同者整塊去重（含其接續段落）
+                skipping = sec in seen_starters
+                seen_starters.add(sec)
+            if skipping:
+                continue
+            text = sec.text
+            if sec.llm_generated:  # 僅驗證 LLM 產生之段落；模板段落不驗證
+                text, removed = sanitize_reply_quotes(text, sources, self._verifier, _REMOVED_QUOTE_PLACEHOLDER)
+                removed_total += removed
+            if sec.join is not None and blocks:
+                blocks[-1].append(sec.join)
+                blocks[-1].append(text)
+            else:
+                blocks.append([text])
+        reply = _SECTION_SEPARATOR.join("".join(b) for b in blocks) or "目前無法處理此請求，請換個說法再試一次。"
+        if removed_total:
+            turn.warn(f"回覆中 {removed_total} 段引文未通過原文驗證，已移除")
         # 各節點僅產出「候選人 #N」代稱版本；歷史只保存代稱版，姓名僅於本輪回應代入（G2-01）
         turn.final_reply = self._substitute_names(reply, state.shortlist)
         turn.usage.llm_calls = turn.budget.used
@@ -654,6 +745,11 @@ class RecruitmentNodeHandlers:
         except _BudgetExhausted:
             turn.degraded = True
             turn.warn("單輪 LLM 呼叫預算已用罄，部分回覆改用確定性模板")
+            return None
+        except LlmOutputTruncatedError:
+            turn.degraded = True
+            logger.warning("敘述輸出被截斷，改用確定性模板 (trace_id=%s)", turn.trace_id)
+            turn.warn("敘述輸出超出長度上限，已改用系統摘要")
             return None
         except Exception as err:
             turn.degraded = True

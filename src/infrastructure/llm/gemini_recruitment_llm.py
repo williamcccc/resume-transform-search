@@ -12,11 +12,11 @@ import logging
 import re
 from dataclasses import asdict, is_dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from pydantic import BaseModel, Field
 
-from src.domain.exceptions import LlmQuotaExhaustedError, RecruitmentLlmError
+from src.domain.exceptions import LlmOutputTruncatedError, LlmQuotaExhaustedError, RecruitmentLlmError
 from src.domain.recruitment import (
     AnswerStatus,
     CandidateProfile,
@@ -34,7 +34,7 @@ from src.domain.recruitment import (
     RequirementPriority,
     SeniorityLevel,
 )
-from src.domain.recruitment_services import CircuitBreaker
+from src.domain.recruitment_services import CircuitBreaker, has_unbalanced_brackets, normalize_alias_map, split_skill_options
 from src.infrastructure.prompts import load_prompt
 from src.infrastructure.transformers.utils import retry_call
 
@@ -51,6 +51,10 @@ PROMPT_FILES = {
     "general": "recruit_general_qa.md",
 }
 
+# 抽取器版本由「程式碼結構版本 + Prompt + 模型」決定；JD 與 Profile 分開計算，避免互相使快取失效
+JD_SCHEMA_REVISION = "2"
+PROFILE_SCHEMA_REVISION = "1"
+
 _FENCE_TAGS = re.compile(r"</?\s*(job_description|resume_content|user_message|facts_json)\s*>", re.IGNORECASE)
 _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 
@@ -66,6 +70,7 @@ class RequirementSchema(BaseModel):
     category: str
     label: str
     skill: Optional[str] = None
+    skills: List[str] = Field(default_factory=list, description="可互相替代(OR)的技能名清單")
     min_value: Optional[float] = None
     min_level: Optional[str] = None
 
@@ -156,6 +161,10 @@ class GeminiRecruitmentLlm:
         prompt_loader: Callable[[str], str] = load_prompt,
         profile_max_output_tokens: Optional[int] = None,
         profile_chat_model: Any = None,
+        narrative_max_output_tokens: Optional[int] = None,
+        narrative_chat_model: Any = None,
+        thinking_budget: Optional[int] = None,
+        skill_aliases: Optional[Mapping[str, str]] = None,
     ):
         self._model_name = model_name
         self._breaker = circuit_breaker
@@ -165,6 +174,12 @@ class GeminiRecruitmentLlm:
         if chat_model is None:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
+            model_kwargs: Dict[str, Any] = {}
+            if thinking_budget is not None:
+                if "thinking_budget" in ChatGoogleGenerativeAI.model_fields:
+                    model_kwargs["thinking_budget"] = int(thinking_budget)
+                else:
+                    logger.info("已安裝之 langchain-google-genai 不支援 thinking_budget，已忽略 RECRUIT_LLM_THINKING_BUDGET")
             chat_model = ChatGoogleGenerativeAI(
                 model=model_name,
                 google_api_key=api_key,
@@ -172,28 +187,51 @@ class GeminiRecruitmentLlm:
                 max_output_tokens=max_output_tokens,
                 timeout=timeout_seconds,
                 max_retries=0,
+                **model_kwargs,
             )
         self._chat = chat_model
         # 履歷抽取輸出精簡，以獨立 max_output_tokens 收斂延遲；未指定時共用主模型
         if profile_chat_model is None and profile_max_output_tokens and hasattr(chat_model, "model_copy"):
             profile_chat_model = chat_model.model_copy(update={"max_output_tokens": int(profile_max_output_tokens)})
         self._profile_chat = profile_chat_model or chat_model
-        digest_src = "\n".join([self._prompts["system"], self._prompts["jd"], self._prompts["profile"], model_name])
-        self._version = hashlib.sha256(digest_src.encode("utf-8")).hexdigest()[:12]
+        # 長文敘述以獨立（較大）max_output_tokens，避免 thinking token 擠占可用文字額度
+        if narrative_chat_model is None and narrative_max_output_tokens and hasattr(chat_model, "model_copy"):
+            narrative_chat_model = chat_model.model_copy(update={"max_output_tokens": int(narrative_max_output_tokens)})
+        self._narrative_chat = narrative_chat_model or chat_model
+        self._skill_aliases: Dict[str, str] = normalize_alias_map(skill_aliases)
+        self._jd_version = self._digest(self._prompts["system"], self._prompts["jd"], model_name, JD_SCHEMA_REVISION)
+        self._profile_version = self._digest(self._prompts["system"], self._prompts["profile"], model_name,
+                                             PROFILE_SCHEMA_REVISION)
+
+    @staticmethod
+    def _digest(*parts: str) -> str:
+        return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:12]
 
     @property
     def extractor_version(self) -> str:
-        return self._version
+        """相容舊呼叫端：等同 JD 抽取器版本"""
+        return self._jd_version
+
+    @property
+    def jd_extractor_version(self) -> str:
+        return self._jd_version
+
+    @property
+    def profile_extractor_version(self) -> str:
+        return self._profile_version
 
     # ------------------------------------------------------------------
-    def _invoke(self, schema, prompt_key: str, values: Dict[str, str], op_name: str, chat_model: Any = None):
+    def _invoke(self, schema, prompt_key: str, values: Dict[str, str], op_name: str, chat_model: Any = None,
+                narrative: bool = False):
         if self._breaker.is_open():
             raise LlmQuotaExhaustedError("LLM 配額熔斷冷卻中", retry_after_seconds=self._breaker.retry_after_seconds())
         from langchain_core.messages import HumanMessage, SystemMessage
 
         human = render_prompt(self._prompts[prompt_key], values)
         messages = [SystemMessage(content=self._prompts["system"]), HumanMessage(content=human)]
-        runnable = (chat_model or self._chat).with_structured_output(schema)
+        model = chat_model or self._chat
+        runnable = model.with_structured_output(schema, include_raw=True) if narrative \
+            else model.with_structured_output(schema)
         try:
             result = retry_call(lambda: runnable.invoke(messages), max_retries=self._max_retries,
                                 initial_delay=self._retry_delay, op_name=op_name)
@@ -204,11 +242,39 @@ class GeminiRecruitmentLlm:
                     "LLM 配額用罄", retry_after_seconds=self._breaker.retry_after_seconds()
                 ) from err
             raise RecruitmentLlmError(f"LLM 呼叫失敗 [{op_name}] ({type(err).__name__})") from err
+        if narrative:
+            result = self._check_truncation(result, op_name)
         if result is None:
             raise RecruitmentLlmError(f"LLM 結構化輸出為空 [{op_name}]")
         if isinstance(result, dict):
             result = schema.model_validate(result)
         return result
+
+    @staticmethod
+    def _check_truncation(result: Any, op_name: str) -> Any:
+        """include_raw 結果：finish_reason=MAX_TOKENS 或解析失敗 -> LlmOutputTruncatedError（日誌僅記計數，不記文字）"""
+        if not (isinstance(result, dict) and "raw" in result and "parsed" in result):
+            return result
+        raw = result.get("raw")
+        meta = getattr(raw, "response_metadata", None)
+        finish = meta.get("finish_reason") if isinstance(meta, dict) else None
+        usage = getattr(raw, "usage_metadata", None)
+        usage = usage if isinstance(usage, dict) else {}
+        details = usage.get("output_token_details")
+        reasoning = details.get("reasoning") if isinstance(details, dict) else None
+        logger.info("LLM 敘述輸出 [%s] finish_reason=%s output_tokens=%s thinking_tokens=%s",
+                    op_name, finish, usage.get("output_tokens"), reasoning)
+        if str(finish).upper() == "MAX_TOKENS":
+            raise LlmOutputTruncatedError(f"LLM 輸出達長度上限 [{op_name}] finish_reason={finish}")
+        if result.get("parsing_error") is not None:
+            raise LlmOutputTruncatedError(f"LLM 結構化輸出解析失敗 [{op_name}]") from result.get("parsing_error")
+        return result.get("parsed")
+
+    @staticmethod
+    def _ensure_complete(op_name: str, *texts: str) -> None:
+        """防禦縱深：括號不成對視同截斷"""
+        if any(has_unbalanced_brackets(t) for t in texts if t):
+            raise LlmOutputTruncatedError(f"LLM 敘述括號不成對，疑似截斷 [{op_name}]")
 
     @staticmethod
     def _facts_json(facts: Any) -> str:
@@ -246,8 +312,7 @@ class GeminiRecruitmentLlm:
             retrieval_query=res.retrieval_query or res.title or "",
         )
 
-    @staticmethod
-    def _map_req(raw: RequirementSchema, priority: RequirementPriority) -> Optional[JobRequirement]:
+    def _map_req(self, raw: RequirementSchema, priority: RequirementPriority) -> Optional[JobRequirement]:
         try:
             category = RequirementCategory(str(raw.category).strip().upper())
         except ValueError:
@@ -258,12 +323,17 @@ class GeminiRecruitmentLlm:
                 level = SeniorityLevel[str(raw.min_level).strip().upper()]
             except KeyError:
                 level = None
+        options: List[str] = []
+        for item in list(raw.skills or []) + [raw.skill or ""]:
+            options.extend(split_skill_options(str(item), self._skill_aliases))
+        skills = tuple(dict.fromkeys(options))
         return JobRequirement(
             requirement_id="",
             category=category,
             priority=priority,
             label=(raw.label or "").strip()[:120],
-            skill=(raw.skill or "").strip().lower() or None,
+            skill=skills[0] if skills else None,
+            skills=skills,
             min_value=raw.min_value,
             min_level=level,
         )
@@ -300,7 +370,7 @@ class GeminiRecruitmentLlm:
         return CandidateProfile(
             candidate_id=candidate_id,
             content_hash=content_hash,
-            extractor_version=self._version,
+            extractor_version=self._profile_version,
             years_of_experience=res.years_of_experience,
             has_led_team=res.has_led_team,
             max_team_size=res.max_team_size,
@@ -314,8 +384,10 @@ class GeminiRecruitmentLlm:
     # ------------------------------------------------------------------
     def narrate_match(self, facts: MatchNarrationFacts) -> str:
         res: NarrationSchema = self._invoke(NarrationSchema, "narrate", {"facts_json": self._facts_json(facts)},
-                                            "recruit_narrate")
-        return (res.text or "").strip()
+                                            "recruit_narrate", chat_model=self._narrative_chat, narrative=True)
+        text = (res.text or "").strip()
+        self._ensure_complete("recruit_narrate", text)
+        return text
 
     def answer_followup(self, facts: FollowupFacts) -> FollowupNarration:
         payload = {k: v for k, v in _to_jsonable(facts).items() if k not in ("resume_excerpt", "question")}
@@ -324,7 +396,8 @@ class GeminiRecruitmentLlm:
             "facts_json": neutralize_fences(json.dumps(payload, ensure_ascii=False)),
             "question": neutralize_fences(facts.question),
             "resume_content": neutralize_fences(facts.resume_excerpt),
-        }, "recruit_followup")
+        }, "recruit_followup", chat_model=self._narrative_chat, narrative=True)
+        self._ensure_complete("recruit_followup", res.answer_text or "")
         try:
             status = AnswerStatus(str(res.answer_status).strip().upper())
         except ValueError:
@@ -337,7 +410,8 @@ class GeminiRecruitmentLlm:
             "alias": facts.alias,
             "count": str(count),
             "facts_json": self._facts_json(facts),
-        }, "recruit_interview")
+        }, "recruit_interview", chat_model=self._narrative_chat, narrative=True)
+        self._ensure_complete("recruit_interview", *[f"{q.question} {q.rationale or ''}" for q in res.questions])
         return [
             InterviewQuestion(no=i, question=q.question.strip(), target_requirement_id=q.target_requirement_id.strip(),
                               rationale=(q.rationale or "").strip())
@@ -350,8 +424,10 @@ class GeminiRecruitmentLlm:
         res: NarrationSchema = self._invoke(NarrationSchema, "general", {
             "facts_json": neutralize_fences(json.dumps(payload, ensure_ascii=False)),
             "question": neutralize_fences(facts.question),
-        }, "recruit_general")
-        return (res.text or "").strip()
+        }, "recruit_general", chat_model=self._narrative_chat, narrative=True)
+        text = (res.text or "").strip()
+        self._ensure_complete("recruit_general", text)
+        return text
 
 
 class GeminiJdExtractorAdapter:
@@ -362,7 +438,7 @@ class GeminiJdExtractorAdapter:
 
     @property
     def extractor_version(self) -> str:
-        return self._llm.extractor_version
+        return self._llm.jd_extractor_version
 
     def extract(self, jd_text: str, max_must: int) -> JdRequirements:
         return self._llm.extract_jd(jd_text, max_must)
@@ -376,7 +452,7 @@ class GeminiProfileExtractorAdapter:
 
     @property
     def extractor_version(self) -> str:
-        return self._llm.extractor_version
+        return self._llm.profile_extractor_version
 
     def extract(self, candidate_id: str, resume_text: str, content_hash: str) -> CandidateProfile:
         return self._llm.extract_profile(candidate_id, resume_text, content_hash)

@@ -309,6 +309,47 @@ class TestRecruitmentAppConfig(unittest.TestCase):
         self.assertEqual(cfg.chat_checkpointer_backend, "redis")
         self.assertEqual(cfg.chat_checkpoint_redis_url, "redis://checkpoint-host:6379/2")
 
+    @patch("dotenv.load_dotenv")
+    def test_recruit_rev2_defaults(self, mock_load_dotenv):
+        # Arrange / Act
+        with patch.dict(os.environ, {}, clear=True):
+            cfg = AppConfig.load(override_api_key="mock_key")
+        # Assert：Rev2 新設定預設值與擴充別名表
+        self.assertEqual(cfg.recruit_narrative_max_output_tokens, 8192)
+        self.assertIsNone(cfg.recruit_llm_thinking_budget)
+        self.assertEqual(cfg.recruit_skill_lexical_min_chars, 3)
+        self.assertEqual(cfg.recruit_skill_mention_snippet_chars, 80)
+        self.assertEqual(cfg.recruit_skill_version_strip_exempt,
+                         ["web3", "b2b", "b2c", "e2e", "p2p", "base64", "utf8", "utf-8", "sha256", "arm64"])
+        self.assertEqual(cfg.recruit_skill_lexical_alias_denylist, ["node"])
+        self.assertEqual(cfg.recruit_skill_aliases["pl/sql"], "plsql")
+        self.assertEqual(cfg.recruit_skill_aliases["postgres"], "postgresql")
+        self.assertEqual(cfg.recruit_skill_aliases["ci/cd"], "cicd")
+        self.assertEqual(cfg.recruit_skill_aliases["node.js"], "nodejs")
+
+    @patch("dotenv.load_dotenv")
+    def test_recruit_rev2_env_overrides_and_invalid_values(self, mock_load_dotenv):
+        env = {
+            "RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS": "4096",
+            "RECRUIT_LLM_THINKING_BUDGET": "0",
+            "RECRUIT_SKILL_LEXICAL_MIN_CHARS": "4",
+            "RECRUIT_SKILL_MENTION_SNIPPET_CHARS": "abc",
+            "RECRUIT_SKILL_VERSION_STRIP_EXEMPT": "web3, s3",
+            "RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST": "node, express",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            cfg = AppConfig.load(override_api_key="mock_key")
+        self.assertEqual(cfg.recruit_narrative_max_output_tokens, 4096)
+        self.assertEqual(cfg.recruit_llm_thinking_budget, 0)  # 0 = 關閉 thinking，須與「未設定」區分
+        self.assertEqual(cfg.recruit_skill_lexical_min_chars, 4)
+        self.assertEqual(cfg.recruit_skill_mention_snippet_chars, 80)  # 非法值回退預設
+        self.assertEqual(cfg.recruit_skill_version_strip_exempt, ["web3", "s3"])
+        self.assertEqual(cfg.recruit_skill_lexical_alias_denylist, ["node", "express"])
+        with patch.dict(os.environ, {"RECRUIT_LLM_THINKING_BUDGET": "x"}, clear=True):
+            self.assertIsNone(AppConfig.load(override_api_key="mock_key").recruit_llm_thinking_budget)
+        with patch.dict(os.environ, {"RECRUIT_LLM_THINKING_BUDGET": "-5"}, clear=True):
+            self.assertIsNone(AppConfig.load(override_api_key="mock_key").recruit_llm_thinking_budget)
+
     def test_env_example_should_cover_all_recruit_and_chat_keys(self):
         import re
         from pathlib import Path
@@ -318,5 +359,5 @@ class TestRecruitmentAppConfig(unittest.TestCase):
         example = (root / ".env.example").read_text(encoding="utf-8")
         keys = set(re.findall(r'os\.environ\.get\(\s*"((?:RECRUIT|CHAT)_[A-Z0-9_]+)"', cfg_text))
         example_keys = set(re.findall(r"^#?\s*([A-Z0-9_]+)=", example, re.MULTILINE))
-        self.assertGreaterEqual(len(keys), 37)
+        self.assertGreaterEqual(len(keys), 42)
         self.assertEqual(sorted(keys - example_keys), [])

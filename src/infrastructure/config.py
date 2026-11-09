@@ -21,6 +21,17 @@ def _safe_float(val: Optional[str], default: float) -> float:
         return default
 
 
+def _safe_optional_int(val: Optional[str]) -> Optional[int]:
+    """空值或非法值 -> None（沿用模型預設）；0 與正整數保留"""
+    if not val or not str(val).strip():
+        return None
+    try:
+        parsed = int(str(val).strip())
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
 def _safe_list(val: Optional[str]) -> List[str]:
     if not val or not str(val).strip():
         return []
@@ -48,7 +59,13 @@ DEFAULT_PROTECTED_ATTR_TERMS = (
     "年齡,歲,出生,生日,出生日期,生辰,性別,男性,女性,婚姻,已婚,未婚,婚育,懷孕,照片,大頭照,宗教,國籍,籍貫,身高,體重,血型,"
     "gender,sex,age,birth,dob,birthday,marital,married,religion,nationality,photo"
 )
-DEFAULT_SKILL_ALIASES = "golang:go,k8s:kubernetes,js:javascript"
+DEFAULT_SKILL_ALIASES = (
+    "golang:go,k8s:kubernetes,js:javascript,ts:typescript,node.js:nodejs,node:nodejs,"
+    "postgres:postgresql,reactjs:react,react.js:react,vue.js:vue,vuejs:vue,ci/cd:cicd,"
+    "pl/sql:plsql,tcp/ip:tcpip,a/b testing:abtesting"
+)
+DEFAULT_SKILL_VERSION_STRIP_EXEMPT = "web3,b2b,b2c,e2e,p2p,base64,utf8,utf-8,sha256,arm64"
+DEFAULT_SKILL_LEXICAL_ALIAS_DENYLIST = "node"
 
 
 @dataclass
@@ -110,6 +127,14 @@ class AppConfig:
     recruit_llm_max_output_tokens: int = 2048
     recruit_llm_timeout_seconds: float = 45.0
     recruit_profile_max_output_tokens: int = 1024
+    recruit_narrative_max_output_tokens: int = 8192
+    recruit_llm_thinking_budget: Optional[int] = None
+    recruit_skill_lexical_min_chars: int = 3
+    recruit_skill_mention_snippet_chars: int = 80
+    recruit_skill_version_strip_exempt: List[str] = field(
+        default_factory=lambda: _safe_list(DEFAULT_SKILL_VERSION_STRIP_EXEMPT))
+    recruit_skill_lexical_alias_denylist: List[str] = field(
+        default_factory=lambda: _safe_list(DEFAULT_SKILL_LEXICAL_ALIAS_DENYLIST))
     recruit_retrieval_top_k_chunks: int = 60
     recruit_retrieval_min_score: float = 0.5
     recruit_candidate_pool_size: int = 15
@@ -405,6 +430,14 @@ class AppConfig:
             recruit_llm_max_output_tokens=_safe_int(os.environ.get("RECRUIT_LLM_MAX_OUTPUT_TOKENS"), 2048),
             recruit_llm_timeout_seconds=_safe_float(os.environ.get("RECRUIT_LLM_TIMEOUT_SECONDS"), 45.0),
             recruit_profile_max_output_tokens=_safe_int(os.environ.get("RECRUIT_PROFILE_MAX_OUTPUT_TOKENS"), 1024),
+            recruit_narrative_max_output_tokens=_safe_int(os.environ.get("RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS"), 8192),
+            recruit_llm_thinking_budget=_safe_optional_int(os.environ.get("RECRUIT_LLM_THINKING_BUDGET")),
+            recruit_skill_lexical_min_chars=_safe_int(os.environ.get("RECRUIT_SKILL_LEXICAL_MIN_CHARS"), 3),
+            recruit_skill_mention_snippet_chars=_safe_int(os.environ.get("RECRUIT_SKILL_MENTION_SNIPPET_CHARS"), 80),
+            recruit_skill_version_strip_exempt=_safe_list(
+                os.environ.get("RECRUIT_SKILL_VERSION_STRIP_EXEMPT") or DEFAULT_SKILL_VERSION_STRIP_EXEMPT),
+            recruit_skill_lexical_alias_denylist=_safe_list(
+                os.environ.get("RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST") or DEFAULT_SKILL_LEXICAL_ALIAS_DENYLIST),
             recruit_retrieval_top_k_chunks=_safe_int(os.environ.get("RECRUIT_RETRIEVAL_TOP_K_CHUNKS"), 60),
             recruit_retrieval_min_score=_safe_float(os.environ.get("RECRUIT_RETRIEVAL_MIN_SCORE"), 0.5),
             recruit_candidate_pool_size=_safe_int(os.environ.get("RECRUIT_CANDIDATE_POOL_SIZE"), 15),

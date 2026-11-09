@@ -331,6 +331,8 @@ WEB_ENGINE=auto
 7. **Session 治理**：Checkpointer 可抽換（`CHAT_CHECKPOINTER_BACKEND=memory|redis`），含 Session TTL、歷史裁切（輪數/字元）、LRU 上限與 Session 鎖（並行請求回 `409`）。Redis 後端受 RediSearch 限制僅能使用 db0，以 `chat:v1:*` 前綴隔離。
 8. **API**：`POST /api/chat`（`session_id` 選填、`message` 必填）、`GET /api/chat/{session_id}`、`DELETE /api/chat/{session_id}`；錯誤碼 400/409/413/422/429/503/504。僅 FastAPI 引擎提供，內建 HTTPServer 回 `501`；無 API Key 或未安裝 LangGraph 時回 `503`，不影響其他分頁。
 9. **向下相容**：`convert_to_md.py` 與既有 CLI 指令、引數零改動。
+10. **技能比對（Rev2）**：SKILL 條件支援 OR 多選項（「Python 或 Go」任一命中即 MET）；比對容忍版本與別名（`Python3`、`PostgreSQL 12`、`k8s`）。三態規則：結構化技能命中或履歷全文詞面命中（非歧義）→ MET 並附原文證據片段；歧義短詞（如單獨 `go`）或未驗證宣稱 → UNKNOWN；全文可得且零命中 → UNMET。全部必要條件放寬後合格人數皆無增加時，回覆改指出通過率最低之條件與符合人數。相關設定：`RECRUIT_SKILL_ALIASES`、`RECRUIT_SKILL_LEXICAL_MIN_CHARS`、`RECRUIT_SKILL_MENTION_SNIPPET_CHARS`、`RECRUIT_SKILL_VERSION_STRIP_EXEMPT`、`RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST`。
+11. **敘述完整性（Rev2）**：長文輸出使用 `RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS`（預設 8192），可選 `RECRUIT_LLM_THINKING_BUDGET`；偵測到截斷（`MAX_TOKENS`、解析失敗、括號不成對）時改用系統模板並附警告，不重試。引文驗證僅作用於 LLM 生成段落，系統模板固定用語不再被誤刪。
 
 ---
 

@@ -33,3 +33,8 @@ class RecruitmentSettings:
     history_max_chars: int = 24000
     protected_attr_terms: Tuple[str, ...] = ()
     skill_aliases: Dict[str, str] = field(default_factory=dict)
+    skill_lexical_min_chars: int = 3
+    skill_mention_snippet_chars: int = 80
+    skill_version_strip_exempt: Tuple[str, ...] = ("web3", "b2b", "b2c", "e2e", "p2p", "base64", "utf8", "utf-8",
+                                                    "sha256", "arm64")
+    skill_lexical_alias_denylist: Tuple[str, ...] = ("node",)

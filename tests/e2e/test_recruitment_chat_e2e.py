@@ -761,13 +761,14 @@ class TestRecruitmentChatLiveE2E(unittest.TestCase):
         self.assertTrue(d1["shortlist"][0]["fully_qualified"])
 
         # AC-08：證據逐字子字串；回覆「」引文可回溯
-        sources = list(corpus.values()) + [_norm(r["label"]) for r in jd["must"] + jd["nice"]]
+        # Rev2 (AC-41/42)：模板系統詞彙「履歷未提及」屬合法引號用法，不再被剝除，故列入可溯源集合
+        sources = list(corpus.values()) + [_norm(r["label"]) for r in jd["must"] + jd["nice"]] + ["履歷未提及"]
         for s in d1["shortlist"]:
             self.assertTrue(s["evidence"], f"rank {s['rank']} 無證據")
             for ev in s["evidence"]:
                 self.assertIn(_norm(ev["quote"]), corpus[s["candidate_id"]])
         for quote in re.findall(r"「([^」]+)」", d1["reply_markdown"]):
-            self.assertTrue(any(_norm(quote) in src for src in sources), f"無法回溯之引文長度={len(quote)}")
+            self.assertTrue(any(_norm(quote) in src for src in sources), f"無法回溯之引文長度={len(quote)} 內容={quote!r}")
 
         # AC-09：未提及明說
         self.assertIn("履歷未提及", d1["reply_markdown"])
@@ -825,6 +826,286 @@ class TestRecruitmentChatLiveE2E(unittest.TestCase):
         self.assertLessEqual(d3["usage"]["llm_calls"], 2)
         self.assertEqual([s["candidate_id"] for s in d3["shortlist"]],
                          [s["candidate_id"] for s in d1["shortlist"]])  # AC-03 可重現
+
+
+# ======================================================================
+# Rev2 QA：真實寫法技能 / OR 條件 / 次級瓶頸（AC-34 ~ AC-43，TC-24 ~ TC-31）
+# ======================================================================
+from src.domain.recruitment import (  # noqa: E402
+    CandidateProfile,
+    EvidenceQuote,
+    JdRequirements,
+)
+
+REV2_ALIASES = {"golang": "go", "k8s": "kubernetes", "postgres": "postgresql", "node.js": "nodejs"}
+REV2_RESUMES: Dict[str, Dict] = {
+    "qa0019_r2_a": {"name": "王小明", "score": 0.95, "skills": [],
+                    "text": "# 王小明\n## 工作經歷\n使用 Python3 開發後端服務並以 k8s 部署\n維運 PostgreSQL 12 資料庫"},
+    "qa0019_r2_b": {"name": "李小華", "score": 0.92, "skills": [],
+                    "text": "# 李小華\n## 工作經歷\n使用 Golang 撰寫微服務並部署於 Kubernetes (EKS)\n資料層採用 postgres 14"},
+    "qa0019_r2_c": {"name": "陳大文", "score": 0.90, "skills": [],
+                    "text": "# 陳大文\n## 工作經歷\n以 Python 3.11 開發資料服務，資料庫為 PostgreSQL"},
+    "qa0019_r2_d": {"name": "林美玲", "score": 0.85, "skills": [],
+                    "text": "# 林美玲\n## 工作經歷\n使用 Go 1.21 開發閘道，資料庫 PostgreSQL，部署於 Kubernetes"},
+    "qa0019_r2_e": {"name": "張志強", "score": 0.80, "skills": [],
+                    "text": "# 張志強\n## 工作經歷\n負責 Java 企業系統維護"},
+    "qa0019_r2_f": {"name": "黃雅婷", "score": 0.75, "skills": [],
+                    "text": "# 黃雅婷\n## 工作經歷\n使用 Node.js 開發前端 BFF，不涉及資料庫"},
+}
+REV2_PROFILE_SKILLS = {  # 結構化 core_skills 僅列一部分，其餘技能只存在於內文（AC-43）
+    "qa0019_r2_a": {"python3": "Python3 開發後端服務"},
+    "qa0019_r2_b": {},
+    "qa0019_r2_c": {"python": "Python 3.11 開發資料服務"},
+    "qa0019_r2_d": {"go": "Go 1.21 開發閘道"},  # 單字「Go」為歧義短詞：僅內文出現時為 UNKNOWN，需結構化命中才 MET
+    "qa0019_r2_e": {},
+    "qa0019_r2_f": {},
+    "qa0019_r2_g": {"python": "Python 開發資料管線"},
+    "qa0019_r2_h": {"python": "Python 開發批次作業"},
+}
+REV2_JD_TEXT = JD_TEXT.replace("挑 3 個", "挑 5 個")
+
+
+class _Rev2ProfileExtractor:
+    version = "v-qa0019-rev2"
+
+    def __init__(self):
+        self.calls: List[str] = []
+
+    @property
+    def extractor_version(self) -> str:
+        return self.version
+
+    def extract(self, candidate_id, resume_text, content_hash):
+        self.calls.append(candidate_id)
+        spec = REV2_PROFILE_SKILLS[candidate_id]
+        evidence = tuple(EvidenceQuote(f"skill:{k}", q) for k, q in spec.items())
+        return CandidateProfile(candidate_id, content_hash, self.version, None, None, None, None,
+                                tuple(spec.keys()), evidence)
+
+
+def _rev2_jd() -> JdRequirements:
+    def sk(rid, label, *skills):
+        return JobRequirement(rid, RequirementCategory.SKILL, RequirementPriority.MUST, label,
+                              skill=skills[0], skills=tuple(skills))
+
+    return JdRequirements(
+        jd_hash="", title="資深後端工程師",
+        must=(sk("x1", "精通 Python 或 Go", "python", "go"), sk("x2", "熟悉 PostgreSQL", "postgresql"),
+              sk("x3", "熟悉 Kubernetes", "kubernetes")),
+        nice=(), retrieval_query="後端 Python Go PostgreSQL Kubernetes")
+
+
+@unittest.skipUnless(LANGGRAPH_OK, "未安裝 langgraph，略過 FAKE 軌")
+class TestRecruitmentChatRev2FakeE2E(unittest.TestCase):
+    """TC-31（FAKE 軌）：真實 LangGraph + 真實 FastAPI 路由 + 真實比對器，驗證真實寫法技能與 OR 條件"""
+
+    def _harness(self, backend="memory", resumes=None, cache=None, extractor=None, jd_version="v-test"):
+        kwargs = {"cache": cache} if cache is not None else {}
+        narrator = FakeNarrator()
+        narrator.match_text = "整體而言多位人選技術背景相近。"  # 預設敘述引述他組履歷證據，會被正確移除，故改用中性文字
+        return _FakeAppHarness(narrator=narrator, 
+            settings=make_settings(skill_aliases=REV2_ALIASES), backend=backend,
+            search=FakeSearch(resumes or REV2_RESUMES), profile_extractor=extractor or _Rev2ProfileExtractor(),
+            jd_extractor=FakeJdExtractor(_rev2_jd(), version=jd_version), **kwargs)
+
+    def _assert_turn1(self, d, harness, sid):
+        self.assertEqual(d["intents"], ["JD_MATCH"])
+        rel = d["relaxation"]
+        self.assertIsNotNone(rel)
+        self.assertGreater(rel["baseline_qualified"], 0)           # Rev1 缺陷：曾為 0
+        self.assertEqual(rel["baseline_qualified"], 3)             # a/b/d 全合格（OR / 版本 / 別名 / 詞面）
+        by_id = {i["requirement_id"]: i for i in rel["items"]}
+        self.assertGreater(by_id["R3"]["delta"], 0)                # 刻意瓶頸：陳大文僅缺 Kubernetes
+        self.assertEqual(rel["bottleneck_requirement_ids"], ["R3"])
+        self.assertEqual(rel["strictest_requirement_ids"], [])     # 存在 delta>0 時為空
+        short = {s["candidate_id"]: s for s in d["shortlist"]}
+        for cid in ("qa0019_r2_a", "qa0019_r2_b", "qa0019_r2_d"):
+            self.assertTrue(short[cid]["fully_qualified"], cid)
+            self.assertIn("R1", short[cid]["met"], cid)            # OR 任一命中即 MET
+        self.assertFalse(short["qa0019_r2_e"]["fully_qualified"])
+        # 詞面回退證據：Golang 僅在內文，需附逐字且 verified 之證據
+        ev_b = [e for e in short["qa0019_r2_b"]["evidence"] if e["requirement_id"] == "R1"]
+        self.assertTrue(ev_b)
+        self.assertIn("Golang", ev_b[0]["quote"])
+        self.assertTrue(ev_b[0].get("verified"))
+        # AC-41：無模板誤刪警告
+        self.assertNotIn("引文未通過原文驗證", d["reply_markdown"])
+        self.assertFalse([w for w in d["warnings"] if "引文未通過" in w])
+        self.assertIn(f"完全符合必要條件者 {rel['baseline_qualified']} 位", d["reply_markdown"])
+        # AC-34：OR 條件經 API 還原仍為單一條件、skills 為雙選項
+        state = harness.client.get(f"/api/chat/{sid}").json()
+        r1 = next(r for r in state["jd_requirements"]["must"] if r["requirement_id"] == "R1")
+        self.assertEqual(set(r1["skills"]), {"python", "go"})
+
+    def test_tc31_rev2_real_world_skills_memory(self):
+        h = self._harness()
+        try:
+            d = h.chat(REV2_JD_TEXT, "qa0019rev2mem").json()
+            self._assert_turn1(d, h, "qa0019rev2mem")
+        finally:
+            h.close()
+
+    def test_tc31_rev2_real_world_skills_redis_checkpointer(self):
+        if not _redis_available(REDIS_SEARCH_URL):
+            self.skipTest("Redis 不可連線")
+        try:
+            import langgraph.checkpoint.redis  # noqa: F401
+        except ImportError:
+            self.skipTest("未安裝 langgraph-checkpoint-redis")
+        sid = "qa0019rev2redis"
+        self.addCleanup(_delete_keys, REDIS_SEARCH_URL, [f"*{sid}*"])
+        self.addCleanup(TestRecruitmentChatRedisCheckpointerE2E._drop_empty_checkpoint_indexes)
+        h = self._harness(backend="redis")
+        try:
+            d = h.chat(REV2_JD_TEXT, sid).json()
+            self._assert_turn1(d, h, sid)
+        finally:
+            h.close()
+
+    def test_tc27_secondary_bottleneck_when_all_delta_zero(self):
+        resumes = {k: v for k, v in REV2_RESUMES.items() if k in ("qa0019_r2_e", "qa0019_r2_g", "qa0019_r2_h")}
+        h = self._harness(resumes=resumes)
+        try:
+            d = h.chat(REV2_JD_TEXT, "qa0019rev2sec").json()
+            rel = d["relaxation"]
+            self.assertEqual(rel["baseline_qualified"], 0)
+            self.assertTrue(all(i["delta"] == 0 for i in rel["items"]))
+            strictest = rel["strictest_requirement_ids"]
+            self.assertTrue(strictest)
+            lowest = min(i["met_count"] for i in rel["items"])
+            self.assertEqual(set(strictest), {i["requirement_id"] for i in rel["items"] if i["met_count"] == lowest})
+            self.assertIn("通過率最低之條件", d["reply_markdown"])
+            self.assertNotIn("引文未通過原文驗證", d["reply_markdown"])
+        finally:
+            h.close()
+
+    def test_tc28_jd_version_change_keeps_profile_cache(self):
+        cache = InMemoryProfileCache()
+        h1 = self._harness(cache=cache, jd_version="jd-v1")
+        try:
+            h1.chat(REV2_JD_TEXT, "qa0019rev2c1")
+        finally:
+            h1.close()
+        ex2 = _Rev2ProfileExtractor()  # Profile 版本不變，僅 JD 版本改變
+        h2 = self._harness(cache=cache, extractor=ex2, jd_version="jd-v2")
+        try:
+            d = h2.chat(REV2_JD_TEXT, "qa0019rev2c2").json()
+        finally:
+            h2.close()
+        self.assertFalse(d["usage"]["jd_cache_hit"])
+        self.assertEqual(d["usage"]["profile_cache_misses"], 0)
+        self.assertEqual(ex2.calls, [])
+
+
+REV2_LIVE_PREFIX = "qa0019rev2live:"
+REV2_LIVE_INDEX = "idx:qa0019rev2live:v1"
+REV2_LIVE_JD = (
+    "【職缺】資深後端工程師 JD\n"
+    "工作內容：負責高併發交易平台之後端服務設計、開發與維運，與產品及前端團隊協作規劃系統架構演進，"
+    "並持續優化 API 效能與資料庫存取。\n"
+    "必要條件：\n1. 精通 Python 或 Go 後端開發。\n2. 熟悉 PostgreSQL / MySQL 其一。\n3. 熟悉 Kubernetes 容器化部署。\n"
+    "請幫我從資料庫挑 5 個最適合的人，告訴我為什麼推薦；人選不夠就告訴我哪個條件太嚴格。"
+)
+
+
+@unittest.skipUnless(LANGGRAPH_OK, "未安裝 langgraph")
+class TestRecruitmentChatRev2LiveE2E(unittest.TestCase):
+    """TC-24 / TC-31（LIVE）：真實 Gemini + 真實 Redis 臨時索引（qa0019rev2live 前綴），虛構真實寫法履歷"""
+
+    @classmethod
+    def setUpClass(cls):
+        base = AppConfig.load(
+            override_redis_url=REDIS_SEARCH_URL, override_redis_index_name=REV2_LIVE_INDEX,
+            override_redis_prefix=f"{REV2_LIVE_PREFIX}chunk:", override_redis_hash_prefix=f"{REV2_LIVE_PREFIX}hash:")
+        if not base.gemini_api_key:
+            raise unittest.SkipTest("未設定 GEMINI_API_KEY，略過 LIVE 軌")
+        if not _redis_available(REDIS_SEARCH_URL):
+            raise unittest.SkipTest("Redis 不可連線，略過 LIVE 軌")
+        cls.config = replace(base, recruit_profile_cache_prefix=f"{REV2_LIVE_PREFIX}profile:",
+                             recruit_jd_cache_prefix=f"{REV2_LIVE_PREFIX}jd:", chat_checkpointer_backend="memory")
+        from src.application.dto import IndexCommand
+        from src.application.index_resumes_use_case import IndexResumesUseCase
+        from src.application.search_resumes_use_case import SearchResumesUseCase
+        from src.infrastructure.chunkers.markdown_chunker import MarkdownChunker
+        from src.infrastructure.embeddings.gemini_embedding import GeminiEmbeddingService
+        from src.infrastructure.parsers.experience_parser import RegexExperienceParser
+        from src.infrastructure.stores.redis_vector_store import RedisVectorStore
+        from src.interfaces.web.server import build_chat_use_case
+
+        c = cls.config
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.resume_dir = Path(cls._tmp.name) / "markdown_out"
+        cls.resume_dir.mkdir(parents=True)
+        for cid, r in REV2_RESUMES.items():
+            (cls.resume_dir / f"{cid}.md").write_text(r["text"], encoding="utf-8")
+        embedding = GeminiEmbeddingService(api_key=c.gemini_api_key, model_name=c.embedding_model,
+                                           dim=c.embedding_dim, batch_size=c.embedding_batch_size,
+                                           max_retries=c.api_max_retries, retry_delay=c.api_retry_delay)
+        cls.store = RedisVectorStore(redis_url=REDIS_SEARCH_URL, index_name=REV2_LIVE_INDEX,
+                                     prefix=f"{REV2_LIVE_PREFIX}chunk:", hash_prefix=f"{REV2_LIVE_PREFIX}hash:")
+        indexer = IndexResumesUseCase(MarkdownChunker(min_chunk_chars=c.min_chunk_size,
+                                                      max_chunk_chars=c.max_chunk_size), embedding, cls.store)
+        result = indexer.execute(IndexCommand(dir_path=cls.resume_dir, recreate_index=True))
+        if result.errors or result.indexed_files != len(REV2_RESUMES):
+            cls._cleanup()
+            raise AssertionError(f"LIVE 入庫失敗: indexed={result.indexed_files} errors={len(result.errors)}")
+        search_uc = SearchResumesUseCase(embedding_service=embedding, vector_store=cls.store,
+                                         markdown_base_dir=cls.resume_dir, experience_parser=RegexExperienceParser())
+        cls.chat_uc, err = build_chat_use_case(c, search_uc)
+        if cls.chat_uc is None:
+            cls._cleanup()
+            raise AssertionError(f"build_chat_use_case 失敗: {type(err).__name__}")
+        cls.client = TestClient(create_app(use_case=MagicMock(), search_use_case=search_uc,
+                                           chat_use_case=cls.chat_uc))
+
+    @classmethod
+    def _cleanup(cls):
+        try:
+            cls.store.client.ft(REV2_LIVE_INDEX).dropindex(delete_documents=True)
+        except Exception:
+            pass
+        _delete_keys(REDIS_SEARCH_URL, [f"{REV2_LIVE_PREFIX}*"])
+        cls._tmp.cleanup()
+
+    @classmethod
+    def tearDownClass(cls):
+        if getattr(cls, "chat_uc", None) is not None:
+            cls.chat_uc.close()
+        cls._cleanup()
+
+    def test_tc24_tc31_live_or_condition_real_world_skills_and_narrative(self):
+        from src.domain.recruitment_services import has_unbalanced_brackets
+
+        sid = "qa0019rev2live01"
+        start = time.perf_counter()
+        r = self.client.post("/api/chat", json={"message": REV2_LIVE_JD, "session_id": sid})
+        elapsed = time.perf_counter() - start
+        self.assertEqual(r.status_code, 200, r.text[:300])
+        d = r.json()
+        # TC-24：OR 條件抽成單一條件、skills 為集合包含（LLM 非確定，僅斷言集合包含）
+        jd = self.client.get(f"/api/chat/{sid}").json()["jd_requirements"]
+        skill_reqs = [x for x in jd["must"] if x["category"] == "SKILL"]
+        sets = [set(x["skills"]) | ({x["skill"]} if x["skill"] else set()) for x in skill_reqs]
+        self.assertTrue(any({"python", "go"} <= s for s in sets), f"未見 python|go 單一條件: {sets}")
+        self.assertTrue(any({"postgresql", "mysql"} <= s for s in sets), f"未見 postgresql|mysql: {sets}")
+        # TC-31：baseline>0 或有次級瓶頸；OR 任一命中即 MET
+        rel = d["relaxation"]
+        self.assertIsNotNone(rel)
+        self.assertTrue(rel["baseline_qualified"] > 0 or rel["strictest_requirement_ids"]
+                        or any(i["delta"] > 0 for i in rel["items"]), rel)
+        or_req = next(x["requirement_id"] for x, s in zip(skill_reqs, sets) if {"python", "go"} <= s)
+        short = {s["candidate_id"]: s for s in d["shortlist"]}
+        for cid in ("qa0019_r2_a", "qa0019_r2_b", "qa0019_r2_d"):  # 各自僅具 Python3 / Golang / Go 1.21
+            if cid in short:
+                self.assertIn(or_req, short[cid]["met"], cid)
+        # AC-40/41/42：敘述不截斷、無模板誤刪警告
+        reply = d["reply_markdown"]
+        self.assertNotIn("引文未通過原文驗證", reply)
+        self.assertFalse([w for w in d["warnings"] if "引文未通過" in w or "超出長度上限" in w], d["warnings"])
+        self.assertFalse(has_unbalanced_brackets(reply))
+        print(f"[REV2-LIVE-METRIC] latency_s={elapsed:.1f} usage={d['usage']} degraded={d['degraded']} "
+              f"baseline={rel['baseline_qualified']} strictest={rel['strictest_requirement_ids']} "
+              f"deltas={[(i['requirement_id'], i['delta']) for i in rel['items']]} warnings={d['warnings']}")
 
 
 if __name__ == "__main__":

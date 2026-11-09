@@ -655,3 +655,9 @@ sequenceDiagram
 ### 11.4 鍵空間與配置
 * Redis 鍵：`recruit:v1:profile:{extractor_version}:{candidate_id}`、`recruit:v1:jd:{extractor_version}:{jd_hash}`、`chat:v1:*`（Redis Checkpointer 與 Session 鎖）；皆不落入 `resume:v1:chunk:` 索引前綴。Redis Checkpointer 受 RediSearch 限制僅能使用 db0。
 * 所有閥值、模型名、Top-N、TTL 由 `AppConfig` 之 `RECRUIT_*` / `CHAT_*` 注入並同步於 `.env.example`；Prompt 位於 `prompts/recruit_*.md`。
+
+### 11.5 Rev2 變更摘要（[Spec-0019 第六部](docs/specs/0019-recruitment-assistant-chat-spec.md)）
+* **Domain**：`JobRequirement.skills`（OR 選項，`skill_options` 向下相容舊資料）；`recruitment_services.py` 新增純函式 `canonical_skill`、`skill_variants`、`split_skill_options`、`find_skill_mention`（詞面回退、中心視窗證據、別名反查 denylist）、`has_unbalanced_brackets`；`RequirementMatcher` 採七規則三態判定；`RelaxationItem.met_count` 與 `RelaxationReport.strictest_requirement_ids`（次級瓶頸診斷）；`LlmOutputTruncatedError`。所有閥值由參數注入，Domain 無預設常數。
+* **Application**：`ProfileBatchResult.match_texts`（遮蔽後未截斷全文，供詞面比對，不送 LLM）；`ReplySection(text, llm_generated)` 使 `compose` 僅對 LLM 段落執行引文驗證。
+* **Infrastructure**：`GeminiRecruitmentLlm` 的 JD 與 Profile 抽取器版本分離（`jd_extractor_version` / `profile_extractor_version`）；長文操作以 `include_raw=True` 偵測 `finish_reason`，並使用獨立輸出上限 `RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS`；`RECRUIT_LLM_THINKING_BUDGET` 作用於主模型所有操作。
+* **快取**：版本公式變更使 `recruit:v1:profile:*` 一次性失效重抽；之後 JD Prompt 變更不再波及 Profile 快取。
