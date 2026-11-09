@@ -1,6 +1,7 @@
 # 專案開發規範與 AI 閉環總調度指引 (Project Guidelines & Dispatcher)
 
-本文件為 **Google Antigravity AI 助理與開發團隊在進行本專案開發時的最高準則（憲法級規範）**。
+本文件為 **所有 AI 開發助理（Claude Code、Google Antigravity 等）與開發團隊在進行本專案開發時的最高準則（憲法級規範）**，亦為跨工具共用之唯一正本（Single Source of Truth）。
+各工具專屬差異僅記載於對應之薄層檔案（[CLAUDE.md](CLAUDE.md)、[GEMINI.md](GEMINI.md)），以 `@AGENTS.md` 匯入本文件，嚴禁複製本文內容造成多份分歧。
 接收到任何需求或任務時，AI 必須嚴格遵循架構紅線與雙門禁 7 步驟閉環工作流，調度對應之專屬技能完成任務。
 
 ### 閉環角色與 Skill 預設執行方式
@@ -84,25 +85,25 @@ flowchart TD
 
 ## 3. 多 Agent 協作與 Token 能效防護守則 (Multi-Agent Token Economics)
 
-當涉及多 Agent 協同、調用子 Agent（`invoke_subagent`）或長對話任務時，必須強制遵守以下 5 大防線：
+當涉及多 Agent 協同、調用子 Agent 或長對話任務時，必須強制遵守以下防線（各工具之子 Agent 呼叫語法與模型名稱詳見其薄層檔案）：
 
 1. **三振熔斷機制 (Max 3 Attempts & Arbitration)**：
    - 同一測試失敗、QA 缺陷或 Gate 2 違規，Step 6 (auto-fix) 最多連續嘗試修復 **3 輪**。
    - 若第 3 次修復仍未通過，**嚴禁無休止重試燃燒 Token**，必須立即終止閉環，出具《根因分析與決策求助報告》請求人類仲裁。
 2. **Subagent 階梯式模型調度 (Model Tiering)**：
-   - **機械化探索、檔案清單掃描、語法檢查、測試執行**：調用 `invoke_subagent` 時強制明確指定 `Model: 'flash'`。
-   - **複雜架構前審 (Gate 1)、對抗式代碼審查 (Gate 2)、深度 RCA**：始得調用 `Model: 'inherit'` 或 `'pro'`。
+   - **機械化探索、檔案清單掃描、語法檢查、測試執行**：子 Agent 強制明確指定**輕量快速模型**。
+   - **複雜架構前審 (Gate 1)、對抗式代碼審查 (Gate 2)、深度 RCA**：始得調用**主力推論模型**。
 3. **最小上下文隔離 (Principle of Least Context)**：
-   - 呼叫子 Agent 時，Prompt **嚴禁粘貼主對話歷史與大段原始代碼**，僅傳送「具體任務目標」與「目標檔案絕對路徑」，確保子 Agent 處於純淨輕量上下文。
+   - 呼叫子 Agent 時，Prompt **嚴禁粘貼主對話歷史與大段原始代碼**，僅傳送「具體任務目標」與「目標檔案路徑」（專案相對路徑），確保子 Agent 處於純淨輕量上下文。
 4. **Artifact-First 共享黑板與專案雙寫持久化 (Dual-Persistence Guardrail)**：
-   - 凡超過 30 行的分析報告、PRD、Tech Spec、測試報告，**一律寫入 Artifact Markdown 檔案**（供 UI 快速展開檢視）。
+   - 凡超過 30 行的分析報告、PRD、Tech Spec、測試報告，**一律寫入獨立 Markdown 檔案**（工具支援 Artifact 時同步生成 Artifact 供 UI 快速展開檢視）。
    - **專案持久化同步 (Project Tree Mirroring)**：為確保版本控制與工程透明度，Step 1 的 PRD/Tech Spec 同步寫入 `docs/specs/XXXX-*.md`，Step 4 的 QA 驗收報告同步寫入 `docs/qa_reports/XXXX-*.md`，並登錄於 `docs/README.md` 中樞索引，杜絕產物散落遺失。
-   - 對話訊息（包含主子 Agent 通訊）**嚴禁全文傾倒**，一律僅回報可點擊鏈接（如 ``docs/specs/<id>-<feature>.md``）與 3 行核心摘要。
+   - 對話訊息（包含主子 Agent 通訊）**嚴禁全文傾倒**，一律僅回報可點擊鏈接（如 `docs/specs/<id>-<feature>.md`）與 3 行核心摘要。
 5. **通訊去客套化與日誌在地蒸餾 (Compact Protocol & Log Distillation)**：
    - Agent-to-Agent 訊息禁止任何寒暄客套與自我反省文字，統一採用結構化 JSON、Diff patches 或精準條列。
    - 執行命令後，僅向對話傳遞退出碼、統計摘要與關鍵 Traceback，嚴禁將數千行無效終端日誌重複倒入上下文。
 6. **狀態記憶三態治理矩陣 (Memory Management: Retain / Summarize / Discard)**：
-   - **保留 (Retain)**：PRD、技術規格書、最終審計報告等契約文件，強制以可點擊 Artifact 鏈接形式保留引用，零重複拷貝。
+   - **保留 (Retain)**：PRD、技術規格書、最終審計報告等契約文件，強制以可點擊鏈接形式保留引用，零重複拷貝。
    - **總結 (Summarize)**：失敗根因、對抗測試結論、品質評分，由當前 Agent 提煉為 3~5 行結構化摘要，捨棄流水帳日誌。
    - **捨棄 (Discard)**：中間測試腳本、PDF 頁面 PNG 二進位圖、歷史會話中的修辭、無關除錯 print，任務結束立即解構釋放。
 7. **標準狀態交接 DTO (Context Handoff Schema)**：
