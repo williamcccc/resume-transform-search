@@ -3,7 +3,7 @@
 本文件定義本專案閉環開發的**角色分工與交接協定**，可供單一助理依階段切換角色，或在使用者要求時用於多代理協同。
 此角色分工旨在落實「職權分離（Separation of Duties）」與「確定性交接協議（Deterministic Handoff Contracts）」，降低單一視角造成的遺漏，提升閉環交付品質。
 
-> **Codex 預設模式**：`architect/AGENT.md`、`developer/AGENT.md` 與 `gatekeeper/AGENT.md` 是角色職責手冊，不會自行建立或啟動子 Agent。功能開發與缺陷修復時，由目前的助理依階段讀取角色手冊並載入對應 Skill，依序切換角色完成閉環。只有使用者明確要求多代理協作時，才啟動子 Agent。
+> **預設執行模式（適用所有 AI 工具）**：`architect/AGENT.md`、`developer/AGENT.md` 與 `gatekeeper/AGENT.md` 是角色職責手冊，不會自行建立或啟動子 Agent。功能開發與缺陷修復時，由目前的助理依階段讀取角色手冊並載入對應 Skill，依序切換角色完成閉環。只有使用者明確要求多代理協作時，才啟動子 Agent。
 
 ---
 
