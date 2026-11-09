@@ -45,6 +45,7 @@ resume-to-markdown/
 │   │   ├── stores/                     # 向量儲存實作 (redis_vector_store.py，RediSearch HNSW idx:resumes:v1) 與招募 Profile/JD 快取 (redis_profile_cache.py)
 │   │   ├── llm/                        # 招募助手 LLM Adapter (gemini_recruitment_llm.py，langchain-google-genai 結構化輸出 + 429 熔斷)
 │   │   ├── orchestration/              # LangGraph 固定節點圖 (langgraph_recruitment_graph.py) 與 Checkpointer/Session 鎖工廠 (checkpointer_factory.py)
+│   │   ├── observability/              # 招募助手 LangSmith 遮蔽式追蹤 (langsmith_tracing.py，ADR-0020，選用)
 │   │   ├── readers/                    # 文件與日誌解析實作 (docx_reader, doc_word_reader, pdf_renderer, pdf_text_reader, csv_audit_reader, file_log_reader)
 │   │   ├── probes/                     # 健康度診斷實作 (pdf_probe)
 │   │   ├── transformers/               # Markdown 轉換器實作 (gemini, rapid_ocr, fast_text)
@@ -553,6 +554,7 @@ flowchart LR
 * [ADR-0017: 上庫前個資掃描與文件連結防線補強](docs/adr/0017-publish-privacy-scanner-hardening.md)
 * [ADR-0018: 支援 Uvicorn 標準 ASGI 啟動、App Factory 與 Web 依賴注入組裝收斂](docs/adr/0018-uvicorn-standard-asgi-entrypoint-and-di-bootstrap.md)
 * [ADR-0019: HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取](docs/adr/0019-recruitment-assistant-langgraph-chat.md)
+* [ADR-0020: 招募助手 LangSmith 遮蔽式效能追蹤](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md)
 
 ### 10.5 專案全景文檔導覽與雙重持久化體系 (`docs/`)
 為確保全生命週期之工程透明度與版本控制追溯性，專案落地四向關聯之文檔持久化架構：
@@ -661,3 +663,29 @@ sequenceDiagram
 * **Application**：`ProfileBatchResult.match_texts`（遮蔽後未截斷全文，供詞面比對，不送 LLM）；`ReplySection(text, llm_generated)` 使 `compose` 僅對 LLM 段落執行引文驗證。
 * **Infrastructure**：`GeminiRecruitmentLlm` 的 JD 與 Profile 抽取器版本分離（`jd_extractor_version` / `profile_extractor_version`）；長文操作以 `include_raw=True` 偵測 `finish_reason`，並使用獨立輸出上限 `RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS`；`RECRUIT_LLM_THINKING_BUDGET` 作用於主模型所有操作。
 * **快取**：版本公式變更使 `recruit:v1:profile:*` 一次性失效重抽；之後 JD Prompt 變更不再波及 Profile 快取。
+
+### 11.6 遮蔽式效能追蹤（[ADR-0020](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md) / [Spec-0020](docs/specs/0020-recruitment-chat-langsmith-masked-tracing-spec.md)）
+* **注入點**：`build_chat_use_case` 呼叫 `build_langsmith_tracing(config)`，將 `LangSmithTurnTracing`（可為 `None`）注入 `LangGraphRecruitmentOrchestrator`；`run_turn` 將每輪新建之 `LangChainTracer` callback 與 `trace_id`/`session_hash` metadata 合併入 `graph.invoke` config。不依賴全域 `LANGSMITH_TRACING`。
+* **遮蔽政策（用戶端）**：langsmith `Client(hide_inputs=True, hide_outputs=True, anonymizer=trace_anonymizer, omit_traced_runtime_info=True)`；anonymizer 對 metadata 套白名單、錯誤縮減為類別名。langchain-core 固定附帶之函式庫/平台版本字串（`extra.runtime`）無個資，接受上傳（DV-1）。
+* **脈絡傳遞**：`CandidateProfileService` 以 `contextvars.copy_context().run` 提交執行緒池工作，使 Profile 抽取之 LLM run 掛在所屬節點下。
+* **旁路與收尾**：追蹤設定失敗時該輪不追蹤；`close()` 以背景執行緒 flush，最多等待 `RECRUIT_TRACING_FLUSH_TIMEOUT_SECONDS`。
+
+```mermaid
+sequenceDiagram
+    participant UC as RecruitmentChatUseCase
+    participant OR as LangGraphRecruitmentOrchestrator
+    participant TR as LangSmithTurnTracing
+    participant G as LangGraph (nodes)
+    participant P as Profile 執行緒池
+    participant LS as langsmith Client（遮蔽）
+    UC->>OR: run_turn(session_id, message, trace_id)
+    OR->>TR: invoke_config(trace_id, session_id)
+    TR-->>OR: callbacks=[新 LangChainTracer], metadata{trace_id, session_hash}
+    OR->>G: invoke(state, config)
+    G->>P: submit(copy_context().run, extract)
+    P-->>LS: LLM run（inputs/outputs={}，usage_metadata）
+    G-->>LS: 節點 run（metadata 白名單）
+    LS-->>LS: 背景批次上傳（失敗不影響回合）
+    OR-->>UC: ChatTurnOutcome
+```
+

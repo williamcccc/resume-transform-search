@@ -225,6 +225,7 @@ flowchart TD
 - `fastapi` / `uvicorn` / `httpx`：Web 儀表板高效能 API 引擎與整合測試客戶端
 - `langgraph` / `langchain-core` / `langchain-google-genai`（4.x，需 `google-genai>=2.20`）：HR 多輪對話招募助手之意圖路由固定節點圖與 Gemini 結構化輸出（僅限 `src/infrastructure/`，延遲匯入，未安裝時 CLI 不受影響）
 - `langgraph-checkpoint-redis`（選用）：`CHAT_CHECKPOINTER_BACKEND=redis` 時之對話狀態持久化
+- `langsmith`（選用，`langchain-core` 之相依）：`RECRUIT_TRACING_ENABLED=true` 時之招募助手遮蔽式效能追蹤（[ADR-0020](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md)）
 
 ### 5.2 環境配置範例 (.env)
 完整參數與詳細預設值請直接參閱專案根目錄之 [`.env.example`](.env.example) 範本檔案（由 [`AppConfig`](src/infrastructure/config.py) 統一解析注入）：
@@ -333,6 +334,13 @@ WEB_ENGINE=auto
 9. **向下相容**：`convert_to_md.py` 與既有 CLI 指令、引數零改動。
 10. **技能比對（Rev2）**：SKILL 條件支援 OR 多選項（「Python 或 Go」任一命中即 MET）；比對容忍版本與別名（`Python3`、`PostgreSQL 12`、`k8s`）。三態規則：結構化技能命中或履歷全文詞面命中（非歧義）→ MET 並附原文證據片段；歧義短詞（如單獨 `go`）或未驗證宣稱 → UNKNOWN；全文可得且零命中 → UNMET。全部必要條件放寬後合格人數皆無增加時，回覆改指出通過率最低之條件與符合人數。相關設定：`RECRUIT_SKILL_ALIASES`、`RECRUIT_SKILL_LEXICAL_MIN_CHARS`、`RECRUIT_SKILL_MENTION_SNIPPET_CHARS`、`RECRUIT_SKILL_VERSION_STRIP_EXEMPT`、`RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST`。
 11. **敘述完整性（Rev2）**：長文輸出使用 `RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS`（預設 8192），可選 `RECRUIT_LLM_THINKING_BUDGET`；偵測到截斷（`MAX_TOKENS`、解析失敗、括號不成對）時改用系統模板並附警告，不重試。引文驗證僅作用於 LLM 生成段落，系統模板固定用語不再被誤刪。
+
+### 6.8 需求十一：招募助手 LangSmith 遮蔽式效能追蹤（[ADR-0020](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md) / [Spec-0020](docs/specs/0020-recruitment-chat-langsmith-masked-tracing-spec.md)）
+1. **選用、預設關閉**：`RECRUIT_TRACING_ENABLED=true` 且設定 `LANGSMITH_API_KEY` 後，每輪對話於 LangSmith 呈現「圖 → 節點 → LLM 呼叫」追蹤樹（含執行緒池內之 Profile 抽取），可觀測延遲、token 用量與錯誤類型。
+2. **零內容上傳**：輸入/輸出一律隱藏；metadata 僅保留白名單（token 用量、模型、節點、`trace_id`、`session_hash`）；錯誤僅留例外類別名。
+3. **可對照**：根追蹤之 `trace_id` / `session_hash` 與 `chat_turn` 日誌一致。
+4. **失效安全**：缺金鑰、套件或端點不可達時，追蹤停用或略過，對話不受影響；關閉服務時上傳等待上限 `RECRUIT_TRACING_FLUSH_TIMEOUT_SECONDS`（預設 5 秒）。
+5. **配置**：`LANGSMITH_ENDPOINT`（留空用 SDK 預設）、`LANGSMITH_PROJECT`、`RECRUIT_TRACING_SAMPLING_RATE`（0~1）；勿設定全域 `LANGSMITH_TRACING`（會繞過遮蔽，啟動時警告）。
 
 ---
 

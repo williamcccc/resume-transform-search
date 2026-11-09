@@ -36,3 +36,5 @@ langchain-core>=1.7.5,<2.0
 langchain-google-genai>=4.4,<5.0
 # 選用：僅 CHAT_CHECKPOINTER_BACKEND=redis 時需要 (延遲匯入)
 langgraph-checkpoint-redis>=0.6,<1.0
+# 選用：RECRUIT_TRACING_ENABLED=true 時使用之遮蔽式追蹤 (ADR-0020，延遲匯入；亦為 langchain-core 之相依)
+langsmith>=0.14,<1.0
