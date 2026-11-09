@@ -8,7 +8,7 @@ LangGraph 招募助手編排器 (ADR-0019)，實作 IChatOrchestrator
 """
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
@@ -17,6 +17,9 @@ from src.application.recruitment_nodes import RecruitmentNodeHandlers, TurnConte
 from src.domain.recruitment import ChatIntent, ChatSessionState, ChatTurnOutcome
 from src.domain.recruitment_codec import session_from_dict, session_to_dict
 from src.infrastructure.orchestration.checkpointer_factory import CheckpointerBundle
+
+if TYPE_CHECKING:
+    from src.infrastructure.observability.langsmith_tracing import LangSmithTurnTracing
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +35,12 @@ class TurnRuntimeContext:
 
 
 class LangGraphRecruitmentOrchestrator:
-    def __init__(self, handlers: RecruitmentNodeHandlers, bundle: CheckpointerBundle, max_intents_per_turn: int):
+    def __init__(self, handlers: RecruitmentNodeHandlers, bundle: CheckpointerBundle, max_intents_per_turn: int,
+                 tracing: Optional["LangSmithTurnTracing"] = None):
         self._handlers = handlers
         self._bundle = bundle
+        # 選用之遮蔽式效能追蹤 (ADR-0020)；None 時行為與未整合前完全一致
+        self._tracing = tracing
         # route + 最多 N 個意圖節點 + compose，另留緩衝防無限迴圈
         self._recursion_limit = max(int(max_intents_per_turn), 1) + 4
         self._graph = self._build_graph()
@@ -80,6 +86,17 @@ class LangGraphRecruitmentOrchestrator:
     def _config(self, session_id: str) -> Dict[str, Any]:
         return {"configurable": {"thread_id": session_id}, "recursion_limit": self._recursion_limit}
 
+    def _invoke_config(self, session_id: str, trace_id: str) -> Dict[str, Any]:
+        config = self._config(session_id)
+        if self._tracing is None:
+            return config
+        try:
+            extra = self._tracing.invoke_config(trace_id, session_id)
+        except Exception as err:  # 追蹤為旁路，失敗時本輪改走不追蹤路徑
+            logger.warning("LangSmith 追蹤設定失敗，本輪不追蹤 (err_type=%s)", type(err).__name__)
+            return config
+        return {**config, **extra}
+
     def _load(self, session_id: str) -> Optional[ChatSessionState]:
         snapshot = self._graph.get_state(self._config(session_id))
         raw = (snapshot.values or {}).get("session") if snapshot else None
@@ -99,7 +116,7 @@ class LangGraphRecruitmentOrchestrator:
             prior = self._load(session_id) or ChatSessionState(session_id=session_id)
             self._graph.invoke(
                 {"session": session_to_dict(prior), "queue": []},
-                self._config(session_id),
+                self._invoke_config(session_id, trace_id),
                 context=TurnRuntimeContext(turn=turn),
             )
             final = self._load(session_id) or prior
@@ -130,7 +147,11 @@ class LangGraphRecruitmentOrchestrator:
         self._release_lock_entry(session_id)
 
     def close(self) -> None:
-        self._bundle.close()
+        try:
+            if self._tracing is not None:
+                self._tracing.close()
+        finally:
+            self._bundle.close()
 
     # ------------------------------------------------------------------
     def _touch(self, session_id: str) -> bool:

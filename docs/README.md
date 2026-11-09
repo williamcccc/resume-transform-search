@@ -40,6 +40,7 @@ flowchart LR
 | **0017** | 上庫隱私掃描與文件連結防線補強 | [ADR-0017](./adr/0017-publish-privacy-scanner-hardening.md) | [Spec-0017](./specs/0017-github-publish-privacy-and-link-hardening-spec.md) | `tests/unit/test_github_pre_publish_hygiene.py` | [QA-0017](./qa_reports/0017-github-publish-privacy-hardening-qa-report.md) |
 | **0018** | Uvicorn 標準 ASGI 啟動與 Web 依賴組裝收斂 | [ADR-0018](./adr/0018-uvicorn-standard-asgi-entrypoint-and-di-bootstrap.md) | [Spec-0018](./specs/0018-uvicorn-asgi-factory-and-web-entrypoint-spec.md) | `tests/unit/test_web_dashboard.py` | [QA-0018](./qa_reports/0018-uvicorn-asgi-factory-and-web-entrypoint-qa-report.md) |
 | **0019** | HR 多輪對話招募助手（JD 媒合 + 多輪追問） | [ADR-0019](./adr/0019-recruitment-assistant-langgraph-chat.md) | [Spec-0019](./specs/0019-recruitment-assistant-chat-spec.md) | `tests/unit/test_recruitment_*.py`、`tests/e2e/test_recruitment_chat_e2e.py` | [QA-0019](./qa_reports/0019-recruitment-assistant-chat-qa.md) |
+| **0020** | 招募助手 LangSmith 遮蔽式效能追蹤 | [ADR-0020](./adr/0020-recruitment-chat-langsmith-masked-tracing.md) | [Spec-0020](./specs/0020-recruitment-chat-langsmith-masked-tracing-spec.md) | `tests/unit/test_langsmith_tracing.py`、`tests/e2e/test_recruitment_tracing_e2e.py` | [QA-0020](./qa_reports/0020-recruitment-chat-langsmith-tracing-qa.md) |
 
 ---
 

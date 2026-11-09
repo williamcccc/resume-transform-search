@@ -21,6 +21,13 @@ def _safe_float(val: Optional[str], default: float) -> float:
         return default
 
 
+def _clamp_unit(val: float) -> float:
+    """限制於 [0, 1]；NaN 視為 1.0（全取樣）"""
+    if val != val:
+        return 1.0
+    return min(max(val, 0.0), 1.0)
+
+
 def _safe_optional_int(val: Optional[str]) -> Optional[int]:
     """空值或非法值 -> None（沿用模型預設）；0 與正整數保留"""
     if not val or not str(val).strip():
@@ -167,6 +174,13 @@ class AppConfig:
     chat_session_max_turns: int = 50
     chat_memory_max_sessions: int = 200
     chat_session_lock_ttl_buffer_seconds: int = 30
+    # 招募助手 LangSmith 遮蔽式效能追蹤 (ADR-0020)；預設關閉
+    recruit_tracing_enabled: bool = False
+    langsmith_api_key: str = field(default="", repr=False)
+    langsmith_endpoint: str = ""
+    langsmith_project: str = "recruitment-assistant"
+    recruit_tracing_sampling_rate: float = 1.0
+    recruit_tracing_flush_timeout_seconds: float = 5.0
 
     @classmethod
     def load(
@@ -471,6 +485,14 @@ class AppConfig:
             chat_session_max_turns=_safe_int(os.environ.get("CHAT_SESSION_MAX_TURNS"), 50),
             chat_memory_max_sessions=_safe_int(os.environ.get("CHAT_MEMORY_MAX_SESSIONS"), 200),
             chat_session_lock_ttl_buffer_seconds=_safe_int(os.environ.get("CHAT_SESSION_LOCK_TTL_BUFFER_SECONDS"), 30),
+            recruit_tracing_enabled=_safe_bool(os.environ.get("RECRUIT_TRACING_ENABLED"), False),
+            langsmith_api_key=(os.environ.get("LANGSMITH_API_KEY") or "").strip(),
+            langsmith_endpoint=(os.environ.get("LANGSMITH_ENDPOINT") or "").strip(),
+            langsmith_project=(os.environ.get("LANGSMITH_PROJECT") or "").strip() or "recruitment-assistant",
+            recruit_tracing_sampling_rate=_clamp_unit(
+                _safe_float(os.environ.get("RECRUIT_TRACING_SAMPLING_RATE"), 1.0)),
+            recruit_tracing_flush_timeout_seconds=max(
+                _safe_float(os.environ.get("RECRUIT_TRACING_FLUSH_TIMEOUT_SECONDS"), 5.0), 0.0),
         )
 
         return cls(

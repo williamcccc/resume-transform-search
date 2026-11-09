@@ -4,6 +4,7 @@
 內容 Hash + extractor_version 雙鍵快取（未變更履歷 0 Token，AC-13~15）、
 逐欄逐字證據驗證（AC-09）、抽取失敗降級（AC-16）與單輪 LLM 預算熔斷（AC-17）。
 """
+import contextvars
 import logging
 import threading
 import time
@@ -160,9 +161,11 @@ class CandidateProfileService:
             # 不使用 with：逾時時須 shutdown(wait=False) 立即返回，不等待仍在執行之抽取（由 finally 保證釋放）
             executor = ThreadPoolExecutor(max_workers=min(self._max_concurrency, len(to_extract)))
             try:
+                # 每個 Future 各自複製呼叫端 contextvars（含追蹤脈絡，ADR-0020）；同一 Context 不可併發進入
                 futures = [
                     (cand, content_hash, llm_text,
-                     executor.submit(self._extractor.extract, cand.candidate_id, llm_text, content_hash))
+                     executor.submit(contextvars.copy_context().run, self._extractor.extract,
+                                     cand.candidate_id, llm_text, content_hash))
                     for cand, content_hash, llm_text in to_extract
                 ]
                 for cand, content_hash, llm_text, future in futures:

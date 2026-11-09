@@ -198,7 +198,10 @@ def build_chat_use_case(
             max_sessions=config.chat_memory_max_sessions,
             lock_ttl_seconds=int(config.recruit_turn_timeout_seconds + config.chat_session_lock_ttl_buffer_seconds),
         )
-        orchestrator = LangGraphRecruitmentOrchestrator(handlers, bundle, settings.max_intents_per_turn)
+        from src.infrastructure.observability.langsmith_tracing import build_langsmith_tracing
+
+        tracing = build_langsmith_tracing(config)
+        orchestrator = LangGraphRecruitmentOrchestrator(handlers, bundle, settings.max_intents_per_turn, tracing=tracing)
 
         def _close() -> None:
             orchestrator.close()
