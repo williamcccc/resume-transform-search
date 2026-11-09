@@ -259,3 +259,64 @@ class TestAppConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRecruitmentAppConfig(unittest.TestCase):
+    """招募助手 (ADR-0019) 新增 RECRUIT_*/CHAT_* 配置之預設值、覆寫與 .env.example 同步 (AC-32)"""
+
+    @patch("dotenv.load_dotenv")
+    def test_recruit_defaults(self, mock_load_dotenv):
+        with patch.dict(os.environ, {}, clear=True):
+            cfg = AppConfig.load(override_api_key="mock_key", override_model="model-x")
+        self.assertTrue(cfg.recruit_chat_enabled)
+        self.assertEqual(cfg.recruit_llm_model, "model-x")  # 留空沿用 GEMINI_MODEL
+        self.assertEqual(cfg.recruit_candidate_pool_size, 15)
+        self.assertEqual(cfg.recruit_candidate_pool_max, 30)
+        self.assertEqual(cfg.recruit_shortlist_size, 3)
+        self.assertEqual(cfg.recruit_max_llm_calls_per_turn, 25)
+        self.assertEqual(cfg.recruit_turn_timeout_seconds, 150.0)
+        self.assertEqual(cfg.recruit_llm_timeout_seconds, 45.0)
+        self.assertEqual(cfg.recruit_profile_max_concurrency, 8)
+        self.assertEqual(cfg.recruit_profile_max_output_tokens, 1024)
+        self.assertEqual(cfg.recruit_profile_negative_cache_ttl_seconds, 600)
+        self.assertEqual(cfg.recruit_profile_cache_prefix, "recruit:v1:profile:")
+        self.assertIn("婚姻", cfg.recruit_protected_attr_terms)
+        self.assertEqual(cfg.recruit_skill_aliases["k8s"], "kubernetes")
+        self.assertEqual(cfg.chat_checkpointer_backend, "memory")
+        self.assertEqual(cfg.chat_checkpoint_redis_url, cfg.redis_url)
+        self.assertEqual(cfg.chat_memory_max_sessions, 200)
+
+    @patch("dotenv.load_dotenv")
+    def test_recruit_env_overrides_and_invalid_values(self, mock_load_dotenv):
+        env = {
+            "RECRUIT_CHAT_ENABLED": "false",
+            "RECRUIT_LLM_MODEL": "recruit-model",
+            "RECRUIT_SHORTLIST_SIZE": "5",
+            "RECRUIT_RETRIEVAL_MIN_SCORE": "abc",
+            "RECRUIT_SKILL_ALIASES": "py:python, bad_item ,ts:typescript",
+            "RECRUIT_PROTECTED_ATTR_TERMS": "年齡, 性別",
+            "CHAT_CHECKPOINTER_BACKEND": "REDIS",
+            "CHAT_CHECKPOINT_REDIS_URL": "redis://checkpoint-host:6379/2",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            cfg = AppConfig.load(override_api_key="mock_key")
+        self.assertFalse(cfg.recruit_chat_enabled)
+        self.assertEqual(cfg.recruit_llm_model, "recruit-model")
+        self.assertEqual(cfg.recruit_shortlist_size, 5)
+        self.assertEqual(cfg.recruit_retrieval_min_score, 0.5)
+        self.assertEqual(cfg.recruit_skill_aliases, {"py": "python", "ts": "typescript"})
+        self.assertEqual(cfg.recruit_protected_attr_terms, ["年齡", "性別"])
+        self.assertEqual(cfg.chat_checkpointer_backend, "redis")
+        self.assertEqual(cfg.chat_checkpoint_redis_url, "redis://checkpoint-host:6379/2")
+
+    def test_env_example_should_cover_all_recruit_and_chat_keys(self):
+        import re
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[2]
+        cfg_text = (root / "src" / "infrastructure" / "config.py").read_text(encoding="utf-8")
+        example = (root / ".env.example").read_text(encoding="utf-8")
+        keys = set(re.findall(r'os\.environ\.get\(\s*"((?:RECRUIT|CHAT)_[A-Z0-9_]+)"', cfg_text))
+        example_keys = set(re.findall(r"^#?\s*([A-Z0-9_]+)=", example, re.MULTILINE))
+        self.assertGreaterEqual(len(keys), 37)
+        self.assertEqual(sorted(keys - example_keys), [])

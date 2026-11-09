@@ -78,6 +78,131 @@ def build_web_use_cases(
     return use_case, search_use_case, search_init_err
 
 
+def build_recruitment_settings(config: AppConfig):
+    """AppConfig -> Application 層 RecruitmentSettings 映射"""
+    from src.application.recruitment_settings import RecruitmentSettings
+
+    return RecruitmentSettings(
+        retrieval_top_k_chunks=config.recruit_retrieval_top_k_chunks,
+        retrieval_min_score=config.recruit_retrieval_min_score,
+        candidate_pool_size=config.recruit_candidate_pool_size,
+        candidate_pool_max=config.recruit_candidate_pool_max,
+        shortlist_size=config.recruit_shortlist_size,
+        shortlist_max=config.recruit_shortlist_max,
+        max_must_requirements=config.recruit_max_must_requirements,
+        max_intents_per_turn=config.recruit_max_intents_per_turn,
+        jd_intent_min_chars=config.recruit_jd_intent_min_chars,
+        profile_max_resume_chars=config.recruit_profile_max_resume_chars,
+        profile_max_concurrency=config.recruit_profile_max_concurrency,
+        profile_negative_cache_ttl_seconds=config.recruit_profile_negative_cache_ttl_seconds,
+        evidence_min_chars=config.recruit_evidence_min_chars,
+        default_interview_questions=config.recruit_default_interview_questions,
+        max_interview_questions=config.recruit_max_interview_questions,
+        max_message_chars=config.recruit_max_message_chars,
+        max_llm_calls_per_turn=config.recruit_max_llm_calls_per_turn,
+        turn_timeout_seconds=config.recruit_turn_timeout_seconds,
+        session_max_turns=config.chat_session_max_turns,
+        history_max_turns=config.chat_history_max_turns,
+        history_max_chars=config.chat_history_max_chars,
+        protected_attr_terms=tuple(config.recruit_protected_attr_terms),
+        skill_aliases=dict(config.recruit_skill_aliases),
+    )
+
+
+def build_chat_use_case(
+    config: AppConfig,
+    search_use_case: Optional[SearchResumesUseCase],
+) -> Tuple[Optional[object], Optional[Exception]]:
+    """
+    延遲組裝 HR 招募助手 (ADR-0019)：LangGraph / langchain 相關模組僅於此 try 區塊內匯入。
+    任何前置條件不足 (停用、無 API Key、無向量檢索、未安裝 LangGraph、Checkpointer 失敗) 一律降級為 None，
+    不影響儀表板其他端點；不更動既有 build_web_use_cases 三元組簽章。
+    """
+    from src.domain.exceptions import ChatUnavailableError
+
+    if not config.recruit_chat_enabled:
+        return None, ChatUnavailableError("招募助手已停用 (RECRUIT_CHAT_ENABLED=false)")
+    if not config.gemini_api_key:
+        return None, ChatUnavailableError("未設定 GEMINI_API_KEY")
+    if search_use_case is None:
+        return None, ChatUnavailableError("履歷向量檢索服務不可用")
+
+    try:
+        from src.application.candidate_profile_service import CandidateProfileService
+        from src.application.recruitment_chat_use_case import RecruitmentChatUseCase
+        from src.application.recruitment_nodes import RecruitmentNodeHandlers
+        from src.application.recruitment_tools import RecruitmentTools
+        from src.domain.recruitment_services import CircuitBreaker, EvidenceVerifier, ProtectedAttributeGuard
+        from src.infrastructure.llm.gemini_recruitment_llm import (
+            GeminiJdExtractorAdapter,
+            GeminiProfileExtractorAdapter,
+            GeminiRecruitmentLlm,
+        )
+        from src.infrastructure.orchestration.checkpointer_factory import build_checkpointer
+        from src.infrastructure.orchestration.langgraph_recruitment_graph import LangGraphRecruitmentOrchestrator
+        from src.infrastructure.parsers.experience_parser import RegexExperienceParser
+        from src.infrastructure.stores.redis_profile_cache import RedisProfileCache
+
+        settings = build_recruitment_settings(config)
+        breaker = CircuitBreaker(config.recruit_circuit_breaker_cooldown_seconds)
+        llm = GeminiRecruitmentLlm(
+            api_key=config.gemini_api_key,
+            model_name=config.recruit_llm_model or config.gemini_model,
+            temperature=config.recruit_llm_temperature,
+            max_output_tokens=config.recruit_llm_max_output_tokens,
+            timeout_seconds=config.recruit_llm_timeout_seconds,
+            profile_max_output_tokens=config.recruit_profile_max_output_tokens,
+            circuit_breaker=breaker,
+            max_retries=config.api_max_retries,
+            retry_delay=config.api_retry_delay,
+        )
+        cache = RedisProfileCache.from_url(
+            config.redis_url,
+            profile_prefix=config.recruit_profile_cache_prefix,
+            jd_prefix=config.recruit_jd_cache_prefix,
+            ttl_seconds=config.recruit_profile_cache_ttl_seconds,
+        )
+        tools = RecruitmentTools(search_use_case, RegexExperienceParser())
+        guard = ProtectedAttributeGuard(settings.protected_attr_terms)
+        profile_service = CandidateProfileService(
+            extractor=GeminiProfileExtractorAdapter(llm),
+            cache=cache,
+            tools=tools,
+            guard=guard,
+            verifier=EvidenceVerifier(settings.evidence_min_chars),
+            max_resume_chars=settings.profile_max_resume_chars,
+            max_concurrency=settings.profile_max_concurrency,
+            negative_cache_ttl_seconds=settings.profile_negative_cache_ttl_seconds,
+        )
+        handlers = RecruitmentNodeHandlers(
+            classifier=llm,
+            jd_extractor=GeminiJdExtractorAdapter(llm),
+            narrator=llm,
+            profile_service=profile_service,
+            tools=tools,
+            guard=guard,
+            settings=settings,
+            jd_cache=cache,
+        )
+        bundle = build_checkpointer(
+            backend=config.chat_checkpointer_backend,
+            redis_url=config.chat_checkpoint_redis_url or config.redis_url,
+            session_ttl_seconds=config.chat_session_ttl_seconds,
+            max_sessions=config.chat_memory_max_sessions,
+            lock_ttl_seconds=int(config.recruit_turn_timeout_seconds + config.chat_session_lock_ttl_buffer_seconds),
+        )
+        orchestrator = LangGraphRecruitmentOrchestrator(handlers, bundle, settings.max_intents_per_turn)
+
+        def _close() -> None:
+            orchestrator.close()
+            cache.close()
+
+        return RecruitmentChatUseCase(orchestrator, settings, breaker, on_close=_close), None
+    except Exception as err:
+        logger.warning(f"HR 招募助手初始化略過 (聊天分頁將回 503): {type(err).__name__}: {err}")
+        return None, err
+
+
 def make_dashboard_handler(
     use_case: GetDashboardDataUseCase,
     search_use_case: Optional[SearchResumesUseCase] = None,
@@ -124,8 +249,30 @@ def make_dashboard_handler(
                 self.handle_api_resume(query_params)
                 return
 
-            # 7. 404 Not Found
+            # 7. 招募助手僅支援 FastAPI 引擎
+            if path == "/api/chat" or path.startswith("/api/chat/"):
+                self.send_chat_not_implemented()
+                return
+
+            # 8. 404 Not Found
             self.send_error_response(404, "頁面或端點不存在")
+
+        def do_POST(self):
+            path = urlparse(self.path).path
+            if path == "/api/chat" or path.startswith("/api/chat/"):
+                self.send_chat_not_implemented()
+                return
+            self.send_error_response(404, "頁面或端點不存在")
+
+        def do_DELETE(self):
+            self.do_POST()
+
+        def send_chat_not_implemented(self):
+            self.send_json_response(501, {
+                "success": False,
+                "error_code": "CHAT_NOT_IMPLEMENTED",
+                "message": "招募助手僅支援 FastAPI 引擎，請以 --engine fastapi 啟動",
+            })
 
         def serve_dashboard_html(self):
             if not DASHBOARD_HTML_PATH.exists():

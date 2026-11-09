@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Dict, List, Optional
 
 
 def _safe_int(val: Optional[str], default: int) -> int:
@@ -25,6 +25,30 @@ def _safe_list(val: Optional[str]) -> List[str]:
     if not val or not str(val).strip():
         return []
     return [item.strip() for item in str(val).split(",") if item.strip()]
+
+
+def _safe_bool(val: Optional[str], default: bool) -> bool:
+    if val is None or not str(val).strip():
+        return default
+    return str(val).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _safe_mapping(val: Optional[str]) -> Dict[str, str]:
+    """解析 "a:b,c:d" 形式之對照表"""
+    result: Dict[str, str] = {}
+    for item in _safe_list(val):
+        if ":" in item:
+            key, _, value = item.partition(":")
+            if key.strip() and value.strip():
+                result[key.strip().lower()] = value.strip().lower()
+    return result
+
+
+DEFAULT_PROTECTED_ATTR_TERMS = (
+    "年齡,歲,出生,生日,出生日期,生辰,性別,男性,女性,婚姻,已婚,未婚,婚育,懷孕,照片,大頭照,宗教,國籍,籍貫,身高,體重,血型,"
+    "gender,sex,age,birth,dob,birthday,marital,married,religion,nationality,photo"
+)
+DEFAULT_SKILL_ALIASES = "golang:go,k8s:kubernetes,js:javascript"
 
 
 @dataclass
@@ -79,6 +103,45 @@ class AppConfig:
     web_host: str = "127.0.0.1"
     web_port: int = 8080
     web_engine: str = "auto"
+    # ---- 招募助手 (ADR-0019) ----
+    recruit_chat_enabled: bool = True
+    recruit_llm_model: str = ""
+    recruit_llm_temperature: float = 0.2
+    recruit_llm_max_output_tokens: int = 2048
+    recruit_llm_timeout_seconds: float = 45.0
+    recruit_profile_max_output_tokens: int = 1024
+    recruit_retrieval_top_k_chunks: int = 60
+    recruit_retrieval_min_score: float = 0.5
+    recruit_candidate_pool_size: int = 15
+    recruit_candidate_pool_max: int = 30
+    recruit_shortlist_size: int = 3
+    recruit_shortlist_max: int = 10
+    recruit_max_must_requirements: int = 12
+    recruit_max_intents_per_turn: int = 2
+    recruit_jd_intent_min_chars: int = 200
+    recruit_profile_max_resume_chars: int = 12000
+    recruit_profile_max_concurrency: int = 8
+    recruit_profile_negative_cache_ttl_seconds: int = 600
+    recruit_profile_cache_prefix: str = "recruit:v1:profile:"
+    recruit_jd_cache_prefix: str = "recruit:v1:jd:"
+    recruit_profile_cache_ttl_seconds: int = 2592000
+    recruit_evidence_min_chars: int = 4
+    recruit_default_interview_questions: int = 3
+    recruit_max_interview_questions: int = 10
+    recruit_max_message_chars: int = 12000
+    recruit_max_llm_calls_per_turn: int = 25
+    recruit_turn_timeout_seconds: float = 150.0
+    recruit_circuit_breaker_cooldown_seconds: float = 60.0
+    recruit_protected_attr_terms: List[str] = field(default_factory=lambda: _safe_list(DEFAULT_PROTECTED_ATTR_TERMS))
+    recruit_skill_aliases: Dict[str, str] = field(default_factory=lambda: _safe_mapping(DEFAULT_SKILL_ALIASES))
+    chat_checkpointer_backend: str = "memory"
+    chat_checkpoint_redis_url: str = ""
+    chat_session_ttl_seconds: int = 3600
+    chat_history_max_turns: int = 10
+    chat_history_max_chars: int = 24000
+    chat_session_max_turns: int = 50
+    chat_memory_max_sessions: int = 200
+    chat_session_lock_ttl_buffer_seconds: int = 30
 
     @classmethod
     def load(
@@ -335,6 +398,48 @@ class AppConfig:
         )
         web_engine = override_web_engine or os.environ.get("WEB_ENGINE", "auto").strip().lower()
 
+        recruit_fields = dict(
+            recruit_chat_enabled=_safe_bool(os.environ.get("RECRUIT_CHAT_ENABLED"), True),
+            recruit_llm_model=(os.environ.get("RECRUIT_LLM_MODEL") or "").strip() or model,
+            recruit_llm_temperature=_safe_float(os.environ.get("RECRUIT_LLM_TEMPERATURE"), 0.2),
+            recruit_llm_max_output_tokens=_safe_int(os.environ.get("RECRUIT_LLM_MAX_OUTPUT_TOKENS"), 2048),
+            recruit_llm_timeout_seconds=_safe_float(os.environ.get("RECRUIT_LLM_TIMEOUT_SECONDS"), 45.0),
+            recruit_profile_max_output_tokens=_safe_int(os.environ.get("RECRUIT_PROFILE_MAX_OUTPUT_TOKENS"), 1024),
+            recruit_retrieval_top_k_chunks=_safe_int(os.environ.get("RECRUIT_RETRIEVAL_TOP_K_CHUNKS"), 60),
+            recruit_retrieval_min_score=_safe_float(os.environ.get("RECRUIT_RETRIEVAL_MIN_SCORE"), 0.5),
+            recruit_candidate_pool_size=_safe_int(os.environ.get("RECRUIT_CANDIDATE_POOL_SIZE"), 15),
+            recruit_candidate_pool_max=_safe_int(os.environ.get("RECRUIT_CANDIDATE_POOL_MAX"), 30),
+            recruit_shortlist_size=_safe_int(os.environ.get("RECRUIT_SHORTLIST_SIZE"), 3),
+            recruit_shortlist_max=_safe_int(os.environ.get("RECRUIT_SHORTLIST_MAX"), 10),
+            recruit_max_must_requirements=_safe_int(os.environ.get("RECRUIT_MAX_MUST_REQUIREMENTS"), 12),
+            recruit_max_intents_per_turn=_safe_int(os.environ.get("RECRUIT_MAX_INTENTS_PER_TURN"), 2),
+            recruit_jd_intent_min_chars=_safe_int(os.environ.get("RECRUIT_JD_INTENT_MIN_CHARS"), 200),
+            recruit_profile_max_resume_chars=_safe_int(os.environ.get("RECRUIT_PROFILE_MAX_RESUME_CHARS"), 12000),
+            recruit_profile_max_concurrency=_safe_int(os.environ.get("RECRUIT_PROFILE_MAX_CONCURRENCY"), 8),
+            recruit_profile_negative_cache_ttl_seconds=_safe_int(
+                os.environ.get("RECRUIT_PROFILE_NEGATIVE_CACHE_TTL_SECONDS"), 600),
+            recruit_profile_cache_prefix=(os.environ.get("RECRUIT_PROFILE_CACHE_PREFIX") or "").strip() or "recruit:v1:profile:",
+            recruit_jd_cache_prefix=(os.environ.get("RECRUIT_JD_CACHE_PREFIX") or "").strip() or "recruit:v1:jd:",
+            recruit_profile_cache_ttl_seconds=_safe_int(os.environ.get("RECRUIT_PROFILE_CACHE_TTL_SECONDS"), 2592000),
+            recruit_evidence_min_chars=_safe_int(os.environ.get("RECRUIT_EVIDENCE_MIN_CHARS"), 4),
+            recruit_default_interview_questions=_safe_int(os.environ.get("RECRUIT_DEFAULT_INTERVIEW_QUESTIONS"), 3),
+            recruit_max_interview_questions=_safe_int(os.environ.get("RECRUIT_MAX_INTERVIEW_QUESTIONS"), 10),
+            recruit_max_message_chars=_safe_int(os.environ.get("RECRUIT_MAX_MESSAGE_CHARS"), 12000),
+            recruit_max_llm_calls_per_turn=_safe_int(os.environ.get("RECRUIT_MAX_LLM_CALLS_PER_TURN"), 25),
+            recruit_turn_timeout_seconds=_safe_float(os.environ.get("RECRUIT_TURN_TIMEOUT_SECONDS"), 150.0),
+            recruit_circuit_breaker_cooldown_seconds=_safe_float(os.environ.get("RECRUIT_CIRCUIT_BREAKER_COOLDOWN_SECONDS"), 60.0),
+            recruit_protected_attr_terms=_safe_list(os.environ.get("RECRUIT_PROTECTED_ATTR_TERMS") or DEFAULT_PROTECTED_ATTR_TERMS),
+            recruit_skill_aliases=_safe_mapping(os.environ.get("RECRUIT_SKILL_ALIASES") or DEFAULT_SKILL_ALIASES),
+            chat_checkpointer_backend=(os.environ.get("CHAT_CHECKPOINTER_BACKEND") or "memory").strip().lower(),
+            chat_checkpoint_redis_url=(os.environ.get("CHAT_CHECKPOINT_REDIS_URL") or "").strip() or redis_url,
+            chat_session_ttl_seconds=_safe_int(os.environ.get("CHAT_SESSION_TTL_SECONDS"), 3600),
+            chat_history_max_turns=_safe_int(os.environ.get("CHAT_HISTORY_MAX_TURNS"), 10),
+            chat_history_max_chars=_safe_int(os.environ.get("CHAT_HISTORY_MAX_CHARS"), 24000),
+            chat_session_max_turns=_safe_int(os.environ.get("CHAT_SESSION_MAX_TURNS"), 50),
+            chat_memory_max_sessions=_safe_int(os.environ.get("CHAT_MEMORY_MAX_SESSIONS"), 200),
+            chat_session_lock_ttl_buffer_seconds=_safe_int(os.environ.get("CHAT_SESSION_LOCK_TTL_BUFFER_SECONDS"), 30),
+        )
+
         return cls(
             gemini_api_key=api_key,
             gemini_model=model,
@@ -386,4 +491,5 @@ class AppConfig:
             web_host=web_host,
             web_port=web_port,
             web_engine=web_engine,
+            **recruit_fields,
         )

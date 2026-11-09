@@ -18,6 +18,9 @@ resume-to-markdown/
 │   │   ├── models.py                   # Document, ConvertedMarkdown, QualityReport, JudgeScorecard, ResumeChunk, SearchResultItem, SearchQuery, CandidateSummary, AuditRecord, DashboardSummary, LogRecord
 │   │   ├── enums.py                    # DocumentType, DocumentHealth, ConversionMode, ChunkType
 │   │   ├── interfaces.py               # IDocumentReader, IPdfRenderer, IPdfHealthProbe, IMarkdownTransformer, IQualityValidator, ILlmJudge, IMarkdownChunker, IEmbeddingService, IVectorStore, IAuditLogReader, ISystemLogReader, IExperienceExtractor
+│   │   ├── recruitment.py              # 招募助手實體 (JobRequirement, JdRequirements, CandidateProfile, CandidateEvaluation, ShortlistEntry, RelaxationReport, ChatSessionState)
+│   │   ├── recruitment_services.py     # 純函式領域服務 (RequirementMatcher, CandidateRanker, ConstraintRelaxationAnalyzer, OrdinalReferenceResolver, EvidenceVerifier, ProtectedAttributeGuard)
+│   │   ├── recruitment_codec.py        # 招募領域物件 ⇄ JSON 相容 dict 編解碼 (Checkpointer / 快取持久化)
 │   │   └── exceptions.py               # DomainError, DocumentNotFoundError, UnsupportedDocumentTypeError, FileQuotaExceededError
 │   │
 │   ├── application/                    # 【應用層】：使用案例 (Use Cases) 與流程協調
@@ -25,6 +28,11 @@ resume-to-markdown/
 │   │   ├── convert_document_use_case.py # ConvertDocumentUseCase (核心分流、調度、品管檢核與獨立評審，無外部 SDK 污染)
 │   │   ├── index_resumes_use_case.py    # IndexResumesUseCase (履歷切片、向量化、SHA-256 增量比對與延遲串流寫入)
 │   │   ├── search_resumes_use_case.py   # SearchResumesUseCase (KNN 語意搜尋、年資/技術標籤複合過濾與全文安全讀取)
+│   │   ├── recruitment_chat_use_case.py # RecruitmentChatUseCase (輸入驗證、trace_id、熔斷、IChatOrchestrator 調度與 DTO 映射)
+│   │   ├── recruitment_nodes.py         # 固定節點處理器 (route / jd_match / candidate_followup / interview_questions / general_qa / compose，純 Python)
+│   │   ├── candidate_profile_service.py # 查詢期延遲結構化抽取 + 內容 Hash 快取 + 負快取 + 證據驗證 + 降級
+│   │   ├── recruitment_tools.py         # 既有 Use Case 薄包裝 (候選池檢索、履歷全文讀取、年資解析)
+│   │   ├── recruitment_settings.py      # RecruitmentSettings (由 Interfaces 自 AppConfig 映射)
 │   │   └── dashboard_use_case.py        # GetDashboardDataUseCase (轉檔品管稽核統計與系統日誌查詢協調)
 │   │
 │   ├── infrastructure/                 # 【基礎設施層】：外部技術、SDK 串接與 I/O 實作
@@ -34,7 +42,9 @@ resume-to-markdown/
 │   │   ├── chunkers/                   # 語意切片與過短區塊合併實作 (markdown_chunker.py)
 │   │   ├── embeddings/                 # 向量化實作 (gemini_embedding.py，gemini-embedding-001 768維)
 │   │   ├── parsers/                    # 結構化年資正則解析器 (experience_parser.py)
-│   │   ├── stores/                     # 向量儲存實作 (redis_vector_store.py，RediSearch HNSW idx:resumes:v1)
+│   │   ├── stores/                     # 向量儲存實作 (redis_vector_store.py，RediSearch HNSW idx:resumes:v1) 與招募 Profile/JD 快取 (redis_profile_cache.py)
+│   │   ├── llm/                        # 招募助手 LLM Adapter (gemini_recruitment_llm.py，langchain-google-genai 結構化輸出 + 429 熔斷)
+│   │   ├── orchestration/              # LangGraph 固定節點圖 (langgraph_recruitment_graph.py) 與 Checkpointer/Session 鎖工廠 (checkpointer_factory.py)
 │   │   ├── readers/                    # 文件與日誌解析實作 (docx_reader, doc_word_reader, pdf_renderer, pdf_text_reader, csv_audit_reader, file_log_reader)
 │   │   ├── probes/                     # 健康度診斷實作 (pdf_probe)
 │   │   ├── transformers/               # Markdown 轉換器實作 (gemini, rapid_ocr, fast_text)
@@ -542,6 +552,7 @@ flowchart LR
 * [ADR-0016: GitHub 上庫前全方位安全脫敏、個資 (PII) 清零與跨平台路徑治理](docs/adr/0016-github-pre-publish-security-and-pii-governance.md)
 * [ADR-0017: 上庫前個資掃描與文件連結防線補強](docs/adr/0017-publish-privacy-scanner-hardening.md)
 * [ADR-0018: 支援 Uvicorn 標準 ASGI 啟動、App Factory 與 Web 依賴注入組裝收斂](docs/adr/0018-uvicorn-standard-asgi-entrypoint-and-di-bootstrap.md)
+* [ADR-0019: HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取](docs/adr/0019-recruitment-assistant-langgraph-chat.md)
 
 ### 10.5 專案全景文檔導覽與雙重持久化體系 (`docs/`)
 為確保全生命週期之工程透明度與版本控制追溯性，專案落地四向關聯之文檔持久化架構：
@@ -550,4 +561,97 @@ flowchart LR
 * **[黑箱/灰箱 QA 實測報告]**：[`docs/qa_reports/`](docs/qa_reports/) 收錄每次功能變更在 Step 4 (QA Testing) 產出的驗收矩陣與極端情境實測報告。
 * **[自動化同步檢驗]**：執行 `python .agents/skills/doc-sync/scripts/verify_doc_sync.py` 自動確保 100% 格式合法且無遺漏索引。
 
+---
 
+## 11. HR 多輪對話招募助手架構 (ADR-0019)
+
+> 規格：[Spec-0019](docs/specs/0019-recruitment-assistant-chat-spec.md)｜QA：[QA-0019](docs/qa_reports/0019-recruitment-assistant-chat-qa.md)
+
+### 11.1 分層職責與依賴方向
+
+| 分層 | 模組 | 職責 |
+| :--- | :--- | :--- |
+| Domain | `recruitment.py`、`recruitment_services.py`、`recruitment_codec.py`、`interfaces.py` | 實體與純函式規則（三態比對、排序、leave-one-out、指代解析、引文驗證、受保護屬性守門）；新增 Protocol：`IJdRequirementExtractor`、`ICandidateProfileExtractor`、`ICandidateProfileCache`、`IIntentClassifier`、`IRecruitmentNarrator`、`IChatOrchestrator` |
+| Application | `recruitment_chat_use_case.py`、`recruitment_nodes.py`、`candidate_profile_service.py`、`recruitment_tools.py`、`recruitment_settings.py` | 節點處理器為純 Python（無 LangGraph 依賴）；工具為既有 `SearchResumesUseCase` / `IExperienceParser` 之薄包裝 |
+| Infrastructure | `llm/gemini_recruitment_llm.py`、`orchestration/langgraph_recruitment_graph.py`、`orchestration/checkpointer_factory.py`、`stores/redis_profile_cache.py` | LangGraph `StateGraph` 組裝並委派 Application 節點（內向依賴）；`InMemorySaver` + TTL/LRU 或 `RedisSaver`；Gemini 結構化輸出與 429 熔斷 |
+| Interfaces | `fastapi_server.py`、`server.py`（`build_chat_use_case`）、`static/dashboard.html` | chat 三端點與例外 → HTTP 映射；「招募助手」聊天分頁 |
+
+`langgraph` / `langchain-*` 只在 `src/infrastructure/` 出現，並於 `build_chat_use_case` 中延遲匯入；組裝失敗時 chat 降級為 `503`，CLI 與其他分頁不受影響。
+
+### 11.2 Turn 1：JD 媒合時序
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as 招募助手分頁
+    participant API as FastAPI /api/chat
+    participant UC as RecruitmentChatUseCase
+    participant G as LangGraph 圖
+    participant N as RecruitmentNodeHandlers
+    participant PS as CandidateProfileService
+    participant C as RedisProfileCache
+    participant LLM as GeminiRecruitmentLlm
+    participant S as SearchResumesUseCase
+
+    UI->>API: POST {session_id?, message 含 JD}
+    API->>UC: execute(ChatTurnCommand)
+    UC->>G: run_turn(session_id, message, trace_id) 取得 Session 鎖
+    G->>N: route 前置規則，必要時 IIntentClassifier
+    N-->>G: intents = [JD_MATCH]
+    G->>N: jd_match
+    N->>C: get_jd(jd_hash, version)
+    alt JD 快取未命中
+        N->>LLM: 抽取 JdRequirements（job_description 圍欄）
+        N->>C: set_jd
+    end
+    N->>N: ProtectedAttributeGuard 過濾條件，程式重編 R1..Rn
+    N->>S: execute_grouped_by_candidate 取候選池 Top-N
+    N->>PS: get_profiles(pool, budget)
+    loop 每位候選人
+        PS->>C: get_profile(cid, content_hash, extractor_version)
+        alt 命中（0 Token）
+            C-->>PS: CandidateProfile
+        else 負快取命中
+            PS->>PS: 直接降級 Profile，不呼叫 LLM
+        else 未命中
+            PS->>LLM: 抽取 Profile（遮蔽後、截斷之 resume_content）
+            PS->>PS: EvidenceVerifier 逐欄驗證，失敗改 UNKNOWN
+            PS->>C: set_profile（僅成功者）
+        end
+    end
+    N->>N: RequirementMatcher → CandidateRanker → ConstraintRelaxationAnalyzer（合格 < K）
+    N->>LLM: narrate_match（僅代稱 + 已驗證證據 + 確定性數字）
+    N-->>G: NodeUpdate
+    G->>N: compose 姓名模板代入、引文後置驗證、歷史以代稱保存並裁切
+    G-->>UC: ChatTurnOutcome（checkpoint 寫入）
+    UC-->>API: ChatTurnResultDTO
+    API-->>UI: shortlist / relaxation / reply_markdown / usage
+```
+
+### 11.3 Turn 2：指代 → 追問 → 面試題時序
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as 招募助手分頁
+    participant G as LangGraph 圖
+    participant N as RecruitmentNodeHandlers
+    participant LLM as GeminiRecruitmentLlm
+
+    UI->>G: 第 2 位有帶過人嗎？出 3 題面試題
+    G->>N: route
+    N->>N: OrdinalReferenceResolver 解析第 2 位 → shortlist[2].candidate_id（不經 LLM）
+    N-->>G: intents = [CANDIDATE_FOLLOWUP, INTERVIEW_QUESTIONS]
+    G->>N: candidate_followup
+    N->>LLM: answer_followup（遮蔽後履歷 + 問題）
+    N->>N: 引文逐字驗證；失敗且為帶人類問題時改用 Profile 已驗證證據模板回答，否則 NOT_MENTIONED
+    G->>N: interview_questions
+    N->>LLM: generate_interview_questions（弱點 = unmet ∪ unknown）
+    N->>N: 驗證題數、target_requirement_id 屬於弱點、受保護屬性掃描
+    G->>N: compose 更新 last_referenced_candidate_id
+    G-->>UI: followup / interview_questions / reply_markdown
+```
+
+### 11.4 鍵空間與配置
+* Redis 鍵：`recruit:v1:profile:{extractor_version}:{candidate_id}`、`recruit:v1:jd:{extractor_version}:{jd_hash}`、`chat:v1:*`（Redis Checkpointer 與 Session 鎖）；皆不落入 `resume:v1:chunk:` 索引前綴。Redis Checkpointer 受 RediSearch 限制僅能使用 db0。
+* 所有閥值、模型名、Top-N、TTL 由 `AppConfig` 之 `RECRUIT_*` / `CHAT_*` 注入並同步於 `.env.example`；Prompt 位於 `prompts/recruit_*.md`。

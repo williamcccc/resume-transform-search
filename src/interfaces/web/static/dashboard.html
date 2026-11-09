@@ -594,6 +594,30 @@
             justify-content: flex-end;
             gap: 12px;
         }
+
+        /* Recruitment Assistant Chat (ADR-0019) */
+        .chat-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+        @media (max-width: 960px) { .chat-layout { grid-template-columns: 1fr; } }
+        .chat-panel, .chat-side { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; }
+        .chat-log { height: 460px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+        .chat-msg { padding: 10px 14px; border-radius: 8px; max-width: 92%; white-space: normal; word-break: break-word; font-size: 0.9rem; }
+        .chat-msg.user { align-self: flex-end; background-color: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); white-space: pre-wrap; }
+        .chat-msg.assistant { align-self: flex-start; background-color: var(--bg-color); border: 1px solid var(--border-color); }
+        .chat-msg.error { align-self: flex-start; background-color: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+        .chat-msg h4 { margin: 8px 0 4px; color: var(--accent-primary); font-size: 0.95rem; }
+        .chat-msg .md-line { margin: 2px 0; }
+        .chat-msg .md-li { margin: 2px 0 2px 16px; }
+        .chat-msg .md-table { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); }
+        .chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+        .chat-input { flex: 1; min-height: 72px; resize: vertical; background-color: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; font-size: 0.9rem; font-family: inherit; }
+        .chat-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; }
+        .chat-side h3 { font-size: 0.95rem; margin: 4px 0 8px; color: var(--accent-primary); }
+        .chat-side section { margin-bottom: 16px; }
+        .shortlist-card { border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; margin-bottom: 8px; background-color: var(--bg-color); font-size: 0.85rem; }
+        .shortlist-card details { margin-top: 6px; color: var(--text-secondary); }
+        .shortlist-card summary { cursor: pointer; }
+        .chat-warning { color: var(--warning); font-size: 0.8rem; margin: 2px 0; }
+        .relax-table { width: 100%; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -651,6 +675,7 @@
             <button class="tab-btn active" onclick="switchTab('auditTab')">📊 轉檔品管稽核紀錄 (Audit Report)</button>
             <button class="tab-btn" onclick="switchTab('logsTab')">📜 系統技術日誌 (App Logs)</button>
             <button class="tab-btn" onclick="switchTab('searchTab')">🔍 智能履歷搜尋 (Resume Search)</button>
+            <button class="tab-btn" onclick="switchTab('recruitTab')">🤝 招募助手 (Recruit Assistant)</button>
         </div>
 
         <!-- Tab 1: Audit Log Table -->
@@ -811,6 +836,39 @@
                 </div>
             </div>
         </div>
+
+        <!-- Tab 4: Recruitment Assistant Chat (ADR-0019) -->
+        <div id="recruitTab" class="tab-content">
+            <div class="chat-layout">
+                <div class="chat-panel">
+                    <div id="chatLog" class="chat-log" aria-live="polite">
+                        <div class="empty-state" id="chatEmpty">貼上職缺 JD，例如「幫我從資料庫挑 3 個最適合的人，並說明推薦理由」；之後可追問「第 2 位有帶過人嗎？幫他出 3 題面試題」。</div>
+                    </div>
+                    <div class="chat-input-row">
+                        <textarea id="chatInput" class="chat-input" maxlength="12000" placeholder="輸入 JD 或追問 (Ctrl+Enter 送出)" onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey)) sendChatMessage()"></textarea>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <button id="chatSendBtn" class="btn btn-primary" onclick="sendChatMessage()">送出</button>
+                            <button class="btn" onclick="startNewChat()">新對話</button>
+                        </div>
+                    </div>
+                    <div class="chat-meta" id="chatMeta"></div>
+                </div>
+                <div class="chat-side">
+                    <section>
+                        <h3>推薦名單</h3>
+                        <div id="chatShortlist"><div class="chat-meta">尚無名單</div></div>
+                    </section>
+                    <section>
+                        <h3>條件瓶頸診斷</h3>
+                        <div id="chatRelaxation"><div class="chat-meta">人選充足或尚未分析</div></div>
+                    </section>
+                    <section>
+                        <h3>面試題</h3>
+                        <div id="chatQuestions"><div class="chat-meta">尚未產生</div></div>
+                    </section>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Resume Full Markdown Modal -->
@@ -862,6 +920,14 @@
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('logsTab').classList.add('active');
                 fetchSystemLogs();
+            } else if (tabId === 'recruitTab') {
+                document.querySelectorAll('.tab-btn')[3].classList.add('active');
+                document.getElementById('recruitTab').classList.add('active');
+                restoreChatSession();
+                setTimeout(() => {
+                    const el = document.getElementById('chatInput');
+                    if (el) el.focus();
+                }, 100);
             } else if (tabId === 'searchTab') {
                 document.querySelectorAll('.tab-btn')[2].classList.add('active');
                 document.getElementById('searchTab').classList.add('active');
@@ -1241,6 +1307,213 @@
                 .catch(err => alert('複製失敗: ' + err));
         }
 
+
+        // ==========================================
+        // 招募助手 (ADR-0019)：所有動態內容一律以 textContent / createElement 渲染，杜絕 XSS
+        // ==========================================
+        const CHAT_SESSION_KEY = 'recruitChatSessionId';
+        let chatBusy = false;
+        let chatRestored = false;
+
+        function getChatSessionId() {
+            try { return window.sessionStorage.getItem(CHAT_SESSION_KEY); } catch (e) { return null; }
+        }
+        function setChatSessionId(sid) {
+            try {
+                if (sid) { window.sessionStorage.setItem(CHAT_SESSION_KEY, sid); }
+                else { window.sessionStorage.removeItem(CHAT_SESSION_KEY); }
+            } catch (e) { /* 無痕模式或儲存受限：僅保留本頁記憶 */ }
+        }
+
+        function el(tag, className, text) {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined && text !== null) node.textContent = String(text);
+            return node;
+        }
+
+        // 安全 Markdown 子集：標題、清單、粗體；其餘一律純文字
+        function appendInlineMarkdown(parent, text) {
+            const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+            parts.forEach(part => {
+                if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+                    parent.appendChild(el('strong', null, part.slice(2, -2)));
+                } else if (part) {
+                    parent.appendChild(document.createTextNode(part));
+                }
+            });
+        }
+
+        function renderSafeMarkdown(container, markdown) {
+            String(markdown || '').split('\n').forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                if (trimmed === '---') { container.appendChild(document.createElement('hr')); return; }
+                let node;
+                if (/^#{1,6}\s/.test(trimmed)) {
+                    node = el('h4', null, trimmed.replace(/^#{1,6}\s+/, ''));
+                } else if (trimmed.startsWith('|')) {
+                    node = el('div', 'md-line md-table', trimmed);
+                } else if (/^(-|\d+\.)\s/.test(trimmed)) {
+                    node = el('div', 'md-li');
+                    appendInlineMarkdown(node, trimmed);
+                } else {
+                    node = el('div', 'md-line');
+                    appendInlineMarkdown(node, trimmed);
+                }
+                container.appendChild(node);
+            });
+        }
+
+        function appendChatMessage(role, content) {
+            const log = document.getElementById('chatLog');
+            const empty = document.getElementById('chatEmpty');
+            if (empty) empty.remove();
+            const msg = el('div', 'chat-msg ' + role);
+            if (role === 'assistant') { renderSafeMarkdown(msg, content); }
+            else { msg.textContent = String(content); }
+            log.appendChild(msg);
+            log.scrollTop = log.scrollHeight;
+            return msg;
+        }
+
+        function renderChatShortlist(shortlist) {
+            const box = document.getElementById('chatShortlist');
+            box.replaceChildren();
+            if (!shortlist || shortlist.length === 0) { box.appendChild(el('div', 'chat-meta', '尚無名單')); return; }
+            shortlist.forEach(item => {
+                const card = el('div', 'shortlist-card');
+                const head = el('div');
+                head.appendChild(el('strong', null, '#' + item.rank + ' ' + item.candidate_name));
+                head.appendChild(document.createTextNode(' '));
+                head.appendChild(el('span', 'badge ' + (item.fully_qualified ? 'badge-success' : 'badge-warning'),
+                    item.fully_qualified ? '完全符合' : '部分符合'));
+                card.appendChild(head);
+                card.appendChild(el('div', 'chat-meta',
+                    '符合 ' + (item.met || []).join(', ') + '｜不符 ' + (item.unmet || []).join(', ') + '｜未提及 ' + (item.unknown || []).join(', ')));
+                if (item.evidence && item.evidence.length) {
+                    const details = el('details');
+                    details.appendChild(el('summary', null, '證據 (' + item.evidence.length + ')'));
+                    item.evidence.forEach(ev => {
+                        details.appendChild(el('div', 'md-li', (ev.requirement_id || ev.field) + '：「' + ev.quote + '」'));
+                    });
+                    card.appendChild(details);
+                }
+                box.appendChild(card);
+            });
+        }
+
+        function renderChatRelaxation(rep) {
+            const box = document.getElementById('chatRelaxation');
+            box.replaceChildren();
+            if (!rep) { box.appendChild(el('div', 'chat-meta', '人選充足或尚未分析')); return; }
+            box.appendChild(el('div', 'chat-meta',
+                '合格 ' + rep.baseline_qualified + ' / 需求 ' + rep.requested_k + '（' + rep.scope_note + '，候選池 ' + rep.pool_size + ' 人）'));
+            const table = el('table', 'relax-table');
+            const headRow = el('tr');
+            ['條件', '放寬後', '增加', '未提及'].forEach(h => headRow.appendChild(el('th', null, h)));
+            table.appendChild(headRow);
+            (rep.items || []).forEach(it => {
+                const row = el('tr');
+                const isBottleneck = (rep.bottleneck_requirement_ids || []).includes(it.requirement_id);
+                row.appendChild(el('td', isBottleneck ? 'color-warning' : null, it.requirement_id + ' ' + it.label));
+                row.appendChild(el('td', null, it.qualified_if_relaxed));
+                row.appendChild(el('td', null, it.delta));
+                row.appendChild(el('td', null, it.unknown_count));
+                table.appendChild(row);
+            });
+            box.appendChild(table);
+        }
+
+        function renderChatQuestions(questions) {
+            const box = document.getElementById('chatQuestions');
+            box.replaceChildren();
+            if (!questions || questions.length === 0) { box.appendChild(el('div', 'chat-meta', '尚未產生')); return; }
+            questions.forEach(q => {
+                box.appendChild(el('div', 'md-li', q.no + '. ' + q.question + '（' + q.target_requirement_id + '）'));
+            });
+        }
+
+        function setChatBusy(busy) {
+            chatBusy = busy;
+            const btn = document.getElementById('chatSendBtn');
+            btn.disabled = busy;
+            btn.textContent = busy ? '處理中…' : '送出';
+        }
+
+        async function sendChatMessage() {
+            if (chatBusy) return;
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            appendChatMessage('user', message);
+            input.value = '';
+            setChatBusy(true);
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: getChatSessionId(), message: message }),
+                });
+                let data = {};
+                try { data = await res.json(); } catch (e) { data = {}; }
+                if (!res.ok) {
+                    let hint = data.message || ('HTTP ' + res.status);
+                    if (res.status === 501 || res.status === 503) hint += '（請以 FastAPI 引擎啟動並確認 API Key 與 Redis 設定）';
+                    if (res.status === 422) setChatSessionId(null);
+                    appendChatMessage('error', '[' + (data.error_code || res.status) + '] ' + hint);
+                    return;
+                }
+                setChatSessionId(data.session_id);
+                const msgNode = appendChatMessage('assistant', data.reply_markdown);
+                (data.warnings || []).forEach(w => msgNode.appendChild(el('div', 'chat-warning', '⚠ ' + w)));
+                renderChatShortlist(data.shortlist);
+                if ((data.intents || []).includes('JD_MATCH')) renderChatRelaxation(data.relaxation);
+                renderChatQuestions(data.interview_questions);
+                const u = data.usage || {};
+                document.getElementById('chatMeta').textContent =
+                    'trace ' + data.trace_id + '｜意圖 ' + (data.intents || []).join(' + ') + '｜LLM 呼叫 ' + (u.llm_calls || 0) +
+                    '｜快取命中 ' + (u.profile_cache_hits || 0) + ' / 未命中 ' + (u.profile_cache_misses || 0) +
+                    '｜負快取 ' + (u.profile_negative_hits || 0) + (data.degraded ? '｜已降級模板' : '');
+            } catch (err) {
+                appendChatMessage('error', '連線失敗：' + err);
+            } finally {
+                setChatBusy(false);
+            }
+        }
+
+        async function restoreChatSession() {
+            if (chatRestored) return;
+            chatRestored = true;
+            const sid = getChatSessionId();
+            if (!sid) return;
+            try {
+                const res = await fetch('/api/chat/' + encodeURIComponent(sid));
+                if (res.status === 404 || res.status === 400) { setChatSessionId(null); return; }
+                if (!res.ok) return;
+                const data = await res.json();
+                renderChatShortlist(data.shortlist);
+                renderChatRelaxation(data.relaxation);
+                document.getElementById('chatMeta').textContent = '已還原對話（第 ' + data.turn_count + ' 輪）';
+            } catch (e) { /* 還原失敗不影響新對話 */ }
+        }
+
+        async function startNewChat() {
+            const sid = getChatSessionId();
+            setChatSessionId(null);
+            if (sid) {
+                try { await fetch('/api/chat/' + encodeURIComponent(sid), { method: 'DELETE' }); } catch (e) { /* 冪等清除 */ }
+            }
+            const log = document.getElementById('chatLog');
+            const emptyNode = el('div', 'empty-state', '已開始新對話，請貼上職缺 JD。');
+            emptyNode.id = 'chatEmpty';
+            log.replaceChildren(emptyNode);
+            renderChatShortlist([]);
+            renderChatRelaxation(null);
+            document.getElementById('chatQuestions').replaceChildren(el('div', 'chat-meta', '尚未產生'));
+            document.getElementById('chatMeta').textContent = '';
+        }
+
         // 初始化
         fetchStats();
         document.getElementById('serverTime').textContent = '最後更新: ' + new Date().toLocaleTimeString();
@@ -1248,7 +1521,9 @@
         // 支援 URL Hash 深度連結 (如 #search, #logs, #audit)
         function initTabFromHash() {
             const hash = window.location.hash.toLowerCase();
-            if (hash === '#search') {
+            if (hash === '#recruit') {
+                switchTab('recruitTab');
+            } else if (hash === '#search') {
                 switchTab('searchTab');
             } else if (hash === '#logs') {
                 switchTab('logsTab');

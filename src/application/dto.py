@@ -11,6 +11,13 @@ from src.domain.models import (
     SearchResultItem,
     CandidateSummary,
 )
+from src.domain.recruitment import (
+    FollowupAnswer,
+    InterviewQuestion,
+    RelaxationReport,
+    ShortlistEntry,
+    TurnUsage,
+)
 
 
 @dataclass
@@ -108,3 +115,30 @@ class WebSearchResponseDTO:
 
 
 
+
+
+# ==========================================
+# 招募助手 (ADR-0019) DTO
+# ==========================================
+
+@dataclass
+class ChatTurnCommand:
+    """招募助手單輪對話指令 DTO"""
+    message: str
+    session_id: Optional[str] = None
+
+
+@dataclass
+class ChatTurnResultDTO:
+    """招募助手單輪對話結果 DTO"""
+    session_id: str
+    trace_id: str
+    intents: List[str]
+    reply_markdown: str
+    shortlist: List[ShortlistEntry]
+    relaxation: Optional[RelaxationReport]
+    followup: Optional[FollowupAnswer]
+    interview_questions: List[InterviewQuestion]
+    warnings: List[str]
+    degraded: bool
+    usage: TurnUsage

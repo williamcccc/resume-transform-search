@@ -13,6 +13,19 @@ from src.domain.models import (
     SystemLogRecord,
 )
 from src.domain.enums import DocumentHealth
+from src.domain.recruitment import (
+    CandidateProfile,
+    ChatIntent,
+    ChatSessionState,
+    ChatTurnOutcome,
+    FollowupFacts,
+    FollowupNarration,
+    GeneralQaFacts,
+    InterviewFacts,
+    InterviewQuestion,
+    JdRequirements,
+    MatchNarrationFacts,
+)
 
 
 class IDocumentReader(Protocol):
@@ -117,3 +130,75 @@ class IExperienceParser(Protocol):
         ...
 
 
+
+
+# ==========================================
+# 招募助手 (ADR-0019) 契約
+# ==========================================
+
+class IJdRequirementExtractor(Protocol):
+    """JD -> 結構化必要/加分條件抽取器契約"""
+    @property
+    def extractor_version(self) -> str:
+        ...
+
+    def extract(self, jd_text: str, max_must: int) -> JdRequirements:
+        ...
+
+
+class ICandidateProfileExtractor(Protocol):
+    """履歷 -> CandidateProfile 延遲結構化抽取器契約"""
+    @property
+    def extractor_version(self) -> str:
+        ...
+
+    def extract(self, candidate_id: str, resume_text: str, content_hash: str) -> CandidateProfile:
+        ...
+
+
+class ICandidateProfileCache(Protocol):
+    """候選人 Profile 與 JD 條件之內容 Hash 快取契約"""
+    def get_profile(self, candidate_id: str, content_hash: str, extractor_version: str) -> Optional[CandidateProfile]:
+        ...
+
+    def set_profile(self, profile: CandidateProfile) -> None:
+        ...
+
+    def get_jd(self, jd_hash: str, extractor_version: str) -> Optional[JdRequirements]:
+        ...
+
+    def set_jd(self, jd: JdRequirements, extractor_version: str) -> None:
+        ...
+
+
+class IIntentClassifier(Protocol):
+    """對話意圖分類器契約 (輸出限 ChatIntent 列舉)"""
+    def classify(self, message: str, has_shortlist: bool) -> List[ChatIntent]:
+        ...
+
+
+class IRecruitmentNarrator(Protocol):
+    """招募助手敘述器契約 (僅接收代稱與已驗證證據)"""
+    def narrate_match(self, facts: MatchNarrationFacts) -> str:
+        ...
+
+    def answer_followup(self, facts: FollowupFacts) -> FollowupNarration:
+        ...
+
+    def generate_interview_questions(self, facts: InterviewFacts, count: int) -> List[InterviewQuestion]:
+        ...
+
+    def answer_general(self, facts: GeneralQaFacts) -> str:
+        ...
+
+
+class IChatOrchestrator(Protocol):
+    """多輪對話編排器契約 (可替換編排框架)"""
+    def run_turn(self, session_id: str, message: str, trace_id: str) -> ChatTurnOutcome:
+        ...
+
+    def get_state(self, session_id: str) -> Optional[ChatSessionState]:
+        ...
+
+    def reset(self, session_id: str) -> None:
+        ...

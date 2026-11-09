@@ -1,19 +1,31 @@
 import json
 import logging
+import uuid
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import uvicorn
 
 from src.application.dashboard_use_case import GetDashboardDataUseCase
-from src.application.dto import DashboardQueryDTO, WebSearchRequestDTO
+from src.application.dto import ChatTurnCommand, ChatTurnResultDTO, DashboardQueryDTO, WebSearchRequestDTO
 from src.application.search_resumes_use_case import SearchResumesUseCase
+from src.domain.exceptions import (
+    ChatUnavailableError,
+    LlmQuotaExhaustedError,
+    RecruitmentInputError,
+    SessionBusyError,
+    SessionTurnLimitError,
+    TurnTimeoutError,
+)
+from src.domain.recruitment_codec import jd_to_dict, relaxation_to_dict, shortlist_entry_to_dict
 from src.infrastructure.config import AppConfig
-from src.interfaces.web.server import build_web_use_cases
+from src.interfaces.web.server import build_chat_use_case, build_web_use_cases
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +33,95 @@ STATIC_DIR = Path(__file__).parent / "static"
 DASHBOARD_HTML_PATH = STATIC_DIR / "dashboard.html"
 
 
+class ChatRequestBody(BaseModel):
+    """POST /api/chat 請求體"""
+    session_id: Optional[str] = None
+    message: Optional[str] = None
+
+
+def chat_error_response(status_code: int, error_code: str, message: str,
+                        extra: Optional[Dict[str, Any]] = None) -> JSONResponse:
+    """招募助手統一錯誤回應：{error_code, message, trace_id}，不回傳 Traceback"""
+    body: Dict[str, Any] = {"error_code": error_code, "message": message, "trace_id": uuid.uuid4().hex}
+    headers = None
+    if extra:
+        body.update(extra)
+        if "retry_after_seconds" in extra:
+            headers = {"Retry-After": str(extra["retry_after_seconds"])}
+    return JSONResponse(status_code=status_code, content=body, headers=headers)
+
+
+def chat_result_to_dict(dto: ChatTurnResultDTO) -> Dict[str, Any]:
+    """ChatTurnResultDTO -> JSON 回應"""
+    followup = None
+    if dto.followup is not None:
+        followup = {
+            "candidate_rank": dto.followup.candidate_rank,
+            "candidate_id": dto.followup.candidate_id,
+            "answer_status": dto.followup.answer_status.value,
+            "evidence": list(dto.followup.evidence),
+        }
+    return {
+        "session_id": dto.session_id,
+        "trace_id": dto.trace_id,
+        "intents": list(dto.intents),
+        "reply_markdown": dto.reply_markdown,
+        "shortlist": [shortlist_entry_to_dict(e) for e in dto.shortlist],
+        "relaxation": relaxation_to_dict(dto.relaxation) if dto.relaxation else None,
+        "followup": followup,
+        "interview_questions": [
+            {"no": q.no, "question": q.question, "target_requirement_id": q.target_requirement_id,
+             "rationale": q.rationale}
+            for q in dto.interview_questions
+        ],
+        "warnings": list(dto.warnings),
+        "degraded": dto.degraded,
+        "usage": asdict(dto.usage),
+    }
+
+
+def map_chat_exception(err: Exception) -> JSONResponse:
+    """領域例外 -> HTTP 狀態碼映射"""
+    if isinstance(err, RecruitmentInputError):
+        status = 413 if err.error_code == "MESSAGE_TOO_LONG" else 400
+        return chat_error_response(status, err.error_code, str(err))
+    if isinstance(err, SessionBusyError):
+        return chat_error_response(409, "SESSION_BUSY", str(err))
+    if isinstance(err, SessionTurnLimitError):
+        return chat_error_response(422, "SESSION_TURN_LIMIT", str(err))
+    if isinstance(err, LlmQuotaExhaustedError):
+        return chat_error_response(429, "LLM_QUOTA_EXHAUSTED", str(err),
+                                   {"retry_after_seconds": err.retry_after_seconds})
+    if isinstance(err, ChatUnavailableError):
+        return chat_error_response(503, "CHAT_UNAVAILABLE", str(err))
+    if isinstance(err, TurnTimeoutError):
+        return chat_error_response(504, "TURN_TIMEOUT", str(err))
+    logger.error(f"招募助手未預期錯誤 (err_type={type(err).__name__})")
+    return chat_error_response(500, "INTERNAL_ERROR", "招募助手發生未預期錯誤")
+
+
 def create_app(
     use_case: GetDashboardDataUseCase,
     search_use_case: Optional[SearchResumesUseCase] = None,
+    chat_use_case: Optional[Any] = None,
 ) -> FastAPI:
     """
     建立 FastAPI 應用實例
     配置 OpenAPI 文檔標籤、CORS 中介軟體、品管統計 API 與履歷語意檢索 API
     """
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        try:
+            yield
+        finally:
+            if chat_use_case is not None and hasattr(chat_use_case, "close"):
+                try:
+                    chat_use_case.close()
+                except Exception as err:
+                    logger.warning(f"招募助手資源關閉異常 (err_type={type(err).__name__})")
+
     app = FastAPI(
+        lifespan=lifespan,
         title="文件轉檔與品管日誌儀表板 API - 履歷智能檢索",
         description="提供履歷文件轉檔品管監控、自然語言語意向量搜尋與工作年資/技術標籤複合過濾端點",
         version="1.1.0",
@@ -258,6 +350,64 @@ def create_app(
             "markdown": md_content,
         }
 
+    # ==========================================
+    # HR 多輪對話招募助手 API (ADR-0019)
+    # ==========================================
+    chat_unavailable_message = "招募助手未啟用 (需 FastAPI 引擎、GEMINI_API_KEY、Redis 向量庫與 LangGraph 套件)"
+
+    @app.post(
+        "/api/chat",
+        summary="招募助手多輪對話 (送出單輪訊息)",
+        description="JD 媒合、人選追問與面試題生成；session_id 留空則由伺服器建立新對話",
+        tags=["招募助手 API"],
+    )
+    def post_chat(body: ChatRequestBody):
+        if chat_use_case is None:
+            return chat_error_response(503, "CHAT_UNAVAILABLE", chat_unavailable_message)
+        try:
+            dto = chat_use_case.execute(ChatTurnCommand(message=body.message or "", session_id=body.session_id))
+        except Exception as err:
+            return map_chat_exception(err)
+        return chat_result_to_dict(dto)
+
+    @app.get(
+        "/api/chat/{session_id}",
+        summary="取回招募助手對話結構化狀態",
+        description="回傳 jd_requirements、shortlist 與 turn_count，供頁面重整還原",
+        tags=["招募助手 API"],
+    )
+    def get_chat_session(session_id: str):
+        if chat_use_case is None:
+            return chat_error_response(503, "CHAT_UNAVAILABLE", chat_unavailable_message)
+        try:
+            state = chat_use_case.get_session(session_id)
+        except Exception as err:
+            return map_chat_exception(err)
+        if state is None:
+            return chat_error_response(404, "SESSION_NOT_FOUND", "找不到該對話或已逾時失效")
+        return {
+            "session_id": state.session_id,
+            "turn_count": state.turn_count,
+            "jd_requirements": jd_to_dict(state.jd_requirements) if state.jd_requirements else None,
+            "shortlist": [shortlist_entry_to_dict(e) for e in state.shortlist],
+            "relaxation": relaxation_to_dict(state.relaxation) if state.relaxation else None,
+        }
+
+    @app.delete(
+        "/api/chat/{session_id}",
+        summary="清除招募助手對話 (冪等)",
+        status_code=204,
+        tags=["招募助手 API"],
+    )
+    def delete_chat_session(session_id: str):
+        if chat_use_case is None:
+            return chat_error_response(503, "CHAT_UNAVAILABLE", chat_unavailable_message)
+        try:
+            chat_use_case.reset_session(session_id)
+        except Exception as err:
+            return map_chat_exception(err)
+        return Response(status_code=204)
+
     return app
 
 
@@ -269,7 +419,8 @@ def create_default_app(config: Optional[AppConfig] = None) -> FastAPI:
     """
     active_config = config or AppConfig.load()
     use_case, search_use_case, _ = build_web_use_cases(active_config)
-    return create_app(use_case=use_case, search_use_case=search_use_case)
+    chat_use_case, _ = build_chat_use_case(active_config, search_use_case)
+    return create_app(use_case=use_case, search_use_case=search_use_case, chat_use_case=chat_use_case)
 
 
 _default_app: Optional[FastAPI] = None
@@ -294,9 +445,10 @@ def run_fastapi_server(
     search_use_case: Optional[SearchResumesUseCase] = None,
     host: str = "127.0.0.1",
     port: int = 8080,
+    chat_use_case: Optional[Any] = None,
 ):
     """啟動 FastAPI + Uvicorn 伺服器"""
-    app = create_app(use_case, search_use_case)
+    app = create_app(use_case, search_use_case, chat_use_case)
     logger.info(f"🚀 FastAPI 伺服器已啟動: http://{host}:{port}")
     logger.info(f"📖 Swagger 互動式 API 文檔: http://{host}:{port}/docs")
     uvicorn.run(app, host=host, port=port, log_level="warning")

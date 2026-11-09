@@ -160,7 +160,13 @@ def main():
 
     if use_fastapi:
         from src.interfaces.web.fastapi_server import run_fastapi_server
-        run_fastapi_server(use_case=use_case, search_use_case=search_use_case, host=host, port=port)
+        from src.interfaces.web.server import build_chat_use_case
+
+        chat_use_case, chat_init_err = build_chat_use_case(config, search_use_case)
+        chat_status = "已就緒" if chat_use_case else f"未啟用 ({chat_init_err})"
+        print(f"• 招募助手: {chat_status}")
+        run_fastapi_server(use_case=use_case, search_use_case=search_use_case, host=host, port=port,
+                           chat_use_case=chat_use_case)
     else:
         server = DashboardServer(use_case=use_case, search_use_case=search_use_case, host=host, port=port)
         server.start(blocking=True)
