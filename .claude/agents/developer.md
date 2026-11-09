@@ -1,7 +1,7 @@
 ---
 name: developer
 description: >-
-  專案核心開發者：負責 Step 2 依 Tech Spec 實作、Step 3 白箱單元測試、Step 6 自主診斷與修正（深度 RCA 時覆寫 model: opus）。僅在使用者明確要求多代理協作時派工；Step 6 每輪新派工，勿以 SendMessage 接續。
+  專案核心開發者：負責 Step 2 依 Tech Spec 實作、Step 3 白箱單元測試、Step 6 自主診斷與修正（深度 RCA 時覆寫 model: opus）。僅在使用者明確要求多代理協作時派工；Step 6 每輪新派工、Step 2–3 多項獨立缺陷/功能按批新派工，勿以 SendMessage 接續。
 model: sonnet
 ---
 
