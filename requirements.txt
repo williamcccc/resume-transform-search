@@ -28,3 +28,11 @@ numpy>=1.24.0
 fastapi>=0.100.0
 uvicorn>=0.23.0
 httpx>=0.24.0
+
+# HR Recruitment Chat Assistant (ADR-0019)
+# 註：langchain-google-genai 4.x 要求 google-genai>=2.20.0 (現行驗證版本 2.25.0)
+langgraph>=1.2,<2.0
+langchain-core>=1.7.5,<2.0
+langchain-google-genai>=4.4,<5.0
+# 選用：僅 CHAT_CHECKPOINTER_BACKEND=redis 時需要 (延遲匯入)
+langgraph-checkpoint-redis>=0.6,<1.0

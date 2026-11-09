@@ -223,6 +223,8 @@ flowchart TD
 - `redis`：Redis 客戶端 (RediSearch 與 HNSW 向量索引)
 - `numpy`：向量陣列處理與二進位序列化
 - `fastapi` / `uvicorn` / `httpx`：Web 儀表板高效能 API 引擎與整合測試客戶端
+- `langgraph` / `langchain-core` / `langchain-google-genai`（4.x，需 `google-genai>=2.20`）：HR 多輪對話招募助手之意圖路由固定節點圖與 Gemini 結構化輸出（僅限 `src/infrastructure/`，延遲匯入，未安裝時 CLI 不受影響）
+- `langgraph-checkpoint-redis`（選用）：`CHAT_CHECKPOINTER_BACKEND=redis` 時之對話狀態持久化
 
 ### 5.2 環境配置範例 (.env)
 完整參數與詳細預設值請直接參閱專案根目錄之 [`.env.example`](.env.example) 範本檔案（由 [`AppConfig`](src/infrastructure/config.py) 統一解析注入）：
@@ -319,6 +321,19 @@ WEB_ENGINE=auto
 2. **依賴注入與安全隔離**：`GeminiTransformer` 與 `GeminiLlmJudge` 建構子支援注入自訂提示詞文字與模板；外部不可信履歷內容一律使用 `<resume_content>` 標籤圍欄隔離，防止 Prompt Injection。
 3. **AST 靜態阻斷防線**：`audit_guardrails.py` 嚴密防守，防止未來代碼重新硬編碼提示詞文字。
 
+### 6.7 需求十：HR 多輪對話招募助手（JD 媒合 + 多輪追問，[ADR-0019](docs/adr/0019-recruitment-assistant-langgraph-chat.md) / [Spec-0019](docs/specs/0019-recruitment-assistant-chat-spec.md)）
+1. **JD 媒合**：於 Web 儀表板「招募助手」分頁貼上 JD，系統以 LLM 抽取必要/加分條件（類別限定 `SKILL / YEARS / LEADERSHIP / TEAM_SIZE / SENIORITY`），檢索語意候選池 Top-N（`RECRUIT_CANDIDATE_POOL_SIZE`，預設 15、上限 30），回傳前 K 位人選（預設 3，可於訊息中指定「挑 5 個」）。
+2. **確定性比對與條件瓶頸**：條件比對（MET / UNMET / UNKNOWN 三態）、排序與「哪個條件太嚴格」（逐一放寬必要條件之 leave-one-out 合格人數）全部由程式計算；LLM 只負責敘述。放寬統計僅涵蓋語意候選池，回覆會明確揭露。
+3. **證據引用與未提及**：推薦理由與追問回答引用之原文須通過逐字比對驗證（正規化：NFKC、壓縮空白、去除 Markdown 符號 `* _ ` + "`" + ` # > | ~`；只確認子字串存在，不做語意/否定判斷）；履歷未提及時明說「履歷未提及」。
+4. **多輪對話**：「第 N 位 / N 號 / #N / 他 / 這位」由程式解析為名單中之 candidate_id；支援單輪複合意圖（如「追問 + 出面試題」）；面試題對應該人選之未達成或未提及條件。
+5. **查詢期延遲抽取與 0 Token 快取**：候選池內每位人選之結構化檔案（年資 / 是否帶人 / 團隊規模 / 職級 / 核心技能）以內容 Hash + `extractor_version` 快取於 Redis（`recruit:v1:profile:*`，TTL 30 天）；未變更履歷重複查詢 0 次抽取。抽取失敗者寫入行程內短期負快取（`RECRUIT_PROFILE_NEGATIVE_CACHE_TTL_SECONDS`），避免重複消耗 Token。
+6. **安全與公平**：履歷與 JD 視為不可信資料並以圍欄標籤隔離；受保護屬性（年齡/性別/生日/婚姻/照片等，詞表 `RECRUIT_PROTECTED_ATTR_TERMS`）不進入條件、檔案與排序，送 LLM 前整行/表格整欄遮蔽；敘述 LLM 僅接收「候選人 #N」代稱，對話歷史亦以代稱保存。
+7. **Session 治理**：Checkpointer 可抽換（`CHAT_CHECKPOINTER_BACKEND=memory|redis`），含 Session TTL、歷史裁切（輪數/字元）、LRU 上限與 Session 鎖（並行請求回 `409`）。Redis 後端受 RediSearch 限制僅能使用 db0，以 `chat:v1:*` 前綴隔離。
+8. **API**：`POST /api/chat`（`session_id` 選填、`message` 必填）、`GET /api/chat/{session_id}`、`DELETE /api/chat/{session_id}`；錯誤碼 400/409/413/422/429/503/504。僅 FastAPI 引擎提供，內建 HTTPServer 回 `501`；無 API Key 或未安裝 LangGraph 時回 `503`，不影響其他分頁。
+9. **向下相容**：`convert_to_md.py` 與既有 CLI 指令、引數零改動。
+10. **技能比對（Rev2）**：SKILL 條件支援 OR 多選項（「Python 或 Go」任一命中即 MET）；比對容忍版本與別名（`Python3`、`PostgreSQL 12`、`k8s`）。三態規則：結構化技能命中或履歷全文詞面命中（非歧義）→ MET 並附原文證據片段；歧義短詞（如單獨 `go`）或未驗證宣稱 → UNKNOWN；全文可得且零命中 → UNMET。全部必要條件放寬後合格人數皆無增加時，回覆改指出通過率最低之條件與符合人數。相關設定：`RECRUIT_SKILL_ALIASES`、`RECRUIT_SKILL_LEXICAL_MIN_CHARS`、`RECRUIT_SKILL_MENTION_SNIPPET_CHARS`、`RECRUIT_SKILL_VERSION_STRIP_EXEMPT`、`RECRUIT_SKILL_LEXICAL_ALIAS_DENYLIST`。
+11. **敘述完整性（Rev2）**：長文輸出使用 `RECRUIT_NARRATIVE_MAX_OUTPUT_TOKENS`（預設 8192），可選 `RECRUIT_LLM_THINKING_BUDGET`；偵測到截斷（`MAX_TOKENS`、解析失敗、括號不成對）時改用系統模板並附警告，不重試。引文驗證僅作用於 LLM 生成段落，系統模板固定用語不再被誤刪。
+
 ---
 
 ## 7. 命令列使用指南
@@ -371,6 +386,7 @@ python web_dashboard.py --port 8080 --engine fastapi --open
 python -m uvicorn src.interfaces.web.fastapi_server:app --reload --port 8080
 python -m uvicorn src.interfaces.web.fastapi_server:create_default_app --factory --reload --port 8080
 python -m uvicorn web_dashboard:app --reload --port 8080
+#     → 啟動後於儀表板「招募助手」分頁進行 HR 多輪對話（需 GEMINI_API_KEY + Redis 向量索引；僅 FastAPI 引擎）
 
 # 12. 執行全套白箱單元測試 (離線 100% Mock 隔離驗證)
 python -m unittest discover -s tests/unit -p "test_*.py"

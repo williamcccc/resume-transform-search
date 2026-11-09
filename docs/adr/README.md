@@ -27,6 +27,7 @@
 | **[ADR-0016](./0016-github-pre-publish-security-and-pii-governance.md)** | GitHub 上庫前全方位安全脫敏、個資 (PII) 清零與跨平台路徑治理 | 已採納 (Accepted) | 2026-11 | `PII Sanitization`, `Git Hygiene`, `Cross-Platform`, `SHA-256 Guardrail` |
 | **[ADR-0017](./0017-publish-privacy-scanner-hardening.md)** | 上庫前個資掃描與文件連結防線補強 | 已採納 (Accepted) | 2026-11 | `Privacy`, `Static Scanning`, `Git Hygiene`, `Documentation` |
 | **[ADR-0018](./0018-uvicorn-standard-asgi-entrypoint-and-di-bootstrap.md)** | 支援 Uvicorn 標準 ASGI 啟動、App Factory 與 Web 依賴注入組裝收斂 | 已採納 (Accepted) | 2026-11 | `FastAPI`, `Uvicorn`, `ASGI`, `Dependency Injection` |
+| **[ADR-0019](./0019-recruitment-assistant-langgraph-chat.md)** | HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取 | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Gemini`, `Lazy Extraction`, `Deterministic Ranking` |
 
 ---
 
