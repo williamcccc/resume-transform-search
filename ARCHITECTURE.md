@@ -102,9 +102,9 @@ resume-to-markdown/
 ├── .env.example                        # Twelve-Factor 環境變數配置範本
 ├── .gitignore                          # Git 版控邊界與敏感資料隔離規則
 ├── LICENSE                             # MIT 開源授權條款
-├── AGENTS.md                           # 多代理人協作與跨平台通用規範手冊
-├── GEMINI.md                           # Google Antigravity 專案開發規範指引
-├── CLAUDE.md                           # Anthropic Claude Code 專案開發規範指引
+├── AGENTS.md                           # 跨工具共用之最高開發規範（唯一正本）
+├── GEMINI.md                           # Google Antigravity 薄層覆寫（@AGENTS.md 匯入 + 工具專屬差異）
+├── CLAUDE.md                           # Anthropic Claude Code 薄層覆寫（@AGENTS.md 匯入 + 工具專屬差異）
 ├── README.md                           # 專案開源導覽與快速上手手冊
 ├── REQUIREMENTS.md                     # 產品需求規格書
 └── ARCHITECTURE.md                     # 本架構技術手冊
