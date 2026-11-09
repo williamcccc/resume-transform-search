@@ -1,7 +1,7 @@
 ---
 name: gatekeeper
 description: >-
-  對抗式審查官：負責 Step 4 黑箱/灰箱 QA 實測與 Step 5 Gate 2 對抗式代碼審查（Step 4 派工時覆寫 model: sonnet）。僅在使用者明確要求多代理協作時派工；每次 QA / Gate 2（含複審）新派工，勿以 SendMessage 接續。
+  對抗式審查官：負責 Step 4 黑箱/灰箱 QA 實測與 Step 5 Gate 2 對抗式代碼審查（Step 4 與小範圍差異複審派工時覆寫 model: sonnet）。僅在使用者明確要求多代理協作時派工；每次 QA / Gate 2（含複審）新派工，勿以 SendMessage 接續。
 model: opus
 ---
 

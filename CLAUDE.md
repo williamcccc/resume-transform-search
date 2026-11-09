@@ -18,13 +18,15 @@
    | Step 7 文檔與 ADR 同步 | architect | 覆寫 `sonnet` |
    | Step 2 實作、Step 3 單元測試、Step 6 一般修正 | developer | `sonnet`（預設） |
    | Step 6 深度 RCA（根因不明、跨層缺陷、第 3 輪修正） | developer | 覆寫 `opus` |
-   | Step 5 Gate 2 對抗式代碼審查（含差異複審） | gatekeeper | `opus`（預設） |
+   | Step 5 Gate 2 對抗式代碼審查（首審、或複審涉及新設計/跨層/安全邊界） | gatekeeper | `opus`（預設） |
+   | Step 5 Gate 2 小範圍差異複審（僅驗證前次 P0/P1 修正，變更 ≤ 5 處且未新增介面/資料模型） | gatekeeper | 覆寫 `sonnet` |
    | Step 4 QA 實測（撰寫 E2E、邊界對抗、產出報告） | gatekeeper | 覆寫 `sonnet` |
    | 純機械化：跑測試、清理測試資料、執行 `verify_doc_sync.py` / `audit_guardrails.py`、檔案清單掃描 | 不指定角色 | `haiku` |
 
 2. **派工一律新開子 Agent，嚴禁接續長上下文 (Fresh Agent per Dispatch)**：
    - Step 6 每一輪修正、Gate 2 每一次（含差異複審）、Step 7 文檔同步，**一律以 Agent 工具新派工**，嚴禁以 SendMessage 接續先前已完成任務之子 Agent；接續會使其攜帶全部歷史（數十次工具呼叫、全部讀檔與測試輸出），成本隨輪次累積而與實際工作量無關。
    - 新派工之 Prompt 僅含 Context Handoff Schema JSON：`artifacts`（規格/報告之專案相對路徑，並註明「僅讀第 X 節」）、缺陷清單（檔案:行號、重現方式）、`constraints`、驗證指令；嚴禁要求整份重讀大型規格或報告。
+   - **大型實作按缺陷/功能分批派工**：Step 2–3 涉及 ≥ 2 項互相獨立之缺陷或功能時，每批（1 項缺陷或 1 個功能切片，含其實作與單元測試）新派一個 developer 依序執行，避免單一子 Agent 上下文隨工具呼叫累積膨脹；彼此有共用資料模型變更者，先派共用部分，後續批次以前批交接 JSON 為輸入。
    - SendMessage 僅限用於**仍在執行中**之子 Agent 補充其當下任務所需之事實（如環境資訊），不得用於派發新階段或新一輪任務。
 3. **報告雙寫 (Dual-Persistence)**：超過 30 行之 PRD、Tech Spec、QA 報告寫入 `docs/specs/`、`docs/qa_reports/` 之獨立 Markdown 檔案；需分享檢視時再以 Artifact 發布。
 4. **Skill 路徑與原生探索**：閉環各階段 Skill 之正本位於 `.agents/skills/<skill>/SKILL.md`；`.claude/skills/<skill>/SKILL.md` 僅為 Claude Code 原生探索之轉接層（僅含 frontmatter 與一行讀取指示），可經 Skill 工具或 `/<skill>` 呼叫，載入後仍以 Read 讀取正本並依其指示執行。
