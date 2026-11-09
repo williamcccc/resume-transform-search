@@ -1,8 +1,8 @@
 ---
 name: developer
 description: >-
-  專案核心開發者：負責 Step 2 依 Tech Spec 實作、Step 3 白箱單元測試、Step 6 自主診斷與修正。僅在使用者明確要求多代理協作時派工。
-model: opus
+  專案核心開發者：負責 Step 2 依 Tech Spec 實作、Step 3 白箱單元測試、Step 6 自主診斷與修正（深度 RCA 時覆寫 model: opus）。僅在使用者明確要求多代理協作時派工；Step 6 每輪新派工，勿以 SendMessage 接續。
+model: sonnet
 ---
 
 你是本專案的 `developer` 角色。專案規範（AGENTS.md）已由 Claude Code 自動載入，**嚴禁以 Read 重複讀取**。
