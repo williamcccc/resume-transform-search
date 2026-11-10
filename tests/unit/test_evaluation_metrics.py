@@ -79,6 +79,27 @@ class TestDedupeAndK(unittest.TestCase):
     def test_duplicate_ids_do_not_inflate_recall(self):
         self.assertAlmostEqual(recall_at_k({"a"}, ["a", "a"], 1), 1.0)
 
+    def test_string_relevant_or_ranked_raises_type_error(self):
+        metrics = (
+            lambda rel, ranked: recall_at_k(rel, ranked, 1),
+            lambda rel, ranked: precision_at_k(rel, ranked, 1),
+            lambda rel, ranked: reciprocal_rank(rel, ranked),
+            lambda rel, ranked: ndcg_at_k(rel, ranked, 1),
+        )
+        bad_inputs = (("ab", ["a"]), (b"ab", ["a"]), ({"a"}, "ab"), (set(), "ab"), ("", ["a"]))
+        for index, metric in enumerate(metrics):
+            for rel, ranked in bad_inputs:
+                with self.subTest(metric=index, relevant=rel, ranked=ranked):
+                    with self.assertRaises(TypeError):
+                        metric(rel, ranked)
+
+    def test_dedupe_rejects_string(self):
+        with self.assertRaises(TypeError):
+            dedupe_ranked("aab")
+
+    def test_tuple_and_frozenset_inputs_still_accepted(self):
+        self.assertAlmostEqual(recall_at_k(frozenset({"a", "b"}), ("a", "x"), 2), 0.5)
+
     def test_invalid_k_raises(self):
         for bad_k in (0, -1, True, 2.0):
             with self.subTest(k=bad_k):
@@ -113,6 +134,16 @@ class TestFieldF1(unittest.TestCase):
         actual = {"skills": ["python", "go"]}
         # tp=1, precision=1/2, recall=1/3, F1=2*(1/2)*(1/3)/(1/2+1/3)=0.4
         self.assertAlmostEqual(field_f1(expected, actual), 0.4)
+
+
+    def test_bool_does_not_equal_int(self):
+        self.assertEqual(field_f1({"flag": True}, {"flag": 1}), 0.0)
+        self.assertEqual(field_f1({"flag": False}, {"flag": 0}), 0.0)
+        self.assertEqual(field_f1({"flag": True}, {"flag": True}), 1.0)
+        self.assertEqual(field_f1({"flags": [True, 1]}, {"flags": [1, True]}), 1.0)
+
+    def test_numeric_equality_unchanged(self):
+        self.assertEqual(field_f1({"years": 6}, {"years": 6.0}), 1.0)
 
 
 class TestFieldF1Nested(unittest.TestCase):
