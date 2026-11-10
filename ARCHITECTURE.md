@@ -29,7 +29,7 @@ resume-to-markdown/
 │   │   ├── index_resumes_use_case.py    # IndexResumesUseCase (履歷切片、向量化、SHA-256 增量比對與延遲串流寫入)
 │   │   ├── search_resumes_use_case.py   # SearchResumesUseCase (KNN 語意搜尋、年資/技術標籤複合過濾與全文安全讀取)
 │   │   ├── recruitment_chat_use_case.py # RecruitmentChatUseCase (輸入驗證、trace_id、熔斷、IChatOrchestrator 調度與 DTO 映射)
-│   │   ├── recruitment_nodes.py         # 固定節點處理器 (route / jd_match → jd_search_round ⟲ → jd_finalize / candidate_followup / interview_questions / general_qa / compose，純 Python)
+│   │   ├── recruitment_nodes.py         # 固定節點處理器 (route / jd_match → jd_search_round ⟲ → jd_finalize / candidate_followup / interview_questions / general_qa / apply_relaxation / compose，純 Python)
 │   │   ├── candidate_profile_service.py # 查詢期延遲結構化抽取 + 內容 Hash 快取 + 負快取 + 證據驗證 + 降級
 │   │   ├── recruitment_tools.py         # 既有 Use Case 薄包裝 (候選池檢索、履歷全文讀取、年資解析)
 │   │   ├── recruitment_settings.py      # RecruitmentSettings (由 Interfaces 自 AppConfig 映射)
@@ -556,6 +556,7 @@ flowchart LR
 * [ADR-0019: HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取](docs/adr/0019-recruitment-assistant-langgraph-chat.md)
 * [ADR-0020: 招募助手 LangSmith 遮蔽式效能追蹤](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md)
 * [ADR-0021: 招募助手候選人不足時自動擴大檢索（LangGraph 子步驟循環）](docs/adr/0021-recruitment-adaptive-candidate-search-loop.md)
+* [ADR-0022: 招募助手放寬條件之人工決策（LangGraph interrupt）](docs/adr/0022-recruitment-relaxation-human-in-the-loop.md)
 
 ### 10.5 專案全景文檔導覽與雙重持久化體系 (`docs/`)
 為確保全生命週期之工程透明度與版本控制追溯性，專案落地四向關聯之文檔持久化架構：
@@ -704,5 +705,34 @@ flowchart LR
     jd_search_round -->|"decide → 下一輪參數"| jd_search_round
     jd_search_round -->|"decide → 停止原因"| jd_finalize
     jd_finalize -->|佇列下一意圖或| compose
+```
+
+### 11.8 放寬條件之人工決策（[ADR-0022](docs/adr/0022-recruitment-relaxation-human-in-the-loop.md) / [Spec-0022](docs/specs/0022-recruitment-relaxation-human-in-the-loop-spec.md)）
+* **分層**：`interrupt()` 只在 Infrastructure 之 `await_relaxation` 節點；放寬規則為 Domain 純函式（`build_relaxation_prompt`、`validate_relaxation_decision`、`apply_requirement_relaxation`）；重新比對為 Application 之 `apply_relaxation` 節點，與 `jd_finalize` 共用 `_present_match`。
+* **觸發**：`_present_match` 產出放寬報告且可提出決定時設 `turn.offer_relaxation`；`compose` 回傳 `goto=await_relaxation`。之後未產出新報告之輪次（如追問）不會再暫停。
+* **恢復 / 放棄**：`run_turn(..., relax_requirement_ids)` 在 Session 鎖內先以「目前設定 + Session」重算之選項驗證（不合法即拋出，checkpoint 不變），再 `invoke(Command(resume=ids), context=新單輪 context)`；無 ID 之一般訊息從 START 重新執行，等同放棄待決定。
+* **副作用約束**：LangGraph 恢復時會重新執行 `await_relaxation`，該節點在 `interrupt()` 之前只做純計算；payload 只含條件 ID、標籤與人數。追蹤樹中暫停會在該節點顯示 `GraphInterrupt`（控制流程訊號）。
+* **Session 欄位**：`relaxed_requirement_ids`、`relaxation_rounds`（新 JD 由 `jd_finalize` 重置）；被放寬條件以 `priority=NICE` 留在 `jd_requirements.nice`，ID 不變。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as 招募助手分頁
+    participant OR as LangGraphRecruitmentOrchestrator
+    participant G as LangGraph 圖
+    participant N as RecruitmentNodeHandlers
+    UI->>OR: POST /api/chat {message: JD}
+    OR->>G: invoke(state)
+    G->>N: route → jd_match → jd_search_round ⟲ → jd_finalize（合格 < K）
+    G->>N: compose（goto=await_relaxation）
+    G->>G: await_relaxation：interrupt(pending_decision)
+    OR-->>UI: reply + pending_decision（checkpoint 保存待執行任務）
+    UI->>OR: POST {session_id, relax_requirement_ids:[R3]}
+    OR->>OR: 對照目前選項驗證（不合法 → 422，狀態不變）
+    OR->>G: invoke(Command(resume=[R3]), 新單輪 context)
+    G->>G: await_relaxation 重新執行 → 取得 [R3]
+    G->>N: apply_relaxation（R3 降為加分，已評估池重排，0 次抽取）
+    G->>N: compose（仍不足且未達上限 → 再次 await_relaxation）
+    OR-->>UI: 新名單 + relaxed_requirement_ids +（下一輪）pending_decision
 ```
 

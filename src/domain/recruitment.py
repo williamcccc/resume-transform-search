@@ -34,6 +34,7 @@ class ChatIntent(str, Enum):
     INTERVIEW_QUESTIONS = "INTERVIEW_QUESTIONS"
     GENERAL_QA = "GENERAL_QA"
     OUT_OF_SCOPE = "OUT_OF_SCOPE"
+    RELAX_CONSTRAINTS = "RELAX_CONSTRAINTS"  # 人工放寬決定之恢復輪（ADR-0022）；不經意圖分類器產生
 
 
 class SeniorityLevel(IntEnum):
@@ -212,6 +213,8 @@ class ChatSessionState:
     relaxation: Optional[RelaxationReport] = None
     last_referenced_candidate_id: Optional[str] = None
     history: Tuple[ChatMessage, ...] = ()
+    relaxed_requirement_ids: Tuple[str, ...] = ()  # 本 JD 已由人工放寬（降為加分）之條件（ADR-0022）
+    relaxation_rounds: int = 0
 
     def find_evaluation(self, candidate_id: str) -> Optional[CandidateEvaluation]:
         for ev in self.pool_evaluations:
@@ -375,3 +378,39 @@ class ChatTurnOutcome:
     degraded: bool
     usage: TurnUsage
     node_ms: Dict[str, float] = field(default_factory=dict)
+    pending_decision: Optional["RelaxationPrompt"] = None
+    relaxed_requirement_ids: Tuple[str, ...] = ()
+    relaxation_audit: Optional["RelaxationAudit"] = None
+
+
+# ----------------------------------------------------------------------
+# 放寬條件之人工決策 (ADR-0022)
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class RelaxationOption:
+    requirement_id: str
+    label: str
+    qualified_if_relaxed: int
+    delta: int
+    unknown_count: int
+    recommended: bool
+
+
+@dataclass(frozen=True)
+class RelaxationPrompt:
+    """interrupt payload：只含條件 ID、JD 條件標籤與人數，不含候選人資訊"""
+    round: int
+    max_rounds: int
+    requested_k: int
+    baseline_qualified: int
+    max_select: int
+    options: Tuple[RelaxationOption, ...]
+
+
+@dataclass(frozen=True)
+class RelaxationAudit:
+    """人工放寬決定之稽核紀錄（只含條件 ID 與人數）"""
+    requirement_ids: Tuple[str, ...]
+    qualified_before: int
+    qualified_after: int
+    round: int

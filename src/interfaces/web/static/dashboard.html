@@ -618,6 +618,10 @@
         .shortlist-card summary { cursor: pointer; }
         .chat-warning { color: var(--warning); font-size: 0.8rem; margin: 2px 0; }
         .relax-table { width: 100%; font-size: 0.8rem; }
+        .relax-decision { margin-top: 10px; padding: 10px; border: 1px dashed var(--accent-primary); border-radius: 6px; font-size: 0.85rem; }
+        .relax-decision label { display: block; margin: 4px 0; cursor: pointer; }
+        .relax-decision .btn { margin-top: 8px; }
+        .relax-tag { display: inline-block; margin: 2px 4px 2px 0; padding: 1px 6px; border-radius: 4px; font-size: 0.75rem; border: 1px solid var(--border-color); color: var(--text-secondary); }
     </style>
 </head>
 <body>
@@ -1403,9 +1407,14 @@
             });
         }
 
-        function renderChatRelaxation(rep) {
+        function renderChatRelaxation(rep, pending, relaxedIds) {
             const box = document.getElementById('chatRelaxation');
             box.replaceChildren();
+            if ((relaxedIds || []).length) {
+                const tags = el('div', 'chat-meta', '已人工放寬（改列加分）：');
+                relaxedIds.forEach(id => tags.appendChild(el('span', 'relax-tag', id)));
+                box.appendChild(tags);
+            }
             if (!rep) { box.appendChild(el('div', 'chat-meta', '人選充足或尚未分析')); return; }
             box.appendChild(el('div', 'chat-meta',
                 '合格 ' + rep.baseline_qualified + ' / 需求 ' + rep.requested_k + '（' + rep.scope_note + '，候選池 ' + rep.pool_size + ' 人）'));
@@ -1423,6 +1432,39 @@
                 table.appendChild(row);
             });
             box.appendChild(table);
+            if (pending && pending.kind === 'RELAXATION') box.appendChild(renderRelaxationDecision(pending));
+        }
+
+        // 放寬條件之人工決策 (ADR-0022)：只接受勾選送出之結構化決定
+        function renderRelaxationDecision(pending) {
+            const form = el('div', 'relax-decision');
+            form.appendChild(el('div', null, '待您決定（第 ' + pending.round + ' / ' + pending.max_rounds +
+                ' 次）：勾選要放寬的必要條件，最多 ' + pending.max_select + ' 項（至少保留 1 條必要條件）'));
+            (pending.options || []).forEach(opt => {
+                const label = el('label');
+                const box = document.createElement('input');
+                box.type = 'checkbox';
+                box.value = opt.requirement_id;
+                box.className = 'relax-option';
+                label.appendChild(box);
+                label.appendChild(document.createTextNode(' ' + opt.requirement_id + ' ' + opt.label +
+                    '｜單獨放寬後合格 ' + opt.qualified_if_relaxed + ' 位（+' + opt.delta + '）' +
+                    (opt.recommended ? '｜建議優先檢討' : '')));
+                form.appendChild(label);
+            });
+            const btn = el('button', 'btn btn-primary', '放寬並重新比對');
+            btn.id = 'relaxSubmitBtn';
+            btn.onclick = () => {
+                const ids = Array.from(form.querySelectorAll('input.relax-option:checked')).map(b => b.value);
+                if (ids.length === 0) { appendChatMessage('error', '請至少勾選 1 個要放寬的條件'); return; }
+                if (ids.length > pending.max_select) {
+                    appendChatMessage('error', '最多只能放寬 ' + pending.max_select + ' 項，須保留至少 1 條必要條件');
+                    return;
+                }
+                submitChat({ session_id: getChatSessionId(), relax_requirement_ids: ids }, '放寬 ' + ids.join('、'));
+            };
+            form.appendChild(btn);
+            return form;
         }
 
         function renderChatQuestions(questions) {
@@ -1446,21 +1488,26 @@
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
             if (!message) return;
-            appendChatMessage('user', message);
             input.value = '';
+            await submitChat({ session_id: getChatSessionId(), message: message }, message);
+        }
+
+        async function submitChat(payload, displayText) {
+            if (chatBusy) return;
+            appendChatMessage('user', displayText);
             setChatBusy(true);
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: getChatSessionId(), message: message }),
+                    body: JSON.stringify(payload),
                 });
                 let data = {};
                 try { data = await res.json(); } catch (e) { data = {}; }
                 if (!res.ok) {
                     let hint = data.message || ('HTTP ' + res.status);
                     if (res.status === 501 || res.status === 503) hint += '（請以 FastAPI 引擎啟動並確認 API Key 與 Redis 設定）';
-                    if (res.status === 422) setChatSessionId(null);
+                    if (res.status === 422 && data.error_code === 'SESSION_TURN_LIMIT') setChatSessionId(null);
                     appendChatMessage('error', '[' + (data.error_code || res.status) + '] ' + hint);
                     return;
                 }
@@ -1468,7 +1515,8 @@
                 const msgNode = appendChatMessage('assistant', data.reply_markdown);
                 (data.warnings || []).forEach(w => msgNode.appendChild(el('div', 'chat-warning', '⚠ ' + w)));
                 renderChatShortlist(data.shortlist);
-                if ((data.intents || []).includes('JD_MATCH')) renderChatRelaxation(data.relaxation);
+                // relaxation 取自 Session，每輪皆重繪：有待決定時顯示勾選表單，放棄或已決定後表單即消失
+                renderChatRelaxation(data.relaxation, data.pending_decision, data.relaxed_requirement_ids);
                 renderChatQuestions(data.interview_questions);
                 const u = data.usage || {};
                 document.getElementById('chatMeta').textContent =
@@ -1493,7 +1541,7 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 renderChatShortlist(data.shortlist);
-                renderChatRelaxation(data.relaxation);
+                renderChatRelaxation(data.relaxation, data.pending_decision, data.relaxed_requirement_ids);
                 document.getElementById('chatMeta').textContent = '已還原對話（第 ' + data.turn_count + ' 輪）';
             } catch (e) { /* 還原失敗不影響新對話 */ }
         }

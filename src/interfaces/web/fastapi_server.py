@@ -19,11 +19,17 @@ from src.domain.exceptions import (
     ChatUnavailableError,
     LlmQuotaExhaustedError,
     RecruitmentInputError,
+    RelaxationDecisionError,
     SessionBusyError,
     SessionTurnLimitError,
     TurnTimeoutError,
 )
-from src.domain.recruitment_codec import jd_to_dict, relaxation_to_dict, shortlist_entry_to_dict
+from src.domain.recruitment_codec import (
+    jd_to_dict,
+    relaxation_prompt_to_dict,
+    relaxation_to_dict,
+    shortlist_entry_to_dict,
+)
 from src.infrastructure.config import AppConfig
 from src.interfaces.web.server import build_chat_use_case, build_web_use_cases
 
@@ -37,6 +43,7 @@ class ChatRequestBody(BaseModel):
     """POST /api/chat 請求體"""
     session_id: Optional[str] = None
     message: Optional[str] = None
+    relax_requirement_ids: Optional[List[str]] = None  # UI 勾選之人工放寬決定 (ADR-0022)
 
 
 def chat_error_response(status_code: int, error_code: str, message: str,
@@ -77,6 +84,8 @@ def chat_result_to_dict(dto: ChatTurnResultDTO) -> Dict[str, Any]:
         "warnings": list(dto.warnings),
         "degraded": dto.degraded,
         "usage": asdict(dto.usage),
+        "pending_decision": relaxation_prompt_to_dict(dto.pending_decision) if dto.pending_decision else None,
+        "relaxed_requirement_ids": list(dto.relaxed_requirement_ids),
     }
 
 
@@ -85,6 +94,8 @@ def map_chat_exception(err: Exception) -> JSONResponse:
     if isinstance(err, RecruitmentInputError):
         status = 413 if err.error_code == "MESSAGE_TOO_LONG" else 400
         return chat_error_response(status, err.error_code, str(err))
+    if isinstance(err, RelaxationDecisionError):
+        return chat_error_response(422, err.error_code, str(err))
     if isinstance(err, SessionBusyError):
         return chat_error_response(409, "SESSION_BUSY", str(err))
     if isinstance(err, SessionTurnLimitError):
@@ -365,7 +376,8 @@ def create_app(
         if chat_use_case is None:
             return chat_error_response(503, "CHAT_UNAVAILABLE", chat_unavailable_message)
         try:
-            dto = chat_use_case.execute(ChatTurnCommand(message=body.message or "", session_id=body.session_id))
+            dto = chat_use_case.execute(ChatTurnCommand(message=body.message or "", session_id=body.session_id,
+                                                        relax_requirement_ids=body.relax_requirement_ids))
         except Exception as err:
             return map_chat_exception(err)
         return chat_result_to_dict(dto)
@@ -381,6 +393,7 @@ def create_app(
             return chat_error_response(503, "CHAT_UNAVAILABLE", chat_unavailable_message)
         try:
             state = chat_use_case.get_session(session_id)
+            pending = chat_use_case.get_pending_decision(session_id) if state is not None else None
         except Exception as err:
             return map_chat_exception(err)
         if state is None:
@@ -391,6 +404,8 @@ def create_app(
             "jd_requirements": jd_to_dict(state.jd_requirements) if state.jd_requirements else None,
             "shortlist": [shortlist_entry_to_dict(e) for e in state.shortlist],
             "relaxation": relaxation_to_dict(state.relaxation) if state.relaxation else None,
+            "pending_decision": relaxation_prompt_to_dict(pending) if pending else None,
+            "relaxed_requirement_ids": list(state.relaxed_requirement_ids),
         }
 
     @app.delete(

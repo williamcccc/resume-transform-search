@@ -16,6 +16,8 @@ from src.domain.recruitment import (
     JobRequirement,
     MatchStatus,
     RelaxationItem,
+    RelaxationOption,
+    RelaxationPrompt,
     RelaxationReport,
     RequirementCategory,
     RequirementEvidence,
@@ -233,6 +235,8 @@ def session_to_dict(state: ChatSessionState) -> Dict[str, Any]:
         "relaxation": relaxation_to_dict(state.relaxation) if state.relaxation else None,
         "last_referenced_candidate_id": state.last_referenced_candidate_id,
         "history": [{"role": m.role, "content": m.content} for m in state.history],
+        "relaxed_requirement_ids": list(state.relaxed_requirement_ids),
+        "relaxation_rounds": state.relaxation_rounds,
     }
 
 
@@ -250,4 +254,37 @@ def session_from_dict(data: Optional[Dict[str, Any]], session_id: str) -> ChatSe
         relaxation=relaxation_from_dict(relax) if relax else None,
         last_referenced_candidate_id=data.get("last_referenced_candidate_id"),
         history=tuple(ChatMessage(role=str(m["role"]), content=str(m["content"])) for m in data.get("history", [])),
+        relaxed_requirement_ids=tuple(str(i) for i in data.get("relaxed_requirement_ids", []) or []),
+        relaxation_rounds=int(data.get("relaxation_rounds", 0) or 0),
+    )
+
+
+def relaxation_prompt_to_dict(prompt: RelaxationPrompt) -> Dict[str, Any]:
+    return {
+        "kind": "RELAXATION",
+        "round": prompt.round,
+        "max_rounds": prompt.max_rounds,
+        "requested_k": prompt.requested_k,
+        "baseline_qualified": prompt.baseline_qualified,
+        "max_select": prompt.max_select,
+        "options": [
+            {"requirement_id": o.requirement_id, "label": o.label, "qualified_if_relaxed": o.qualified_if_relaxed,
+             "delta": o.delta, "unknown_count": o.unknown_count, "recommended": o.recommended}
+            for o in prompt.options
+        ],
+    }
+
+
+def relaxation_prompt_from_dict(data: Dict[str, Any]) -> RelaxationPrompt:
+    return RelaxationPrompt(
+        round=int(data["round"]),
+        max_rounds=int(data["max_rounds"]),
+        requested_k=int(data["requested_k"]),
+        baseline_qualified=int(data["baseline_qualified"]),
+        max_select=int(data["max_select"]),
+        options=tuple(
+            RelaxationOption(str(o["requirement_id"]), str(o.get("label", "")), int(o["qualified_if_relaxed"]),
+                             int(o["delta"]), int(o["unknown_count"]), bool(o.get("recommended", False)))
+            for o in data.get("options", [])
+        ),
     )

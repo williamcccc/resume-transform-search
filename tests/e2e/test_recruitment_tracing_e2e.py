@@ -254,7 +254,13 @@ class TestRecruitmentTracingE2E(unittest.TestCase):
     def test_tc5_error_should_be_reduced_to_type_name(self):
         first = next(iter(RESUMES))
         outcome, session, runs = self._run_traced_turn(LcProfileExtractor(fail_for={first}))
-        errors = [r["error"] for r in runs if r.get("error")]
+        names = {r["id"]: r.get("name") for r in runs if r.get("name")}
+        # ADR-0022：人數不足時圖暫停於 await_relaxation，LangGraph 以 GraphInterrupt 標記該節點 run；
+        # 屬控制流程訊號（同樣只有類別名），只允許出現在 await_relaxation，不計入錯誤脫敏檢核
+        interrupts = [r for r in runs if r.get("error") == "GraphInterrupt"]
+        self.assertTrue(all((r.get("name") or names.get(r["id"])) == "await_relaxation" for r in interrupts),
+                        [(r.get("name") or names.get(r["id"])) for r in interrupts])
+        errors = [r["error"] for r in runs if r.get("error") and r.get("error") != "GraphInterrupt"]
         self.assertTrue(errors, "應有失敗之 LLM run")
         self.assertTrue(all(e in ("ValueError", lt.UNKNOWN_ERROR_TYPE) for e in errors), errors)
         self.assertIn("ValueError", errors)

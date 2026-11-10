@@ -72,3 +72,11 @@ class RecruitmentInputError(DomainError):
     def __init__(self, message: str, error_code: str = "INVALID_INPUT"):
         super().__init__(message)
         self.error_code = error_code
+
+
+class RelaxationDecisionError(DomainError):
+    """放寬條件決定不合法 (error_code: INVALID_RELAXATION_DECISION / NO_PENDING_DECISION)，ADR-0022"""
+
+    def __init__(self, message: str, error_code: str = "INVALID_RELAXATION_DECISION"):
+        super().__init__(message)
+        self.error_code = error_code

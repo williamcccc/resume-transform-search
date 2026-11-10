@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Protocol, List, Optional
+from typing import List, Optional, Protocol, Sequence
 from src.domain.models import (
     Document,
     ConvertedMarkdown,
@@ -25,6 +25,7 @@ from src.domain.recruitment import (
     InterviewQuestion,
     JdRequirements,
     MatchNarrationFacts,
+    RelaxationPrompt,
 )
 
 
@@ -194,10 +195,15 @@ class IRecruitmentNarrator(Protocol):
 
 class IChatOrchestrator(Protocol):
     """多輪對話編排器契約 (可替換編排框架)"""
-    def run_turn(self, session_id: str, message: str, trace_id: str) -> ChatTurnOutcome:
+    def run_turn(self, session_id: str, message: str, trace_id: str,
+                 relax_requirement_ids: Optional[Sequence[str]] = None) -> ChatTurnOutcome:
+        """relax_requirement_ids 非空時以人工放寬決定恢復待決定之流程 (ADR-0022)"""
         ...
 
     def get_state(self, session_id: str) -> Optional[ChatSessionState]:
+        ...
+
+    def get_pending_decision(self, session_id: str) -> Optional[RelaxationPrompt]:
         ...
 
     def reset(self, session_id: str) -> None:

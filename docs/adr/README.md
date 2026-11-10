@@ -30,6 +30,7 @@
 | **[ADR-0019](./0019-recruitment-assistant-langgraph-chat.md)** | HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取 | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Gemini`, `Lazy Extraction`, `Deterministic Ranking` |
 | **[ADR-0020](./0020-recruitment-chat-langsmith-masked-tracing.md)** | 招募助手 LangSmith 遮蔽式效能追蹤 | 已採納 (Accepted) | 2026-11 | `Observability`, `LangSmith`, `Tracing`, `Zero-PII` |
 | **[ADR-0021](./0021-recruitment-adaptive-candidate-search-loop.md)** | 招募助手候選人不足時自動擴大檢索（LangGraph 子步驟循環） | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Cycle`, `Adaptive Retrieval`, `Deterministic Policy` |
+| **[ADR-0022](./0022-recruitment-relaxation-human-in-the-loop.md)** | 招募助手放寬條件之人工決策（LangGraph interrupt） | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Human-in-the-Loop`, `Interrupt`, `Audit` |
 
 ---
 

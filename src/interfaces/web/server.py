@@ -109,6 +109,8 @@ def build_recruitment_settings(config: AppConfig):
         search_expansion_min_score_floor=config.recruit_search_expansion_min_score_floor,
         search_expansion_llm_reserve=config.recruit_search_expansion_llm_reserve,
         search_expansion_min_remaining_seconds=config.recruit_search_expansion_min_remaining_seconds,
+        relaxation_hitl_enabled=config.recruit_relaxation_hitl_enabled,
+        relaxation_max_rounds=config.recruit_relaxation_max_rounds,
         session_max_turns=config.chat_session_max_turns,
         history_max_turns=config.chat_history_max_turns,
         history_max_chars=config.chat_history_max_chars,
