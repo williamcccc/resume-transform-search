@@ -27,8 +27,15 @@ class RetrievalSummary:
     excluded: int
 
 
+def _reject_string(value: Any, name: str) -> None:
+    """ID 集合或序列誤傳為單一字串時，會被拆成字元比對而靜默得出錯誤分數，故直接拒絕。"""
+    if isinstance(value, (str, bytes)):
+        raise TypeError(f"{name} 必須為 ID 的集合或序列，不可為字串：{value!r}")
+
+
 def dedupe_ranked(ranked: Iterable[str]) -> list[str]:
     """去除重複 ID，保留首次出現的順序。"""
+    _reject_string(ranked, "ranked")
     return list(dict.fromkeys(ranked))
 
 
@@ -37,22 +44,28 @@ def _validate_k(k: int) -> None:
         raise ValueError(f"K 必須為正整數，實際為 {k!r}")
 
 
+def _prepare(relevant: Iterable[str], ranked: Sequence[str]) -> tuple[set[str], list[str]]:
+    """檢查輸入型別後回傳相關 ID 集合與去重後的排序列表。"""
+    _reject_string(relevant, "relevant")
+    return set(relevant), dedupe_ranked(ranked)
+
+
 def recall_at_k(relevant: Iterable[str], ranked: Sequence[str], k: int) -> float | None:
     _validate_k(k)
-    rel = set(relevant)
+    rel, deduped = _prepare(relevant, ranked)
     if not rel:
         return None
-    top = dedupe_ranked(ranked)[:k]
+    top = deduped[:k]
     hits = sum(1 for item in top if item in rel)
     return hits / len(rel)
 
 
 def precision_at_k(relevant: Iterable[str], ranked: Sequence[str], k: int) -> float | None:
     _validate_k(k)
-    rel = set(relevant)
+    rel, deduped = _prepare(relevant, ranked)
     if not rel:
         return None
-    top = dedupe_ranked(ranked)[:k]
+    top = deduped[:k]
     if not top:
         return 0.0
     hits = sum(1 for item in top if item in rel)
@@ -60,10 +73,10 @@ def precision_at_k(relevant: Iterable[str], ranked: Sequence[str], k: int) -> fl
 
 
 def reciprocal_rank(relevant: Iterable[str], ranked: Sequence[str]) -> float | None:
-    rel = set(relevant)
+    rel, deduped = _prepare(relevant, ranked)
     if not rel:
         return None
-    for position, item in enumerate(dedupe_ranked(ranked), start=1):
+    for position, item in enumerate(deduped, start=1):
         if item in rel:
             return 1 / position
     return 0.0
@@ -72,10 +85,10 @@ def reciprocal_rank(relevant: Iterable[str], ranked: Sequence[str]) -> float | N
 def ndcg_at_k(relevant: Iterable[str], ranked: Sequence[str], k: int) -> float | None:
     """二元相關的 nDCG@K：DCG 以 log2(i+1) 折扣，IDCG 以 min(K, 相關數) 計算。"""
     _validate_k(k)
-    rel = set(relevant)
+    rel, deduped = _prepare(relevant, ranked)
     if not rel:
         return None
-    top = dedupe_ranked(ranked)[:k]
+    top = deduped[:k]
     dcg = sum(1 / math.log2(i + 1) for i, item in enumerate(top, start=1) if item in rel)
     ideal_count = min(k, len(rel))
     idcg = sum(1 / math.log2(i + 1) for i in range(1, ideal_count + 1))
@@ -85,6 +98,9 @@ def ndcg_at_k(relevant: Iterable[str], ranked: Sequence[str], k: int) -> float |
 def _normalize_value(value: Any) -> Any:
     if isinstance(value, str):
         return value.strip().casefold()
+    if isinstance(value, bool):
+        # bool 是 int 子類別，True == 1 且雜湊相同；加上型別標記以免與整數誤判相等
+        return ("bool", value)
     return value
 
 
