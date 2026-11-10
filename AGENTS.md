@@ -81,6 +81,19 @@ flowchart TD
 | **Step 6** | **自主診斷與修正** *(閉環中樞)* | [auto-fix](.agents/skills/auto-fix/SKILL.md) | 五步法根因定位 (RCA)，**嚴禁削弱斷言**；**三振熔斷機制（最多嘗試 3 輪，超額強制停機求助人類）** |
 | **Step 7** | **文檔與 ADR 同步** | [doc-sync](.agents/skills/doc-sync/SKILL.md) | 同步 `REQUIREMENTS.md`、`ARCHITECTURE.md`；歸檔 `docs/adr/` 與更新 `docs/README.md` 中樞索引；執行 `verify_doc_sync.py` 驗證 |
 
+### 品質評測規則（檢索、抽取與 LLM 生成）
+
+本節補充閉環中「品質」面的驗收，適用於涉及檢索排序、結構化抽取或 LLM 生成的功能，以及 `prompts/` 與模型設定的變更。
+
+1. **Step 1 驗收條件必須含品質指標**：PRD 的 AC 除功能行為外，凡影響檢索、排序、抽取或生成結果者，必須定義可量化的品質目標（例如 Recall@K 下限、欄位 F1、評審分數門檻），並說明標註資料來源。每份規格須於驗收標準段落宣告 `品質評測範圍：是` 或 `品質評測範圍：否`；宣告為「是」而未見品質 AC 者，Gate 1 不得通過（`verify_doc_sync.py` 自規格 0023 起強制檢查）。
+2. **標註資料須為合成資料**：評測資料集一律使用虛構內容（例如 `王小明`），不得含真實履歷或真實個資，存放於 `tests/eval/data/`。
+3. **Step 3 指標函式須有單元測試**：Recall@K、Precision@K、MRR、nDCG@K、欄位 F1 等計算函式，須以手算小例子做白箱單元測試，並覆蓋空相關集合、重複 ID、K 超過結果數等邊界。
+4. **Step 4 品質評測獨立執行**：真實評測資料上的檢索指標與 LLM 評審位於 `tests/eval/`，不納入 `unittest` 與 CI，由人工觸發；QA 報告須記錄 Token 消耗與分數變化。
+5. **Prompt 或模型變更須有前後比較**：修改 `prompts/` 或模型設定時，須以同一批評測資料比較前後分數；分數下降不得合併，除非有明確理由並經 Gate 2 核准。
+6. **評分標準視為評測資產**：rubric 與評審 prompt 的變更須記錄原因，變更後不得直接與舊分數比較。
+
+操作細節（指標定義、資料集格式、rubric 寫法、人工校準流程）見 [quality-evaluation 技能](.agents/skills/quality-evaluation/SKILL.md)。
+
 ---
 
 ## 3. 多 Agent 協作與 Token 能效防護守則 (Multi-Agent Token Economics)
