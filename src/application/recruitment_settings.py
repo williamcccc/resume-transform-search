@@ -36,6 +36,9 @@ class RecruitmentSettings:
     search_expansion_min_score_floor: float = 0.4
     search_expansion_llm_reserve: int = 2
     search_expansion_min_remaining_seconds: float = 30.0
+    # 放寬條件之人工決策 (ADR-0022)
+    relaxation_hitl_enabled: bool = True
+    relaxation_max_rounds: int = 2
     turn_timeout_seconds: float = 150.0
     session_max_turns: int = 50
     history_max_turns: int = 10

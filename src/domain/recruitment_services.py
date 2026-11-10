@@ -15,6 +15,7 @@ from dataclasses import replace
 from bisect import bisect_right
 from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+from src.domain.exceptions import RelaxationDecisionError
 from src.domain.recruitment import (
     CandidateEvaluation,
     CandidateProfile,
@@ -26,6 +27,8 @@ from src.domain.recruitment import (
     ReferenceKind,
     ReferenceResolution,
     RelaxationItem,
+    RelaxationOption,
+    RelaxationPrompt,
     RelaxationReport,
     RequirementCategory,
     RequirementEvidence,
@@ -788,3 +791,60 @@ def sanitize_reply_quotes(reply: str, sources: Sequence[str], verifier: Evidence
         return placeholder
 
     return _BRACKET_QUOTE.sub(_sub, reply or ""), removed
+
+
+# ----------------------------------------------------------------------
+# 放寬條件之人工決策 (ADR-0022)：純函式；放寬 = 必要條件降為加分條件（ID 不變）
+# ----------------------------------------------------------------------
+def build_relaxation_prompt(jd: Optional[JdRequirements], report: Optional[RelaxationReport], rounds_used: int,
+                            max_rounds: int) -> Optional[RelaxationPrompt]:
+    """無報告、已達輪數上限或必要條件 < 2（須至少保留 1 條）時回傳 None"""
+    if jd is None or report is None or rounds_used >= max_rounds or len(jd.must) < 2:
+        return None
+    must_ids = {r.requirement_id for r in jd.must}
+    items = [i for i in report.items if i.requirement_id in must_ids]
+    if not items:
+        return None
+    recommended = set(report.bottleneck_requirement_ids or report.strictest_requirement_ids)
+    return RelaxationPrompt(
+        round=rounds_used + 1,
+        max_rounds=max_rounds,
+        requested_k=report.requested_k,
+        baseline_qualified=report.baseline_qualified,
+        max_select=len(jd.must) - 1,
+        options=tuple(RelaxationOption(i.requirement_id, i.label, i.qualified_if_relaxed, i.delta, i.unknown_count,
+                                       i.requirement_id in recommended) for i in items),
+    )
+
+
+def validate_relaxation_decision(prompt: RelaxationPrompt, ids: Sequence[str]) -> Tuple[str, ...]:
+    """對照當時之選項驗證；不合法時拋 RelaxationDecisionError（訊息列出合法選項）"""
+    chosen = tuple(str(i).strip().upper() for i in (ids or ()))
+    valid = [o.requirement_id for o in prompt.options]
+    hint = "可選擇：" + "、".join(valid)
+    if not chosen:
+        raise RelaxationDecisionError(f"請至少選擇 1 個要放寬的條件。{hint}")
+    if len(set(chosen)) != len(chosen):
+        raise RelaxationDecisionError(f"放寬條件不可重複。{hint}")
+    unknown = [i for i in chosen if i not in valid]
+    if unknown:
+        raise RelaxationDecisionError(f"條件 {'、'.join(unknown)} 不在本次可放寬的選項中。{hint}")
+    if len(chosen) > prompt.max_select:
+        raise RelaxationDecisionError(f"至少須保留 1 條必要條件，最多只能放寬 {prompt.max_select} 條。")
+    return chosen
+
+
+def apply_requirement_relaxation(jd: JdRequirements, evals: Sequence[CandidateEvaluation], ids: Sequence[str]
+                                 ) -> Tuple[JdRequirements, Tuple[CandidateEvaluation, ...]]:
+    """所選必要條件移至加分條件（priority=NICE、ID 不變、依原順序附於加分條件之後）；逐條比對狀態不變"""
+    relaxed = set(ids)
+    moved = tuple(replace(r, priority=RequirementPriority.NICE) for r in jd.must if r.requirement_id in relaxed)
+    new_jd = replace(jd, must=tuple(r for r in jd.must if r.requirement_id not in relaxed),
+                     nice=tuple(jd.nice) + moved)
+    moved_ids = tuple(r.requirement_id for r in moved)
+    new_evals = tuple(
+        replace(ev, must_ids=tuple(r for r in ev.must_ids if r not in relaxed),
+                nice_ids=tuple(ev.nice_ids) + tuple(r for r in moved_ids if r not in ev.nice_ids))
+        for ev in evals
+    )
+    return new_jd, new_evals

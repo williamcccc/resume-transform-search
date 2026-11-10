@@ -14,7 +14,12 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from src.application.candidate_profile_service import CandidateProfileService, TurnBudget
 from src.application.recruitment_settings import RecruitmentSettings
 from src.application.recruitment_tools import RecruitmentTools
-from src.domain.exceptions import LlmOutputTruncatedError, LlmQuotaExhaustedError, TurnTimeoutError
+from src.domain.exceptions import (
+    LlmOutputTruncatedError,
+    LlmQuotaExhaustedError,
+    RelaxationDecisionError,
+    TurnTimeoutError,
+)
 from src.domain.interfaces import (
     ICandidateProfileCache,
     IIntentClassifier,
@@ -40,6 +45,8 @@ from src.domain.recruitment import (
     MatchStatus,
     ReferenceKind,
     ReferenceResolution,
+    RelaxationAudit,
+    RelaxationPrompt,
     RelaxationReport,
     RequirementCategory,
     RequirementEvidence,
@@ -59,6 +66,8 @@ from src.domain.recruitment_services import (
     ProtectedAttributeGuard,
     RequirementMatcher,
     SearchExpansionPolicy,
+    apply_requirement_relaxation,
+    build_relaxation_prompt,
     collect_requirement_evidence,
     compute_content_hash,
     mask_contact_info,
@@ -68,6 +77,7 @@ from src.domain.recruitment_services import (
     renumber_requirements,
     sanitize_reply_quotes,
     trim_history,
+    validate_relaxation_decision,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,6 +90,9 @@ _LEADERSHIP_KEYWORDS = re.compile(r"帶人|帶過人|帶領|帶隊|管理|主管
 _SECTION_SEPARATOR = "\n\n---\n\n"
 _REMOVED_QUOTE_PLACEHOLDER = "（引文未通過原文驗證，已移除）"
 _STATUS_LABELS = {MatchStatus.MET: "符合", MatchStatus.UNMET: "明確不符", MatchStatus.UNKNOWN: "履歷未提及"}
+# 回覆中之「」保留給可逐字回溯之引文（Spec-0019 AC-08），系統操作提示不得使用
+_RELAXATION_GUIDE = "請在右側條件瓶頸面板勾選要放寬的條件（改列為加分條件），再按下放寬並重新比對按鈕。"
+_MANUAL_RELAX_NOTE = re.compile(r"（已人工放寬[^）]*）$")
 _STOP_REASON_TEXT = {
     SearchStopReason.SATISFIED: "完全符合必要條件之人數已達需求",
     SearchStopReason.MAX_ROUNDS: "已達擴大檢索輪數上限",
@@ -142,6 +155,11 @@ class TurnContext:
     node_ms: Dict[str, float] = field(default_factory=dict)
     final_reply: str = ""
     jd_search: Optional[JdSearchProgress] = None
+    # 放寬條件之人工決策 (ADR-0022)
+    offer_relaxation: bool = False                       # 本輪產出新的放寬報告，可提出決定
+    relaxation_decision: Optional[Tuple[str, ...]] = None  # 恢復時由編排器填入之人工決定
+    pending_decision: Optional[RelaxationPrompt] = None   # compose 判定須等待之決定（run_all 用）
+    relaxation_audit: Optional[RelaxationAudit] = None
 
     def remaining(self) -> float:
         return max(self.deadline - self.clock(), 0.0)
@@ -183,6 +201,9 @@ class RecruitmentNodeHandlers:
     NODE_JD_SEARCH = "jd_search_round"
     NODE_JD_FINALIZE = "jd_finalize"
     SUBSTEP_NODES = (NODE_JD_SEARCH, NODE_JD_FINALIZE)
+    # 放寬條件之人工決策 (ADR-0022)：await 節點由編排器以框架原語（interrupt）實作，apply 為本層節點
+    NODE_AWAIT_RELAXATION = "await_relaxation"
+    NODE_APPLY_RELAXATION = "apply_relaxation"
 
     def __init__(
         self,
@@ -238,7 +259,8 @@ class RecruitmentNodeHandlers:
         )
 
     def node_names(self) -> List[str]:
-        return [self.NODE_ROUTE, *self.INTENT_NODES.values(), *self.SUBSTEP_NODES, self.NODE_COMPOSE]
+        return [self.NODE_ROUTE, *self.INTENT_NODES.values(), *self.SUBSTEP_NODES, self.NODE_APPLY_RELAXATION,
+                self.NODE_COMPOSE]
 
     @property
     def max_substeps_per_intent(self) -> int:
@@ -271,7 +293,23 @@ class RecruitmentNodeHandlers:
                     raise RuntimeError("子步驟數超過上限，疑似無限迴圈")
                 update = self.execute_node(update.goto, state, turn)
                 state = update.session
+        # compose 若回傳 goto=await_relaxation，純 Python 路徑於此停止；待決定內容見 turn.pending_decision
         return self.execute_node(self.NODE_COMPOSE, state, turn).session
+
+    def resume_relaxation(self, state: ChatSessionState, turn: TurnContext,
+                          requirement_ids: Sequence[str]) -> ChatSessionState:
+        """純 Python 恢復路徑（與 LangGraph Command(resume=...) 等價）：apply_relaxation → compose"""
+        turn.intents = [ChatIntent.RELAX_CONSTRAINTS]
+        turn.relaxation_decision = tuple(requirement_ids)
+        state = self.execute_node(self.NODE_APPLY_RELAXATION, state, turn).session
+        return self.execute_node(self.NODE_COMPOSE, state, turn).session
+
+    def relaxation_prompt(self, state: ChatSessionState) -> Optional[RelaxationPrompt]:
+        """目前 Session 可提出之放寬決定；純計算、無副作用（LangGraph 恢復時會重新執行呼叫端節點）"""
+        if not self._settings.relaxation_hitl_enabled:
+            return None
+        return build_relaxation_prompt(state.jd_requirements, state.relaxation, state.relaxation_rounds,
+                                       max(int(self._settings.relaxation_max_rounds), 1))
 
     def _call_llm(self, turn: TurnContext, fn, *args):
         if not turn.budget.try_consume():
@@ -314,7 +352,8 @@ class RecruitmentNodeHandlers:
         except Exception as err:
             logger.warning("意圖分類失敗，改以一般問答處理 (trace_id=%s, err_type=%s)", turn.trace_id, type(err).__name__)
             return [ChatIntent.GENERAL_QA]
-        valid = [i for i in (result or []) if isinstance(i, ChatIntent)]
+        # 只接受有對應節點之意圖（RELAX_CONSTRAINTS 只由人工決定恢復產生，不得由分類器輸出）
+        valid = [i for i in (result or []) if isinstance(i, ChatIntent) and i in self.INTENT_NODES]
         return valid or [ChatIntent.GENERAL_QA]
 
     # ------------------------------------------------------------------
@@ -435,40 +474,110 @@ class RecruitmentNodeHandlers:
             if message not in turn.warnings:
                 turn.warnings.insert(min(prog.warning_index, len(turn.warnings)), message)
 
-        evals = list(prog.evals.values())
+        base_note = RelaxationReport(0, 0, 0, (), ()).scope_note
+        new_state = self._present_match(
+            state, turn, jd, list(prog.evals.values()), requested_k, prog.candidates, prog.match_texts,
+            prog.llm_texts, scope_note=f"{base_note}（已自動擴大檢索 {rounds} 輪）" if rounds else None,
+            after_shortlist=self._render_expansion(prog) if rounds else None, rounds_used=0)
+        # 新 JD：重置人工放寬紀錄 (ADR-0022)
+        return NodeUpdate(session=replace(new_state, relaxed_requirement_ids=(), relaxation_rounds=0))
+
+    def _present_match(self, state: ChatSessionState, turn: TurnContext, jd: JdRequirements,
+                       evals: Sequence[CandidateEvaluation], requested_k: int,
+                       candidates: Dict[str, CandidateSummary], match_texts: Dict[str, str],
+                       llm_texts: Dict[str, str], scope_note: Optional[str] = None,
+                       before_shortlist: Optional[str] = None, after_shortlist: Optional[str] = None,
+                       rounds_used: int = 0) -> ChatSessionState:
+        """確定性排序 → 證據 → 放寬報告 → 渲染 → 敘述（jd_finalize 與 apply_relaxation 共用）"""
+        evals = list(evals)
+        eval_map = {e.candidate_id: e for e in evals}
         ranked = self._ranker.rank(evals, requested_k)
         shortlist = tuple(
             replace(entry, evidence=collect_requirement_evidence(
-                jd.all_requirements, prog.evals[entry.candidate_id].profile, self._settings.skill_aliases,
-                self._settings.skill_version_strip_exempt) + self._lexical_evidence(
-                jd, prog.evals[entry.candidate_id], prog.candidates[entry.candidate_id], prog.match_texts))
+                jd.all_requirements, eval_map[entry.candidate_id].profile, self._settings.skill_aliases,
+                self._settings.skill_version_strip_exempt) + (self._lexical_evidence(
+                    jd, eval_map[entry.candidate_id], candidates[entry.candidate_id], match_texts)
+                    if entry.candidate_id in candidates else ()))
             for entry in ranked
         )
         baseline = sum(1 for e in evals if e.fully_qualified)
         relaxation = self._relaxation.analyze(evals, jd.must, requested_k) if baseline < requested_k else None
-        if relaxation is not None and rounds:
-            relaxation = replace(relaxation, scope_note=f"{relaxation.scope_note}（已自動擴大檢索 {rounds} 輪）")
+        if relaxation is not None and scope_note:
+            relaxation = replace(relaxation, scope_note=scope_note)
 
         for entry in shortlist:
             turn.quote_sources.extend(e.quote for e in entry.evidence)
-            turn.quote_sources.append(prog.llm_texts.get(entry.candidate_id, ""))
+            turn.quote_sources.append(llm_texts.get(entry.candidate_id, ""))
         turn.quote_sources.extend(r.label for r in jd.all_requirements)
 
-        turn.add_template(self._render_shortlist(jd, shortlist, requested_k))
-        if rounds:
-            turn.add_template(self._render_expansion(prog), join="\n\n")
+        if before_shortlist:
+            turn.add_template(before_shortlist)
+            turn.add_template(self._render_shortlist(jd, shortlist, requested_k), join="\n\n")
+        else:
+            turn.add_template(self._render_shortlist(jd, shortlist, requested_k))
+        if after_shortlist:
+            turn.add_template(after_shortlist, join="\n\n")
         if relaxation is not None:
             turn.add_template(self._render_relaxation(jd, relaxation), join="\n\n")
-        facts = self._match_facts(jd, shortlist, requested_k, len(pool), relaxation)
+            if self._settings.relaxation_hitl_enabled and build_relaxation_prompt(
+                    jd, relaxation, rounds_used, max(int(self._settings.relaxation_max_rounds), 1)) is not None:
+                turn.offer_relaxation = True
+                turn.add_template(_RELAXATION_GUIDE, join="\n\n")
+        facts = self._match_facts(jd, shortlist, requested_k, len(evals), relaxation)
         narration = self._narrate(turn, self._narrator.narrate_match, facts)
         if narration:
             turn.add_llm("### 推薦理由\n" + narration, join="\n\n")
         else:
             turn.add_template("### 推薦理由\n" + self._template_match_reason(shortlist, jd), join="\n\n")
+        return replace(state, jd_requirements=jd, shortlist=shortlist, pool_evaluations=tuple(evals),
+                       relaxation=relaxation, last_referenced_candidate_id=None)
 
-        new_state = replace(state, jd_requirements=jd, shortlist=shortlist, pool_evaluations=tuple(evals),
-                            relaxation=relaxation, last_referenced_candidate_id=None)
-        return NodeUpdate(session=new_state)
+    # ------------------------------------------------------------------
+    # apply_relaxation (ADR-0022)：人工決定 → 必要條件降為加分 → 已評估候選池確定性重排（0 次抽取）
+    # ------------------------------------------------------------------
+    def apply_relaxation(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
+        prompt = self.relaxation_prompt(state)
+        if prompt is None or not turn.relaxation_decision or state.jd_requirements is None:
+            raise RelaxationDecisionError("目前沒有待決定的放寬選項", error_code="NO_PENDING_DECISION")
+        chosen = validate_relaxation_decision(prompt, turn.relaxation_decision)  # 第二道防線
+        jd_before = state.jd_requirements
+        before = sum(1 for e in state.pool_evaluations if e.fully_qualified)
+        jd, evals = apply_requirement_relaxation(jd_before, state.pool_evaluations, chosen)
+        after = sum(1 for e in evals if e.fully_qualified)
+        requested_k = state.relaxation.requested_k if state.relaxation else prompt.requested_k
+        rounds = state.relaxation_rounds + 1
+        relaxed_ids = tuple(state.relaxed_requirement_ids) + chosen
+
+        candidates, match_texts, llm_texts = self._reload_texts(self._ranker.rank(evals, requested_k))
+        lines = ["### 已依您的決定放寬條件"]
+        lines.extend(f"- {rid} {self._label(jd_before, rid)}（改列為加分條件）" for rid in chosen)
+        lines.append(f"\n完全符合必要條件人數：{before} → {after} 位（需求 {requested_k} 位；"
+                     f"僅在已評估之 {len(evals)} 位候選人中重新比對，未重新檢索）。")
+        base_note = _MANUAL_RELAX_NOTE.sub("", state.relaxation.scope_note) if state.relaxation else None
+        new_state = self._present_match(
+            state, turn, jd, evals, requested_k, candidates, match_texts, llm_texts,
+            scope_note=f"{base_note or RelaxationReport(0, 0, 0, (), ()).scope_note}（已人工放寬 {'、'.join(relaxed_ids)}）",
+            before_shortlist="\n".join(lines), rounds_used=rounds)
+        turn.relaxation_audit = RelaxationAudit(requirement_ids=chosen, qualified_before=before,
+                                                qualified_after=after, round=rounds)
+        new_state = replace(new_state, relaxed_requirement_ids=relaxed_ids, relaxation_rounds=rounds)
+        return NodeUpdate(session=new_state, goto=self.NODE_COMPOSE)
+
+    def _reload_texts(self, entries: Sequence[ShortlistEntry]
+                      ) -> Tuple[Dict[str, CandidateSummary], Dict[str, str], Dict[str, str]]:
+        """重新讀取名單人選履歷全文（只讀磁碟或切片回退、不呼叫 LLM），供詞面證據與引文驗證來源"""
+        candidates: Dict[str, CandidateSummary] = {}
+        match_texts: Dict[str, str] = {}
+        llm_texts: Dict[str, str] = {}
+        for entry in entries:
+            cand = CandidateSummary(candidate_id=entry.candidate_id, candidate_name=entry.candidate_name,
+                                    max_score=entry.semantic_score)
+            raw = self._tools.load_resume_text(cand)
+            match = self._profiles.prepare_match_text(raw, [cand.candidate_name], "候選人") if raw else ""
+            candidates[cand.candidate_id] = cand
+            match_texts[cand.candidate_id] = match
+            llm_texts[cand.candidate_id] = match[: max(int(self._settings.profile_max_resume_chars), 1)]
+        return candidates, match_texts, llm_texts
 
     @staticmethod
     def _require_progress(turn: TurnContext) -> JdSearchProgress:
@@ -885,7 +994,10 @@ class RecruitmentNodeHandlers:
             last_referenced_candidate_id=turn.referenced_candidate_id or state.last_referenced_candidate_id,
             history=trim_history(history, self._settings.history_max_turns, self._settings.history_max_chars),
         )
-        return NodeUpdate(session=new_state)
+        # 本輪產出新的放寬報告且可提出決定 → 交由編排器暫停等待人工決定 (ADR-0022)
+        turn.pending_decision = self.relaxation_prompt(new_state) if turn.offer_relaxation else None
+        goto = self.NODE_AWAIT_RELAXATION if turn.pending_decision is not None else None
+        return NodeUpdate(session=new_state, goto=goto)
 
     # ------------------------------------------------------------------
     # 共用輔助

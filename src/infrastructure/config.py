@@ -59,6 +59,9 @@ def _search_expansion_fields(base: Dict[str, object]) -> Dict[str, object]:
             _safe_int(env("RECRUIT_SEARCH_EXPANSION_LLM_RESERVE"), 2), 0, 10)),
         recruit_search_expansion_min_remaining_seconds=_clamp(
             _safe_float(env("RECRUIT_SEARCH_EXPANSION_MIN_REMAINING_SECONDS"), 30.0), 0.0, max(timeout, 0.0)),
+        # 放寬條件之人工決策 (ADR-0022)
+        recruit_relaxation_hitl_enabled=_safe_bool(env("RECRUIT_RELAXATION_HITL_ENABLED"), True),
+        recruit_relaxation_max_rounds=int(_clamp(_safe_int(env("RECRUIT_RELAXATION_MAX_ROUNDS"), 2), 1, 5)),
     )
 
 
@@ -207,6 +210,9 @@ class AppConfig:
     recruit_search_expansion_min_score_floor: float = 0.4
     recruit_search_expansion_llm_reserve: int = 2
     recruit_search_expansion_min_remaining_seconds: float = 30.0
+    # 放寬條件之人工決策 (ADR-0022)
+    recruit_relaxation_hitl_enabled: bool = True
+    recruit_relaxation_max_rounds: int = 2
     recruit_protected_attr_terms: List[str] = field(default_factory=lambda: _safe_list(DEFAULT_PROTECTED_ATTR_TERMS))
     recruit_skill_aliases: Dict[str, str] = field(default_factory=lambda: _safe_mapping(DEFAULT_SKILL_ALIASES))
     chat_checkpointer_backend: str = "memory"

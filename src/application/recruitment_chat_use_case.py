@@ -8,13 +8,18 @@ import hashlib
 import logging
 import re
 import uuid
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 from src.application.dto import ChatTurnCommand, ChatTurnResultDTO
 from src.application.recruitment_settings import RecruitmentSettings
-from src.domain.exceptions import LlmQuotaExhaustedError, RecruitmentInputError, SessionTurnLimitError
+from src.domain.exceptions import (
+    LlmQuotaExhaustedError,
+    RecruitmentInputError,
+    RelaxationDecisionError,
+    SessionTurnLimitError,
+)
 from src.domain.interfaces import IChatOrchestrator
-from src.domain.recruitment import ChatSessionState
+from src.domain.recruitment import ChatSessionState, RelaxationPrompt
 from src.domain.recruitment_services import CircuitBreaker
 
 logger = logging.getLogger(__name__)
@@ -24,6 +29,10 @@ SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
 def default_id_factory() -> str:
     return uuid.uuid4().hex
+
+
+_RELAX_ID_PATTERN = re.compile(r"R\d{1,3}")
+_MAX_RELAX_IDS = 12
 
 
 def session_hash(session_id: str) -> str:
@@ -52,7 +61,10 @@ class RecruitmentChatUseCase:
         self._on_close = on_close
 
     def execute(self, cmd: ChatTurnCommand) -> ChatTurnResultDTO:
+        relax_ids = self._normalize_relax_ids(cmd.relax_requirement_ids)
         message = (cmd.message or "").strip()
+        if not message and relax_ids:
+            message = "放寬 " + "、".join(relax_ids)
         if not message:
             raise RecruitmentInputError("訊息不可為空", error_code="INVALID_INPUT")
         if len(message) > self._settings.max_message_chars:
@@ -69,7 +81,18 @@ class RecruitmentChatUseCase:
             raise SessionTurnLimitError(f"對話已達 {self._settings.session_max_turns} 輪上限，請開新對話")
 
         trace_id = self._id_factory()
-        outcome = self._orchestrator.run_turn(session_id, message, trace_id)
+        if relax_ids:
+            outcome = self._orchestrator.run_turn(session_id, message, trace_id, relax_requirement_ids=relax_ids)
+        else:
+            outcome = self._orchestrator.run_turn(session_id, message, trace_id)
+        if outcome.relaxation_audit is not None:
+            audit = outcome.relaxation_audit
+            logger.info(
+                "relaxation_decision trace_id=%s session_hash=%s round=%d relaxed=%s qualified_before=%d "
+                "qualified_after=%d",
+                trace_id, session_hash(session_id), audit.round, ",".join(audit.requirement_ids),
+                audit.qualified_before, audit.qualified_after,
+            )
 
         logger.info(
             "chat_turn trace_id=%s session_hash=%s msg_len=%d intents=%s node_ms=%s llm_calls=%d "
@@ -101,7 +124,26 @@ class RecruitmentChatUseCase:
             warnings=list(outcome.warnings),
             degraded=outcome.degraded,
             usage=outcome.usage,
+            pending_decision=outcome.pending_decision,
+            relaxed_requirement_ids=list(outcome.relaxed_requirement_ids),
         )
+
+    @staticmethod
+    def _normalize_relax_ids(ids: Optional[List[str]]) -> List[str]:
+        """格式與數量檢查（是否屬於當時選項由編排器對照待決定內容驗證）"""
+        if ids is None:
+            return []
+        if not isinstance(ids, (list, tuple)) or len(ids) > _MAX_RELAX_IDS:
+            raise RelaxationDecisionError(f"放寬條件數量不合法（最多 {_MAX_RELAX_IDS} 項）")
+        normalized = [str(i).strip().upper() for i in ids]
+        if not normalized:
+            raise RelaxationDecisionError("請至少選擇 1 個要放寬的條件")
+        if any(not _RELAX_ID_PATTERN.fullmatch(i) for i in normalized):
+            raise RelaxationDecisionError("放寬條件代號格式不合法（應為 R1、R2…）")
+        return normalized
+
+    def get_pending_decision(self, session_id: str) -> Optional[RelaxationPrompt]:
+        return self._orchestrator.get_pending_decision(validate_session_id(session_id))
 
     def get_session(self, session_id: str) -> Optional[ChatSessionState]:
         return self._orchestrator.get_state(validate_session_id(session_id))

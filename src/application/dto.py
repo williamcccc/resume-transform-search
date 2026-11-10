@@ -14,6 +14,7 @@ from src.domain.models import (
 from src.domain.recruitment import (
     FollowupAnswer,
     InterviewQuestion,
+    RelaxationPrompt,
     RelaxationReport,
     ShortlistEntry,
     TurnUsage,
@@ -126,6 +127,7 @@ class ChatTurnCommand:
     """招募助手單輪對話指令 DTO"""
     message: str
     session_id: Optional[str] = None
+    relax_requirement_ids: Optional[List[str]] = None  # UI 勾選之人工放寬決定 (ADR-0022)
 
 
 @dataclass
@@ -142,3 +144,5 @@ class ChatTurnResultDTO:
     warnings: List[str]
     degraded: bool
     usage: TurnUsage
+    pending_decision: Optional[RelaxationPrompt] = None
+    relaxed_requirement_ids: List[str] = field(default_factory=list)

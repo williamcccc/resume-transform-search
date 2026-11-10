@@ -350,6 +350,14 @@ WEB_ENGINE=auto
 5. **揭露與觀測**：發生擴大時回覆附「檢索擴大紀錄」表（每輪門檻、目標、回傳、新增、累計合格與停止原因），放寬報告 `scope_note` 註明擴大輪數；API `usage` 與 `chat_turn` 日誌含 `search_rounds`、`search_stop_reason`、`pool_evaluated`。
 6. **向下相容**：基準輪已足夠時回覆與停用時逐字相同；`MAX_ROUNDS=0` 完全回到原行為；CLI 不受影響。
 
+### 6.10 需求十三：放寬條件之人工決策（[ADR-0022](docs/adr/0022-recruitment-relaxation-human-in-the-loop.md) / [Spec-0022](docs/specs/0022-recruitment-relaxation-human-in-the-loop-spec.md)）
+1. **暫停等待決定**：自動擴大檢索後合格人數仍少於 K、且必要條件 ≥ 2 時，流程以 LangGraph `interrupt()` 暫停；回應帶 `pending_decision`（每條必要條件單獨放寬後之合格人數、推薦檢討項、最多可選數 = 必要條件數 − 1）。
+2. **只接受 UI 勾選**：「招募助手」分頁之條件瓶頸面板勾選後按「放寬並重新比對」，送出 `POST /api/chat` 之 `relax_requirement_ids`；文字訊息一律視為一般對話，待決定時送出文字即放棄本次決定。
+3. **放寬語意**：所選必要條件降為加分條件（ID 不變），在已評估之候選池內以程式重新比對與排序（0 次 Profile 抽取，推薦理由重新敘述 1 次）；不重新檢索。
+4. **多輪與重置**：仍不足時可再決定（排除已放寬者），上限 `RECRUIT_RELAXATION_MAX_ROUNDS`（預設 2）；新 JD 重置。`RECRUIT_RELAXATION_HITL_ENABLED=false` 時只顯示放寬報告。
+5. **驗證與錯誤碼**：不在選項中、重複、為空或全部放寬 → `422 INVALID_RELAXATION_DECISION`；無待決定 → `422 NO_PENDING_DECISION`；錯誤時待決定狀態保留。同一 Session 並行決定回 `409`。
+6. **稽核**：`relaxation_decision` 日誌記錄輪次、放寬之條件 ID 與合格人數前後（零個資）；`GET /api/chat/{session_id}` 回傳 `pending_decision` 與 `relaxed_requirement_ids` 供頁面還原；Redis Checkpointer 下待決定可跨實例恢復。
+
 ---
 
 ## 7. 命令列使用指南
