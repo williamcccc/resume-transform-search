@@ -6,6 +6,7 @@
 排序、瓶頸與指代皆與 LLM 輸出無關，確保 Prompt Injection 無法影響結果（AC-03、AC-10、AC-18）。
 """
 import hashlib
+import math
 import re
 import threading
 import time
@@ -29,6 +30,10 @@ from src.domain.recruitment import (
     RequirementCategory,
     RequirementEvidence,
     RequirementPriority,
+    SearchExpansionLimits,
+    SearchRoundParams,
+    SearchRoundRecord,
+    SearchStopReason,
     ShortlistEntry,
     SkillMention,
 )
@@ -409,6 +414,61 @@ class ConstraintRelaxationAnalyzer:
             bottleneck_requirement_ids=bottleneck,
             strictest_requirement_ids=strictest,
         )
+
+
+class SearchExpansionPolicy:
+    """候選人不足時之確定性擴大檢索策略 (ADR-0021)
+
+    只擴大檢索範圍（候選池人數、切片數、飽和時之相似度門檻），絕不放寬任何招募條件。
+    """
+
+    _EPS = 1e-9
+
+    def __init__(self, limits: SearchExpansionLimits):
+        self._limits = limits  # 無狀態：基準參數一律取自 history[0]，可安全跨 Session 併發共用
+
+    @property
+    def limits(self) -> SearchExpansionLimits:
+        return self._limits
+
+    @staticmethod
+    def initial(pool_size: int, top_k_chunks: int, min_score: float) -> SearchRoundParams:
+        return SearchRoundParams(round_no=0, pool_target=max(int(pool_size), 1),
+                                 top_k_chunks=max(int(top_k_chunks), 1), min_score=float(min_score))
+
+    def decide(self, history: Sequence[SearchRoundRecord], requested_k: int, evaluated_total: int,
+               affordable_calls: int, seconds_left: float, min_seconds: float
+               ) -> Tuple[Optional[SearchRoundParams], Optional[SearchStopReason]]:
+        """恰回傳 (下一輪參數, None) 或 (None, 停止原因) 其一；判斷順序固定"""
+        if not history:
+            raise ValueError("history 不可為空：至少須含基準輪紀錄")
+        lim = self._limits
+        last = history[-1]
+        if last.qualified_total >= requested_k:
+            return None, SearchStopReason.SATISFIED
+        if lim.max_rounds <= 0:
+            return None, SearchStopReason.DISABLED
+        if len(history) - 1 >= lim.max_rounds:
+            return None, SearchStopReason.MAX_ROUNDS
+        if seconds_left < min_seconds:
+            return None, SearchStopReason.DEADLINE
+        if affordable_calls < 1:
+            return None, SearchStopReason.BUDGET
+        saturated = last.returned < last.params.pool_target
+        if saturated and last.params.min_score <= lim.min_score_floor + self._EPS:
+            return None, SearchStopReason.EXHAUSTED
+        target = min(last.params.pool_target + lim.pool_step, lim.pool_max, evaluated_total + affordable_calls)
+        if target <= evaluated_total:
+            reason = SearchStopReason.POOL_CAP if evaluated_total >= lim.pool_max else SearchStopReason.BUDGET
+            return None, reason
+        min_score = last.params.min_score
+        if saturated:
+            min_score = max(lim.min_score_floor, round(min_score - lim.min_score_step, 4))
+        base = history[0].params
+        scaled = math.ceil(base.top_k_chunks * target / max(base.pool_target, 1))
+        top_k = min(lim.top_k_max, max(last.params.top_k_chunks, scaled))
+        return SearchRoundParams(round_no=last.params.round_no + 1, pool_target=target, top_k_chunks=top_k,
+                                 min_score=min_score), None
 
 
 class OrdinalReferenceResolver:

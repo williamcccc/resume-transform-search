@@ -73,7 +73,8 @@ class RecruitmentChatUseCase:
 
         logger.info(
             "chat_turn trace_id=%s session_hash=%s msg_len=%d intents=%s node_ms=%s llm_calls=%d "
-            "profile_cache_hits=%d profile_cache_misses=%d jd_cache_hit=%s degraded=%s",
+            "profile_cache_hits=%d profile_cache_misses=%d jd_cache_hit=%s degraded=%s "
+            "search_rounds=%d search_stop_reason=%s pool_evaluated=%d",
             trace_id,
             session_hash(session_id),
             len(message),
@@ -84,6 +85,9 @@ class RecruitmentChatUseCase:
             outcome.usage.profile_cache_misses,
             outcome.usage.jd_cache_hit,
             outcome.degraded,
+            outcome.usage.search_rounds,
+            outcome.usage.search_stop_reason or "-",
+            outcome.usage.pool_evaluated,
         )
         return ChatTurnResultDTO(
             session_id=session_id,

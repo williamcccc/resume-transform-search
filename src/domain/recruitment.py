@@ -318,6 +318,48 @@ class TurnUsage:
     profile_cache_misses: int = 0
     jd_cache_hit: bool = False
     profile_negative_hits: int = 0
+    search_rounds: int = 0          # 基準輪之後之擴大檢索輪數 (ADR-0021)
+    search_stop_reason: str = ""
+    pool_evaluated: int = 0         # 本輪累計評估之候選人數
+
+
+# ----------------------------------------------------------------------
+# 候選人不足時自動擴大檢索 (ADR-0021)
+# ----------------------------------------------------------------------
+class SearchStopReason(str, Enum):
+    SATISFIED = "SATISFIED"
+    MAX_ROUNDS = "MAX_ROUNDS"
+    POOL_CAP = "POOL_CAP"
+    EXHAUSTED = "EXHAUSTED"
+    BUDGET = "BUDGET"
+    DEADLINE = "DEADLINE"
+    DISABLED = "DISABLED"
+
+
+@dataclass(frozen=True)
+class SearchRoundParams:
+    round_no: int          # 0 = 基準輪
+    pool_target: int       # 本輪檢索取前幾名候選人（含已評估者）
+    top_k_chunks: int
+    min_score: float
+
+
+@dataclass(frozen=True)
+class SearchRoundRecord:
+    params: SearchRoundParams
+    returned: int          # 本輪檢索回傳之不重複候選人數
+    new_candidates: int    # 其中首次評估者
+    qualified_total: int   # 本輪結束後累計完全合格人數
+
+
+@dataclass(frozen=True)
+class SearchExpansionLimits:
+    max_rounds: int
+    pool_step: int
+    pool_max: int
+    top_k_max: int
+    min_score_step: float
+    min_score_floor: float
 
 
 @dataclass

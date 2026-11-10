@@ -49,9 +49,36 @@ class TurnBudget:
             return self._used
 
     @property
+    def remaining(self) -> int:
+        with self._lock:
+            return max(self._limit - self._used, 0)
+
+    def try_consume_above(self, reserve: int) -> bool:
+        """僅於扣抵後仍保有 reserve 次額度時扣抵（ADR-0021 預算保留）"""
+        with self._lock:
+            if self._limit - self._used <= max(int(reserve), 0):
+                return False
+            self._used += 1
+            return True
+
+    def reserved_view(self, reserve: int) -> "ReservedBudgetView":
+        return ReservedBudgetView(self, reserve)
+
+    @property
     def exhausted(self) -> bool:
         with self._lock:
             return self._used >= self._limit
+
+
+class ReservedBudgetView:
+    """TurnBudget 之保留額度視圖：get_profiles 以鴨子型別呼叫 try_consume()，不會吃到保留額度"""
+
+    def __init__(self, budget: TurnBudget, reserve: int):
+        self._budget = budget
+        self._reserve = max(int(reserve), 0)
+
+    def try_consume(self) -> bool:
+        return self._budget.try_consume_above(self._reserve)
 
 
 @dataclass
@@ -103,7 +130,7 @@ class CandidateProfileService:
     def get_profiles(
         self,
         pool: Sequence[CandidateSummary],
-        budget: TurnBudget,
+        budget: "TurnBudget | ReservedBudgetView",
         check_deadline: Optional[Callable[[], None]] = None,
         remaining_seconds: Optional[Callable[[], float]] = None,
     ) -> ProfileBatchResult:

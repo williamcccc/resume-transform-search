@@ -28,6 +28,40 @@ def _clamp_unit(val: float) -> float:
     return min(max(val, 0.0), 1.0)
 
 
+def _clamp(val: float, lo: float, hi: float) -> float:
+    """限制於 [lo, hi]；NaN 視為 lo"""
+    if val != val:
+        return lo
+    return min(max(val, lo), max(lo, hi))
+
+
+def _search_expansion_fields(base: Dict[str, object]) -> Dict[str, object]:
+    """候選人不足時自動擴大檢索設定 (ADR-0021)；越界值夾回合法範圍，部分上下限相依於基準檢索設定"""
+    pool_size = int(base["recruit_candidate_pool_size"])
+    top_k = int(base["recruit_retrieval_top_k_chunks"])
+    min_score = float(base["recruit_retrieval_min_score"])
+    timeout = float(base["recruit_turn_timeout_seconds"])
+    env = os.environ.get
+    return dict(
+        recruit_search_expansion_max_rounds=int(_clamp(
+            _safe_int(env("RECRUIT_SEARCH_EXPANSION_MAX_ROUNDS"), 2), 0, 5)),
+        recruit_search_expansion_pool_step=int(_clamp(
+            _safe_int(env("RECRUIT_SEARCH_EXPANSION_POOL_STEP"), 10), 1, 50)),
+        recruit_search_expansion_pool_max=int(_clamp(
+            _safe_int(env("RECRUIT_SEARCH_EXPANSION_POOL_MAX"), 40), pool_size, 100)),
+        recruit_search_expansion_top_k_chunks_max=int(_clamp(
+            _safe_int(env("RECRUIT_SEARCH_EXPANSION_TOP_K_CHUNKS_MAX"), 200), top_k, 1000)),
+        recruit_search_expansion_min_score_step=_clamp(
+            _safe_float(env("RECRUIT_SEARCH_EXPANSION_MIN_SCORE_STEP"), 0.05), 0.001, 0.5),
+        recruit_search_expansion_min_score_floor=_clamp(
+            _safe_float(env("RECRUIT_SEARCH_EXPANSION_MIN_SCORE_FLOOR"), 0.4), 0.0, min_score),
+        recruit_search_expansion_llm_reserve=int(_clamp(
+            _safe_int(env("RECRUIT_SEARCH_EXPANSION_LLM_RESERVE"), 2), 0, 10)),
+        recruit_search_expansion_min_remaining_seconds=_clamp(
+            _safe_float(env("RECRUIT_SEARCH_EXPANSION_MIN_REMAINING_SECONDS"), 30.0), 0.0, max(timeout, 0.0)),
+    )
+
+
 def _safe_optional_int(val: Optional[str]) -> Optional[int]:
     """空值或非法值 -> None（沿用模型預設）；0 與正整數保留"""
     if not val or not str(val).strip():
@@ -164,6 +198,15 @@ class AppConfig:
     recruit_max_llm_calls_per_turn: int = 25
     recruit_turn_timeout_seconds: float = 150.0
     recruit_circuit_breaker_cooldown_seconds: float = 60.0
+    # 候選人不足時自動擴大檢索 (ADR-0021)
+    recruit_search_expansion_max_rounds: int = 2
+    recruit_search_expansion_pool_step: int = 10
+    recruit_search_expansion_pool_max: int = 40
+    recruit_search_expansion_top_k_chunks_max: int = 200
+    recruit_search_expansion_min_score_step: float = 0.05
+    recruit_search_expansion_min_score_floor: float = 0.4
+    recruit_search_expansion_llm_reserve: int = 2
+    recruit_search_expansion_min_remaining_seconds: float = 30.0
     recruit_protected_attr_terms: List[str] = field(default_factory=lambda: _safe_list(DEFAULT_PROTECTED_ATTR_TERMS))
     recruit_skill_aliases: Dict[str, str] = field(default_factory=lambda: _safe_mapping(DEFAULT_SKILL_ALIASES))
     chat_checkpointer_backend: str = "memory"
@@ -547,4 +590,5 @@ class AppConfig:
             web_port=web_port,
             web_engine=web_engine,
             **recruit_fields,
+            **_search_expansion_fields(recruit_fields),
         )

@@ -29,6 +29,7 @@
 | **[ADR-0018](./0018-uvicorn-standard-asgi-entrypoint-and-di-bootstrap.md)** | 支援 Uvicorn 標準 ASGI 啟動、App Factory 與 Web 依賴注入組裝收斂 | 已採納 (Accepted) | 2026-11 | `FastAPI`, `Uvicorn`, `ASGI`, `Dependency Injection` |
 | **[ADR-0019](./0019-recruitment-assistant-langgraph-chat.md)** | HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取 | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Gemini`, `Lazy Extraction`, `Deterministic Ranking` |
 | **[ADR-0020](./0020-recruitment-chat-langsmith-masked-tracing.md)** | 招募助手 LangSmith 遮蔽式效能追蹤 | 已採納 (Accepted) | 2026-11 | `Observability`, `LangSmith`, `Tracing`, `Zero-PII` |
+| **[ADR-0021](./0021-recruitment-adaptive-candidate-search-loop.md)** | 招募助手候選人不足時自動擴大檢索（LangGraph 子步驟循環） | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Cycle`, `Adaptive Retrieval`, `Deterministic Policy` |
 
 ---
 
