@@ -1,15 +1,18 @@
 # 🚀 Resume-to-Markdown & Semantic Search Engine
-### 智慧履歷轉檔、多模態自我修復與 Redis 向量檢索系統
+### 智慧履歷轉檔、多模態自我修復、Redis 向量檢索與 LangGraph HR 招募助手
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture%20%2F%20DDD-brightgreen.svg)](#系統架構與分流決策管線)
 [![LLM](https://img.shields.io/badge/LLM-Gemini%203.8%20Flash%20%2F%20Embedding--001-orange.svg)](https://ai.google.dev/)
 [![Vector Store](https://img.shields.io/badge/Vector%20Store-Redis%20HNSW%20768d-red.svg)](https://redis.io/)
+[![Agent](https://img.shields.io/badge/Agent-LangGraph%20(Cycle%20%2B%20Human--in--the--Loop)-1c3c3c.svg)](#hr-招募助手-langgraph)
+[![Tracing](https://img.shields.io/badge/Tracing-LangSmith%20Masked-0f766e.svg)](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md)
 [![Quality Guardrails](https://img.shields.io/badge/Quality-Deterministic%20Linting%20%2B%20LLM%20Judge-purple.svg)](#四層品管防線與批量自動隔離)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 本專案是一套專為企業招募系統（ATS）與人才檢索設計的**工業級履歷解析與向量語意檢索系統**。
 採用 **領域驅動設計 (Domain-Driven Design, DDD)** 與 **整潔架構 (Clean Architecture)**，整合 **Google Gemini 最新多模態大模型** 與 **RediSearch HNSW 向量索引**，徹底解決非結構化履歷文件的格式混雜、亂碼防爬、破圖損毀、跨頁斷句與檢索斷章取義等痛點。
+在此之上提供 **LangGraph 多輪對話 HR 招募助手**：貼上 JD 即挑出最適合人選並說明理由，可追問人選細節、生成面試題；人選不足時自動擴大檢索，仍不足則暫停交由使用者決定放寬哪個條件。
 
 ---
 
@@ -24,6 +27,8 @@
 | **批次轉檔無法保證品質與真實性** | **四層確定性品管閥 (Deterministic Linting)** + **獨立客觀評審員 (LLM-as-a-Judge)**，瑕疵檔案自動隔離（Quarantine）並輸出 CSV 稽核日誌。 |
 | **傳統固定長度切片造成 RAG 語意破碎** | **Markdown 語意結構化切片 (Semantic Chunking)**，依階層識別姓名、經歷、技能、學歷，支援相鄰短區塊智慧合併。 |
 | **重複入庫浪費高額 Token 與 API 費用** | **SHA-256 內容指紋增量快取**，未變更檔案重複執行達成 **0 次 API 呼叫與 0 Token 消耗**。 |
+| **向量檢索只回傳相似片段，HR 仍須逐份判讀是否符合 JD** | **HR 招募助手**：LLM 只抽取條件與撰寫理由，比對、排序與瓶頸分析由程式確定性計算，每項判定附原文證據。 |
+| **合格人選不足時，不知是檢索太窄還是條件太嚴** | **自動擴大檢索（LangGraph 循環）** 先處理技術面；仍不足才以 **Human-in-the-Loop** 暫停，由人決定放寬哪個條件。 |
 
 ---
 
@@ -109,6 +114,29 @@ flowchart TD
 
 ---
 
+### 3. HR 招募助手 (LangGraph)
+
+> 詳細架構與時序圖見 [ARCHITECTURE.md §11](ARCHITECTURE.md#11-hr-多輪對話招募助手架構-adr-0019)；決策紀錄見 [ADR-0019](docs/adr/0019-recruitment-assistant-langgraph-chat.md)、[ADR-0021](docs/adr/0021-recruitment-adaptive-candidate-search-loop.md)、[ADR-0022](docs/adr/0022-recruitment-relaxation-human-in-the-loop.md)。
+
+**設計原則：LLM 負責理解與敘述，判斷交給程式。** LLM 只做意圖分類、JD 條件抽取、履歷結構化與文字敘述；比對、排序、瓶頸計算與「第 N 位」指代解析皆為確定性程式，結果可重現、可解釋。
+
+```
+使用者訊息
+  └─ route：判斷意圖（程式規則優先，必要時 LLM 分類）
+       ├─ JD 媒合
+       │    jd_match         抽取 JD 條件（剔除受保護屬性）
+       │    jd_search_round ⟲ 檢索候選池 → 只抽取新進人選 → 程式逐條比對
+       │                       人數不足時自動擴大檢索（只擴大範圍，不放寬條件）
+       │    jd_finalize      排序、原文證據、條件瓶頸報告、推薦理由
+       ├─ 人選追問 / 面試題 / 一般問答 / 範圍外婉拒
+       └─ compose：組合回覆、逐字驗證引文
+            └─ 仍不足 → await_relaxation（interrupt 暫停）
+                 → 使用者在 UI 勾選要放寬的條件
+                 → apply_relaxation：降為加分條件，已評估池重新比對（0 次抽取）
+```
+
+---
+
 ## ✨ 核心功能特色
 
 ### 1. 智慧自動判別與自適應路由 (Zero Configuration)
@@ -138,6 +166,19 @@ flowchart TD
 - **雙引擎架構**：支援 **FastAPI 高性能非同步引擎** 與 **Python 內建標準庫零外部依賴引擎**，自適應降級。
 - **品管日誌與統計儀表板**：直觀視覺化轉檔總數、合格率、評分分佈、各檔案保留率與錯誤 Traceback。
 - **履歷智能語意檢索介面**：提供即時自然語言查詢、最小相似度門檻、工作年資篩選、技能標籤過濾與一鍵展開原始 Markdown 檔案。
+- **招募助手聊天分頁**（僅 FastAPI 引擎）：多輪對話、推薦名單卡片、條件瓶頸面板與放寬條件勾選。
+
+### 6. HR 多輪對話招募助手 (LangGraph)
+<a id="hr-招募助手-langgraph"></a>
+- **JD 媒合**：貼上 JD 回傳前 K 位人選（預設 3，可指定「挑 5 個」），逐條列出符合 / 明確不符 / 履歷未提及與原文證據。
+- **多輪追問與面試題**：「第 2 位有帶過人嗎？」由程式解析指代；面試題針對該人選之弱點條件。
+- **自動擴大檢索（LangGraph 循環）**：合格不足時逐輪加大候選池、飽和時降低相似度門檻，受輪數、人數、LLM 預算與時間上限約束（[ADR-0021](docs/adr/0021-recruitment-adaptive-candidate-search-loop.md)）。
+- **人工放寬決策（Human-in-the-Loop）**：仍不足時以 `interrupt()` 暫停，使用者勾選要放寬（降為加分）的必要條件後重新比對，並寫入稽核日誌（[ADR-0022](docs/adr/0022-recruitment-relaxation-human-in-the-loop.md)）。
+- **公平與零個資**：受保護屬性不進入條件與排序；送 LLM 前遮蔽姓名與聯絡方式；回覆中的「」引文皆可逐字回溯原文。
+- **成本控制**：履歷結構化資料以內容 Hash 快取（未變更 0 Token）；單輪 LLM 呼叫上限並保留敘述額度；429 配額熔斷。
+- **可觀測性**：每輪 `chat_turn` 日誌；選用之 LangSmith 遮蔽式追蹤只上傳延遲、Token 與節點結構（[ADR-0020](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md)）。
+- **對話狀態**：Checkpointer 可選記憶體或 Redis（可跨實例續接），含 Session TTL、輪數上限與並行鎖（`409`）。
+- **API**：`POST /api/chat`、`GET /api/chat/{session_id}`、`DELETE /api/chat/{session_id}`（完整欄位見 [REQUIREMENTS.md §6.7–6.10](REQUIREMENTS.md)）。
 
 ---
 
@@ -279,6 +320,8 @@ python -m uvicorn src.interfaces.web.fastapi_server:create_default_app --factory
 python -m uvicorn web_dashboard:app --reload --port 8080
 ```
 
+> **啟用招募助手**：需 FastAPI 引擎、`GEMINI_API_KEY`、可連線之 Redis 向量索引（已用 `index_to_redis.py` 入庫）與 LangGraph 套件（已列於 `requirements.txt`）；任一條件不足時聊天分頁回 `503`，其他分頁不受影響。
+
 ---
 
 ## ⚙️ 環境變數配置說明 (`.env`)
@@ -303,6 +346,15 @@ python -m uvicorn web_dashboard:app --reload --port 8080
 | `REDIS_INDEX_NAME` | `idx:resumes:v1` | RediSearch HNSW 向量索引名稱 |
 | `MIN_CHUNK_SIZE` | `80` | 切片相鄰合併最小字元門檻 |
 | `WEB_HOST` / `WEB_PORT` | `127.0.0.1` / `8080` | Web 儀表板監聽 IP 與埠號 |
+| `RECRUIT_CHAT_ENABLED` | `true` | 是否啟用 HR 招募助手 |
+| `RECRUIT_LLM_MODEL` | *(同 `GEMINI_MODEL`)* | 招募助手使用之 LLM 模型 |
+| `RECRUIT_MAX_LLM_CALLS_PER_TURN` | `25` | 單輪對話 LLM 呼叫上限 |
+| `CHAT_CHECKPOINTER_BACKEND` | `memory` | 對話狀態儲存：`memory` 或 `redis`（可跨實例續接） |
+| `RECRUIT_SEARCH_EXPANSION_MAX_ROUNDS` | `2` | 人選不足時自動擴大檢索輪數（`0` 停用） |
+| `RECRUIT_RELAXATION_HITL_ENABLED` | `true` | 人選仍不足時是否暫停交由使用者決定放寬條件 |
+| `RECRUIT_TRACING_ENABLED` | `false` | LangSmith 遮蔽式效能追蹤（需 `LANGSMITH_API_KEY`） |
+
+> 招募助手其餘配置（候選池大小、相似度門檻、快取 TTL、技能別名等）完整列於 [`.env.example`](.env.example)。
 
 ---
 
@@ -311,10 +363,10 @@ python -m uvicorn web_dashboard:app --reload --port 8080
 本專案遵循嚴格的軟體工程門禁（Dual-Gate Lifecycle），提供完整的自動化檢驗工具：
 
 ```bash
-# 1. 執行 129+ 顆粒化白箱單元測試 (100% 離線 Mock 隔離，秒級回饋)
+# 1. 執行 500+ 顆粒化白箱單元測試 (100% 離線 Mock 隔離，秒級回饋)
 python -m unittest discover -s tests/unit -p "test_*.py"
 
-# 2. 執行端到端 (E2E) 整合驗證 (真實 CLI 引數、批次輸出與 Windows 資源釋放)
+# 2. 執行端到端 (E2E) 整合驗證 (真實 CLI、Web API、LangGraph 編排與 Redis；缺 API Key 或 Redis 之軌自動 skip)
 python -m unittest discover -s tests/e2e -p "test_*.py"
 
 # 3. 執行 DDD 架構紅線與零硬編碼 AST 靜態代碼稽核 (Gate 2 後門禁)
@@ -335,15 +387,17 @@ python .agents/skills/doc-sync/scripts/verify_doc_sync.py
 .
 ├── src/
 │   ├── domain/               # 純領域層：模型 (models.py), 列舉 (enums.py), 契約 (interfaces.py), 例外 (exceptions.py)
-│   ├── application/          # 應用層：轉檔 (convert_document_use_case.py), 索引 (index_resumes_use_case.py), 檢索 (search_resumes_use_case.py)
+│   ├── application/          # 應用層：轉檔、索引、檢索 Use Cases；招募助手節點處理器 (recruitment_nodes.py，純 Python)
 │   ├── infrastructure/       # 基礎設施層：Gemini API, Redis HNSW, PyMuPDF, python-docx, 品管驗證閥, 提示詞載入器
+│   │   ├── orchestration/    # LangGraph 招募助手圖 (循環 + interrupt) 與 Checkpointer (memory / redis)
+│   │   └── observability/    # LangSmith 遮蔽式追蹤 (選用)
 │   └── interfaces/           # 表現層：CLI 轉接器與 Web 儀表板伺服器
-├── prompts/                  # 提示詞資產庫 (100% 外部化治理，包含多模態轉檔、自審修復、LLM Judge 評審員模板)
+├── prompts/                  # 提示詞資產庫 (100% 外部化治理，包含多模態轉檔、自審修復、LLM Judge 與招募助手 recruit_*.md)
 ├── tests/
-│   ├── unit/                 # 129+ 單元測試案例 (100% 離線 Mock 隔離)
-│   └── e2e/                  # 端到端 CLI 與 Web 儀表板實測腳本
+│   ├── unit/                 # 500+ 單元測試案例 (100% 離線 Mock 隔離)
+│   └── e2e/                  # 端到端 CLI、Web API 與招募助手實測腳本
 ├── docs/                     # 持久化工程文檔庫
-│   ├── adr/                  # 18 篇正式架構決策紀錄 (Architecture Decision Records)
+│   ├── adr/                  # 22 篇正式架構決策紀錄 (Architecture Decision Records)
 │   ├── specs/                # 歷次功能 PRD 需求規格與 DDD 技術規格書
 │   ├── qa_reports/           # 歷次黑箱/灰箱 QA 實測驗收報告
 │   └── images/               # 系統展示截圖與雙門禁閉環架構流程圖 (PNG / SVG)
@@ -364,6 +418,7 @@ python .agents/skills/doc-sync/scripts/verify_doc_sync.py
 1. **機密憑證防護**：`.env` 檔案中包含您的 `GEMINI_API_KEY` 與資料庫連線密碼，專案 `.gitignore` 已預設將 `.env` 排除，**切勿將真實 `.env` 推送至 Git**。
 2. **個資 (PII) 防護**：請勿將企業內部求職者的真實履歷檔案（PDF / Word）推送到公開版控。專案已將 `data/`、`resume/`、`quarantine/` 與 `logs/` 列入 `.gitignore`。
 3. **安全審查通過**：本專案已通過 AST 靜態掃描，業務代碼中無任何寫死之 API Key 或本機絕對路徑。
+4. **LLM 追蹤隱私**：招募助手之 LangSmith 追蹤預設關閉；開啟時輸入與輸出全數隱藏，只上傳延遲、Token 與節點結構。**請勿設定全域 `LANGSMITH_TRACING` / `LANGCHAIN_TRACING_V2`**，否則會繞過遮蔽政策。
 
 ---
 
