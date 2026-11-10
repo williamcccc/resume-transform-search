@@ -10,7 +10,7 @@ description: >-
 
 ## 一、何時使用
 
-- Step 1 撰寫 PRD 時，需要定義品質目標與標註資料來源。
+- Step 1 撰寫 PRD 時，需要定義品質目標與標註資料來源。規格的驗收標準段落須宣告 `品質評測範圍：是/否`；宣告為「是」時，AC 須含 Recall@K、Precision@K、MRR、nDCG、F1、評審分數或一致率之一，`verify_doc_sync.py` 會檢查（「評審」「校準」等字樣本身不算指標）。
 - Step 3 撰寫指標計算函式的單元測試。
 - Step 4 在 `tests/eval/` 執行真實資料評測，或撰寫評審 prompt。
 - 修改 `prompts/` 或模型設定後，需要做前後比較。

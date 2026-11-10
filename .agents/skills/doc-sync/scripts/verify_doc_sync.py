@@ -10,7 +10,8 @@ verify_doc_sync.py
 3. ADR 文件中狀態是否明確標註。
 4. REQUIREMENTS.md 與 ARCHITECTURE.md 是否存在且未損毀。
 5. .claude/ 原生轉接層與 .agents/ 正本一一對應、frontmatter 一致且未複製正本內容。
-6. 涉及檢索、抽取或生成之規格，驗收標準須列出品質指標（編號 0023 起強制，較早者僅警告）。
+6. 規格須宣告「品質評測範圍：是/否」；宣告為「是」者，驗收標準須列出品質指標
+   （編號 0023 起強制，較早者未宣告則略過、宣告為「是」但缺指標僅警告）。
 """
 
 import os
@@ -213,32 +214,47 @@ def check_claude_adapters(root: Path = ROOT_DIR) -> bool:
 
 
 # 品質評測 Gate 1 檢查（AGENTS.md「品質評測規則」第 1 條）
-QUALITY_SCOPE_KEYWORDS = ("檢索", "抽取", "生成", "prompt", "排序", "評審", "召回")
-QUALITY_METRIC_PATTERN = re.compile(r"Recall@\w+|Precision@\w+|MRR|nDCG|F1|評審|校準|rubric", re.IGNORECASE)
-QUALITY_AC_ENFORCED_FROM = 23  # 規格編號達此值起缺漏標示 FAIL，之前的規格僅 WARN
+QUALITY_SCOPE_PATTERN = re.compile(r"品質評測範圍[\s*]*[:：][\s*]*(是|否)")
+_NO_ALNUM_BEFORE = r"(?<![A-Za-z0-9])"
+_NO_ALNUM_AFTER = r"(?![A-Za-z0-9])"
+QUALITY_METRIC_PATTERN = re.compile(
+    _NO_ALNUM_BEFORE
+    + r"(?:Recall@\w+|Precision@\w+|MRR|nDCG(?:@\w+)?|F1)"
+    + _NO_ALNUM_AFTER
+    + r"|評審(?:平均)?分數|一致率",
+    re.IGNORECASE,
+)
+QUALITY_AC_ENFORCED_FROM = 23  # 規格編號達此值起須宣告範圍且缺漏標示 FAIL
+_HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
+_FENCE_PATTERN = re.compile(r"^\s*(```|~~~)")
 
 
 def extract_acceptance_section(text: str) -> str:
-    """取出「驗收標準」段落（至下一個二級標題為止）；找不到時回傳全文。"""
-    lines = text.splitlines()
-    start = None
-    for i, line in enumerate(lines):
-        if re.match(r"^#{2,3}\s.*驗收", line):
-            start = i
-            break
-    if start is None:
-        return text
+    """取出「驗收標準」段落，至下一個同級或更高層級標題為止；忽略程式碼區塊內的 #。
+    找不到驗收標題時回傳空字串（不以全文代替）。"""
+    in_fence = False
+    level = None
     body = []
-    for line in lines[start + 1:]:
-        if re.match(r"^##\s", line):
+    for line in text.splitlines():
+        if _FENCE_PATTERN.match(line):
+            in_fence = not in_fence
+        heading = None if in_fence else _HEADING_PATTERN.match(line)
+        if level is None:
+            if heading and len(heading.group(1)) >= 2 and "驗收" in heading.group(2):
+                level = len(heading.group(1))
+            continue
+        if heading and len(heading.group(1)) <= level:
             break
         body.append(line)
     return "\n".join(body)
 
 
-def requires_quality_ac(text: str) -> bool:
-    lowered = text.lower()
-    return any(keyword.lower() in lowered for keyword in QUALITY_SCOPE_KEYWORDS)
+def quality_scope(text: str):
+    """回傳規格宣告的品質評測範圍：True（是）、False（否）或 None（未宣告）。"""
+    match = QUALITY_SCOPE_PATTERN.search(text)
+    if not match:
+        return None
+    return match.group(1) == "是"
 
 
 def has_quality_ac(text: str) -> bool:
@@ -246,25 +262,32 @@ def has_quality_ac(text: str) -> bool:
 
 
 def check_quality_ac_specs(specs: list) -> bool:
-    """校驗涉及檢索、抽取或生成的規格是否於驗收標準中列出品質指標。
-    編號 >= QUALITY_AC_ENFORCED_FROM 的缺漏視為 FAIL；較早的規格缺漏僅 WARN。"""
+    """校驗規格的品質評測範圍宣告與驗收標準中的品質指標。
+    編號 >= QUALITY_AC_ENFORCED_FROM：必須宣告範圍；宣告為「是」者缺指標為 FAIL。
+    較早的規格：未宣告略過；宣告為「是」但缺指標僅 WARN。"""
     all_ok = True
     scoped = 0
     for name, text in specs:
-        if not requires_quality_ac(text):
+        match = re.match(r"^(\d{4})-", name)
+        enforced = bool(match) and int(match.group(1)) >= QUALITY_AC_ENFORCED_FROM
+        scope = quality_scope(text)
+        if scope is None:
+            if enforced:
+                print(f"[FAIL] 規格缺少「品質評測範圍：是/否」宣告: {name}")
+                all_ok = False
+            continue
+        if not scope:
             continue
         scoped += 1
         if has_quality_ac(text):
             continue
-        match = re.match(r"^(\d{4})-", name)
-        number = int(match.group(1)) if match else 0
-        if number >= QUALITY_AC_ENFORCED_FROM:
-            print(f"[FAIL] 規格涉及檢索/抽取/生成，但驗收標準缺少品質指標 (Recall@K、MRR、nDCG、F1 或評審條件): {name}")
+        if enforced:
+            print(f"[FAIL] 規格宣告屬品質評測範圍，但驗收標準缺少品質指標 (Recall@K、Precision@K、MRR、nDCG、F1、評審分數或一致率): {name}")
             all_ok = False
         else:
-            print(f"[WARN] 規格涉及檢索/抽取/生成，驗收標準缺少品質指標（舊規格，暫不強制）: {name}")
+            print(f"[WARN] 規格宣告屬品質評測範圍，驗收標準缺少品質指標（舊規格，暫不強制）: {name}")
     if all_ok:
-        print(f"[PASS] 涉及檢索/抽取/生成之規格 ({scoped} 個) 品質驗收條件檢查通過")
+        print(f"[PASS] 品質評測範圍宣告與驗收條件檢查通過（宣告屬範圍之規格 {scoped} 個）")
     return all_ok
 
 
