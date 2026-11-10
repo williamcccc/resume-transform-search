@@ -115,6 +115,38 @@ class TestFieldF1(unittest.TestCase):
         self.assertAlmostEqual(field_f1(expected, actual), 0.4)
 
 
+class TestFieldF1Nested(unittest.TestCase):
+    def test_nested_mapping_is_flattened_by_path(self):
+        expected = {"education": {"school": "範例大學", "degree": "碩士"}}
+        actual = {"education": {"school": " 範例大學", "degree": "學士"}}
+        # facts: education.school 命中、education.degree 不同 → tp=1, P=1/2, R=1/2, F1=0.5
+        self.assertAlmostEqual(field_f1(expected, actual), 0.5)
+
+    def test_nested_key_does_not_match_top_level_key(self):
+        self.assertEqual(field_f1({"education": {"school": "範例大學"}}, {"school": "範例大學"}), 0.0)
+
+    def test_list_of_mappings_hand_calculated(self):
+        expected = {"experience": [
+            {"company": "範例科技", "title": "後端工程師"},
+            {"company": "示範資訊", "title": "實習生"},
+        ]}
+        actual = {"experience": [{"company": "範例科技", "title": "資深後端工程師"}]}
+        # expected facts 4 個、actual facts 2 個，僅 experience.company=範例科技 命中
+        # tp=1, P=1/2, R=1/4, F1=2*(1/2)*(1/4)/(1/2+1/4)=1/3
+        self.assertAlmostEqual(field_f1(expected, actual), 1 / 3)
+
+    def test_nested_lists_are_flattened(self):
+        self.assertEqual(field_f1({"tags": [["a", "b"], ["c"]]}, {"tags": ["c", "a", "b"]}), 1.0)
+
+    def test_empty_nested_containers_count_as_missing(self):
+        self.assertEqual(field_f1({"education": {}, "skills": [], "note": {"x": None}}, {}), 1.0)
+        self.assertEqual(field_f1({"education": {"school": "範例大學"}}, {"education": {}}), 0.0)
+
+    def test_deeply_nested_structure_does_not_raise(self):
+        expected = {"a": {"b": [{"c": ["x", {"d": "y"}]}]}}
+        self.assertEqual(field_f1(expected, expected), 1.0)
+
+
 class TestSummarize(unittest.TestCase):
     def test_summary_excludes_empty_relevant_and_averages_rest(self):
         cases = [

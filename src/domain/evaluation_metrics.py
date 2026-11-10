@@ -88,18 +88,29 @@ def _normalize_value(value: Any) -> Any:
     return value
 
 
+def _collect_facts(path: str, value: Any, facts: set[tuple[str, Any]]) -> None:
+    """遞迴展開單一欄位值。巢狀對映以「父.子」路徑展開；清單（含巢狀清單）逐項攤平於同一路徑。"""
+    if value is None:
+        return
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            _collect_facts(f"{path}.{key}", child, facts)
+        return
+    if isinstance(value, (list, tuple, set, frozenset)):
+        for item in value:
+            _collect_facts(path, item, facts)
+        return
+    normalized = _normalize_value(value)
+    if normalized == "":
+        return
+    facts.add((path, normalized))
+
+
 def _facts(fields: Mapping[str, Any]) -> set[tuple[str, Any]]:
-    """將欄位展開為事實集合。None 與正規化後的空字串視為缺漏；清單欄位逐項展開。"""
+    """將欄位展開為 (路徑, 正規化值) 事實集合。None 與正規化後的空字串視為缺漏。"""
     facts: set[tuple[str, Any]] = set()
     for name, value in fields.items():
-        items = value if isinstance(value, (list, tuple, set, frozenset)) else [value]
-        for item in items:
-            if item is None:
-                continue
-            normalized = _normalize_value(item)
-            if normalized == "":
-                continue
-            facts.add((name, normalized))
+        _collect_facts(str(name), value, facts)
     return facts
 
 
