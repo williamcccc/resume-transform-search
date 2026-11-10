@@ -29,7 +29,7 @@ resume-to-markdown/
 │   │   ├── index_resumes_use_case.py    # IndexResumesUseCase (履歷切片、向量化、SHA-256 增量比對與延遲串流寫入)
 │   │   ├── search_resumes_use_case.py   # SearchResumesUseCase (KNN 語意搜尋、年資/技術標籤複合過濾與全文安全讀取)
 │   │   ├── recruitment_chat_use_case.py # RecruitmentChatUseCase (輸入驗證、trace_id、熔斷、IChatOrchestrator 調度與 DTO 映射)
-│   │   ├── recruitment_nodes.py         # 固定節點處理器 (route / jd_match / candidate_followup / interview_questions / general_qa / compose，純 Python)
+│   │   ├── recruitment_nodes.py         # 固定節點處理器 (route / jd_match → jd_search_round ⟲ → jd_finalize / candidate_followup / interview_questions / general_qa / compose，純 Python)
 │   │   ├── candidate_profile_service.py # 查詢期延遲結構化抽取 + 內容 Hash 快取 + 負快取 + 證據驗證 + 降級
 │   │   ├── recruitment_tools.py         # 既有 Use Case 薄包裝 (候選池檢索、履歷全文讀取、年資解析)
 │   │   ├── recruitment_settings.py      # RecruitmentSettings (由 Interfaces 自 AppConfig 映射)
@@ -555,6 +555,7 @@ flowchart LR
 * [ADR-0018: 支援 Uvicorn 標準 ASGI 啟動、App Factory 與 Web 依賴注入組裝收斂](docs/adr/0018-uvicorn-standard-asgi-entrypoint-and-di-bootstrap.md)
 * [ADR-0019: HR 多輪對話招募助手：LangGraph 意圖路由固定節點圖與查詢期延遲結構化抽取](docs/adr/0019-recruitment-assistant-langgraph-chat.md)
 * [ADR-0020: 招募助手 LangSmith 遮蔽式效能追蹤](docs/adr/0020-recruitment-chat-langsmith-masked-tracing.md)
+* [ADR-0021: 招募助手候選人不足時自動擴大檢索（LangGraph 子步驟循環）](docs/adr/0021-recruitment-adaptive-candidate-search-loop.md)
 
 ### 10.5 專案全景文檔導覽與雙重持久化體系 (`docs/`)
 為確保全生命週期之工程透明度與版本控制追溯性，專案落地四向關聯之文檔持久化架構：
@@ -687,5 +688,21 @@ sequenceDiagram
     G-->>LS: 節點 run（metadata 白名單）
     LS-->>LS: 背景批次上傳（失敗不影響回合）
     OR-->>UC: ChatTurnOutcome
+```
+
+### 11.7 候選人不足時自動擴大檢索（[ADR-0021](docs/adr/0021-recruitment-adaptive-candidate-search-loop.md) / [Spec-0021](docs/specs/0021-recruitment-adaptive-candidate-search-spec.md)）
+* **子步驟路由**：`jd_match` 拆為 `jd_match`（JD 抽取、守門、重編號）→ `jd_search_round`（可自循環）→ `jd_finalize`（排序、證據、放寬報告、敘述）。Application 節點以 `NodeUpdate.goto` 宣告下一個子步驟，LangGraph 依 graph state 之 `goto` 走條件邊；意圖佇列只在 `goto=None`（意圖處理完畢）時彈出。`run_all` 為等價之純 Python 實作。
+* **策略**：Domain 純函式 `SearchExpansionPolicy.decide(history, k, evaluated, affordable_calls, seconds_left, min_seconds)`，無狀態（基準參數取自 `history[0]`），回傳下一輪 `SearchRoundParams` 或 `SearchStopReason`。
+* **資料邊界**：迴圈中間資料 `JdSearchProgress`（候選池、評估結果、遮蔽後履歷文字）只存在單輪 `TurnContext`，`jd_finalize` 結束即釋放；graph state 僅多一個節點名稱 `goto`，checkpoint 不含履歷內容。子步驟節點 session 內容未變更時不輸出 session 通道。
+* **預算**：擴大輪以 `TurnBudget.reserved_view(reserve)` 抽取 Profile，不會用掉保留給敘述之額度；`recursion_limit = max_intents × (max_rounds + 3) + 4`。
+
+```mermaid
+flowchart LR
+    route --> jd_match
+    jd_match -->|goto| jd_search_round
+    jd_match -->|JD 解析失敗| compose
+    jd_search_round -->|"decide → 下一輪參數"| jd_search_round
+    jd_search_round -->|"decide → 停止原因"| jd_finalize
+    jd_finalize -->|佇列下一意圖或| compose
 ```
 

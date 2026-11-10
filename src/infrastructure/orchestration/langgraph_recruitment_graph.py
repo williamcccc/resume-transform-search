@@ -3,6 +3,8 @@ LangGraph 招募助手編排器 (ADR-0019)，實作 IChatOrchestrator
 
 圖：START → route → (依 intents 佇列條件邊) → jd_match | candidate_followup | interview_questions
      | general_qa | out_of_scope → … → compose → END
+jd_match 子步驟 (ADR-0021)：jd_match → jd_search_round ⟲（自循環）→ jd_finalize，由節點回傳之 goto 驅動條件邊；
+子步驟中間資料（含履歷文字）只存在 Runtime context 之 TurnContext，graph state 僅多一個節點名稱 goto。
 節點僅為轉接層：反序列化領域狀態 → 委派 RecruitmentNodeHandlers → 序列化回寫。
 持久化狀態僅含 JSON 相容之 session dict 與意圖佇列；單輪暫態（預算、逾時、回覆段落）經 Runtime context 傳遞，不落盤。
 """
@@ -27,6 +29,7 @@ logger = logging.getLogger(__name__)
 class RecruitmentGraphState(TypedDict, total=False):
     session: Dict[str, Any]
     queue: List[str]
+    goto: Optional[str]  # 子步驟節點名稱（ADR-0021）；None 時依意圖佇列前進
 
 
 @dataclass
@@ -41,14 +44,16 @@ class LangGraphRecruitmentOrchestrator:
         self._bundle = bundle
         # 選用之遮蔽式效能追蹤 (ADR-0020)；None 時行為與未整合前完全一致
         self._tracing = tracing
-        # route + 最多 N 個意圖節點 + compose，另留緩衝防無限迴圈
-        self._recursion_limit = max(int(max_intents_per_turn), 1) + 4
+        # route + 最多 N 個意圖節點（各含子步驟：檢索輪 1+擴大輪數、收尾 1）+ compose，另留緩衝防無限迴圈
+        substeps = max(int(getattr(handlers, "max_substeps_per_intent", 0)), 0)
+        self._recursion_limit = max(int(max_intents_per_turn), 1) * (substeps + 1) + 4
         self._graph = self._build_graph()
 
     # ------------------------------------------------------------------
     def _build_graph(self):
         handlers = self._handlers
         intent_nodes = handlers.INTENT_NODES
+        substep_nodes = tuple(handlers.SUBSTEP_NODES)
         graph = StateGraph(RecruitmentGraphState, context_schema=TurnRuntimeContext)
 
         def make_node(name: str):
@@ -57,10 +62,16 @@ class LangGraphRecruitmentOrchestrator:
                 session = session_from_dict(raw, str(raw.get("session_id", "")))
                 turn = runtime.context.turn
                 update = handlers.execute_node(name, session, turn)
-                out: Dict[str, Any] = {"session": session_to_dict(update.session)}
+                out: Dict[str, Any] = {"goto": update.goto}
+                is_edge_node = name in (handlers.NODE_ROUTE, handlers.NODE_COMPOSE)
+                # session 內容未變更時不輸出通道，避免子步驟循環每輪重複寫入相同快照
+                # （比較序列化內容而非物件身分，就地修改 session 之節點也不會遺失變更）
+                serialized = session_to_dict(update.session)
+                if is_edge_node or serialized != raw:
+                    out["session"] = serialized
                 if name == handlers.NODE_ROUTE:
                     out["queue"] = [intent.value for intent in turn.intents]
-                elif name != handlers.NODE_COMPOSE:
+                elif not is_edge_node and update.goto is None:  # 意圖（含其子步驟）處理完畢才彈出佇列
                     out["queue"] = list(state.get("queue") or [])[1:]
                 return out
 
@@ -70,15 +81,20 @@ class LangGraphRecruitmentOrchestrator:
             graph.add_node(name, make_node(name))
 
         def next_step(state: RecruitmentGraphState) -> str:
+            goto = state.get("goto")
+            if goto is not None:
+                if goto not in substep_nodes:
+                    raise ValueError(f"未知子步驟節點：{goto}")
+                return goto
             queue = state.get("queue") or []
             if not queue:
                 return handlers.NODE_COMPOSE
             return intent_nodes[ChatIntent(queue[0])]
 
-        destinations = [*intent_nodes.values(), handlers.NODE_COMPOSE]
+        destinations = [*intent_nodes.values(), *substep_nodes, handlers.NODE_COMPOSE]
         graph.add_edge(START, handlers.NODE_ROUTE)
         graph.add_conditional_edges(handlers.NODE_ROUTE, next_step, destinations)
-        for node_name in intent_nodes.values():
+        for node_name in (*intent_nodes.values(), *substep_nodes):
             graph.add_conditional_edges(node_name, next_step, destinations)
         graph.add_edge(handlers.NODE_COMPOSE, END)
         return graph.compile(checkpointer=self._bundle.saver)
@@ -115,7 +131,7 @@ class LangGraphRecruitmentOrchestrator:
                 turn.warn("先前對話已逾時失效，已建立新對話")
             prior = self._load(session_id) or ChatSessionState(session_id=session_id)
             self._graph.invoke(
-                {"session": session_to_dict(prior), "queue": []},
+                {"session": session_to_dict(prior), "queue": [], "goto": None},
                 self._invoke_config(session_id, trace_id),
                 context=TurnRuntimeContext(turn=turn),
             )

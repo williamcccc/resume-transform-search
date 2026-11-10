@@ -27,6 +27,15 @@ class RecruitmentSettings:
     max_interview_questions: int = 10
     max_message_chars: int = 12000
     max_llm_calls_per_turn: int = 25
+    # 候選人不足時自動擴大檢索 (ADR-0021)；search_expansion_max_rounds=0 即停用
+    search_expansion_max_rounds: int = 2
+    search_expansion_pool_step: int = 10
+    search_expansion_pool_max: int = 40
+    search_expansion_top_k_chunks_max: int = 200
+    search_expansion_min_score_step: float = 0.05
+    search_expansion_min_score_floor: float = 0.4
+    search_expansion_llm_reserve: int = 2
+    search_expansion_min_remaining_seconds: float = 30.0
     turn_timeout_seconds: float = 150.0
     session_max_turns: int = 50
     history_max_turns: int = 10

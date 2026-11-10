@@ -342,6 +342,14 @@ WEB_ENGINE=auto
 4. **失效安全**：缺金鑰、套件或端點不可達時，追蹤停用或略過，對話不受影響；關閉服務時上傳等待上限 `RECRUIT_TRACING_FLUSH_TIMEOUT_SECONDS`（預設 5 秒）。
 5. **配置**：`LANGSMITH_ENDPOINT`（留空用 SDK 預設）、`LANGSMITH_PROJECT`、`RECRUIT_TRACING_SAMPLING_RATE`（0~1）；勿設定全域 `LANGSMITH_TRACING`（會繞過遮蔽，啟動時警告）。
 
+### 6.9 需求十二：候選人不足時自動擴大檢索（[ADR-0021](docs/adr/0021-recruitment-adaptive-candidate-search-loop.md) / [Spec-0021](docs/specs/0021-recruitment-adaptive-candidate-search-spec.md)）
+1. **觸發與邊界**：JD 媒合時完全符合必要條件之人數少於 K，系統先自動擴大**語意檢索範圍**再重新以程式比對；**絕不放寬任何招募條件**（放寬條件屬用人決策，仍由放寬報告交給使用者）。
+2. **擴大方式**：每輪候選池目標 +`RECRUIT_SEARCH_EXPANSION_POOL_STEP`（總評估人數上限 `RECRUIT_SEARCH_EXPANSION_POOL_MAX`），檢索切片數等比例放大（上限 `RECRUIT_SEARCH_EXPANSION_TOP_K_CHUNKS_MAX`）；上一輪回傳人數少於目標（飽和）時相似度門檻降低 `RECRUIT_SEARCH_EXPANSION_MIN_SCORE_STEP`，不低於 `RECRUIT_SEARCH_EXPANSION_MIN_SCORE_FLOOR`。
+3. **停止條件**：人數已足（SATISFIED）、達輪數上限 `RECRUIT_SEARCH_EXPANSION_MAX_ROUNDS`（預設 2，0 停用）、達人數上限（POOL_CAP）、下限仍飽和（EXHAUSTED）、LLM 預算僅剩保留額度 `RECRUIT_SEARCH_EXPANSION_LLM_RESERVE`（BUDGET）、剩餘秒數低於 `RECRUIT_SEARCH_EXPANSION_MIN_REMAINING_SECONDS`（DEADLINE）。
+4. **成本**：只對新進人選抽取 Profile，已評估或已快取者 0 Token；保留額度確保推薦理由不因擴大而降級；每輪多 1 次查詢 embedding。
+5. **揭露與觀測**：發生擴大時回覆附「檢索擴大紀錄」表（每輪門檻、目標、回傳、新增、累計合格與停止原因），放寬報告 `scope_note` 註明擴大輪數；API `usage` 與 `chat_turn` 日誌含 `search_rounds`、`search_stop_reason`、`pool_evaluated`。
+6. **向下相容**：基準輪已足夠時回覆與停用時逐字相同；`MAX_ROUNDS=0` 完全回到原行為；CLI 不受影響。
+
 ---
 
 ## 7. 命令列使用指南

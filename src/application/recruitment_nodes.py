@@ -43,6 +43,10 @@ from src.domain.recruitment import (
     RelaxationReport,
     RequirementCategory,
     RequirementEvidence,
+    SearchExpansionLimits,
+    SearchRoundParams,
+    SearchRoundRecord,
+    SearchStopReason,
     ShortlistEntry,
     TurnUsage,
     WeaknessFact,
@@ -54,6 +58,7 @@ from src.domain.recruitment_services import (
     OrdinalReferenceResolver,
     ProtectedAttributeGuard,
     RequirementMatcher,
+    SearchExpansionPolicy,
     collect_requirement_evidence,
     compute_content_hash,
     mask_contact_info,
@@ -75,6 +80,15 @@ _LEADERSHIP_KEYWORDS = re.compile(r"帶人|帶過人|帶領|帶隊|管理|主管
 _SECTION_SEPARATOR = "\n\n---\n\n"
 _REMOVED_QUOTE_PLACEHOLDER = "（引文未通過原文驗證，已移除）"
 _STATUS_LABELS = {MatchStatus.MET: "符合", MatchStatus.UNMET: "明確不符", MatchStatus.UNKNOWN: "履歷未提及"}
+_STOP_REASON_TEXT = {
+    SearchStopReason.SATISFIED: "完全符合必要條件之人數已達需求",
+    SearchStopReason.MAX_ROUNDS: "已達擴大檢索輪數上限",
+    SearchStopReason.POOL_CAP: "已達單輪評估人數上限",
+    SearchStopReason.EXHAUSTED: "相似度門檻已降至下限或無法再取得新人選",
+    SearchStopReason.BUDGET: "本輪 LLM 呼叫預算僅剩保留額度",
+    SearchStopReason.DEADLINE: "本輪剩餘處理時間不足",
+    SearchStopReason.DISABLED: "自動擴大檢索已停用",
+}
 
 
 @dataclass(frozen=True)
@@ -90,6 +104,21 @@ class ReplySection:
 
 class _BudgetExhausted(Exception):
     """單輪 LLM 預算用罄（內部控制流程，必轉為模板降級）"""
+
+
+@dataclass
+class JdSearchProgress:
+    """jd_match 子步驟之單輪暫態資料（ADR-0021）：含履歷文字，僅存於 TurnContext，絕不寫入 checkpoint"""
+    jd: JdRequirements
+    requested_k: int
+    params: SearchRoundParams  # 下一輪要執行之參數
+    warning_index: int = 0     # 「候選池僅 N 人」警告之插入位置（維持與拆分前相同之警告順序）
+    history: List[SearchRoundRecord] = field(default_factory=list)
+    candidates: Dict[str, CandidateSummary] = field(default_factory=dict)  # 依首次出現順序
+    evals: Dict[str, CandidateEvaluation] = field(default_factory=dict)
+    llm_texts: Dict[str, str] = field(default_factory=dict)
+    match_texts: Dict[str, str] = field(default_factory=dict)
+    stop_reason: Optional[SearchStopReason] = None
 
 
 @dataclass
@@ -112,6 +141,7 @@ class TurnContext:
     quote_sources: List[str] = field(default_factory=list)
     node_ms: Dict[str, float] = field(default_factory=dict)
     final_reply: str = ""
+    jd_search: Optional[JdSearchProgress] = None
 
     def remaining(self) -> float:
         return max(self.deadline - self.clock(), 0.0)
@@ -137,6 +167,7 @@ class TurnContext:
 @dataclass
 class NodeUpdate:
     session: ChatSessionState
+    goto: Optional[str] = None  # 子步驟路由（ADR-0021）：None 表示本意圖處理完畢，交回意圖佇列
 
 
 class RecruitmentNodeHandlers:
@@ -149,6 +180,9 @@ class RecruitmentNodeHandlers:
         ChatIntent.GENERAL_QA: "general_qa",
         ChatIntent.OUT_OF_SCOPE: "out_of_scope",
     }
+    NODE_JD_SEARCH = "jd_search_round"
+    NODE_JD_FINALIZE = "jd_finalize"
+    SUBSTEP_NODES = (NODE_JD_SEARCH, NODE_JD_FINALIZE)
 
     def __init__(
         self,
@@ -180,6 +214,14 @@ class RecruitmentNodeHandlers:
         )
         self._ranker = CandidateRanker()
         self._relaxation = ConstraintRelaxationAnalyzer()
+        self._expansion = SearchExpansionPolicy(SearchExpansionLimits(
+            max_rounds=max(int(settings.search_expansion_max_rounds), 0),
+            pool_step=max(int(settings.search_expansion_pool_step), 1),
+            pool_max=max(int(settings.search_expansion_pool_max), 1),
+            top_k_max=max(int(settings.search_expansion_top_k_chunks_max), 1),
+            min_score_step=float(settings.search_expansion_min_score_step),
+            min_score_floor=float(settings.search_expansion_min_score_floor),
+        ))
         self._resolver = OrdinalReferenceResolver()
         self._verifier = EvidenceVerifier(settings.evidence_min_chars)
 
@@ -196,7 +238,12 @@ class RecruitmentNodeHandlers:
         )
 
     def node_names(self) -> List[str]:
-        return [self.NODE_ROUTE, *self.INTENT_NODES.values(), self.NODE_COMPOSE]
+        return [self.NODE_ROUTE, *self.INTENT_NODES.values(), *self.SUBSTEP_NODES, self.NODE_COMPOSE]
+
+    @property
+    def max_substeps_per_intent(self) -> int:
+        """單一意圖節點之後最多再執行之子步驟數：檢索 (1 + 擴大輪數) + 收尾 1"""
+        return self._expansion.limits.max_rounds + 2
 
     def execute_node(self, name: str, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
         """依節點名稱執行並記錄耗時（供編排器呼叫）"""
@@ -205,14 +252,25 @@ class RecruitmentNodeHandlers:
         try:
             turn.check_deadline()
             return handler(state, turn)
-        finally:
-            turn.node_ms[name] = round((time.perf_counter() - start) * 1000, 2)
+        finally:  # 子步驟可能重複執行，耗時累加
+            elapsed = (time.perf_counter() - start) * 1000
+            turn.node_ms[name] = round(turn.node_ms.get(name, 0.0) + elapsed, 2)
 
     def run_all(self, state: ChatSessionState, turn: TurnContext) -> ChatSessionState:
         """純 Python 循序執行（與 LangGraph 圖等價之參考實作，供測試與無框架環境）"""
         state = self.execute_node(self.NODE_ROUTE, state, turn).session
         for intent in list(turn.intents):
-            state = self.execute_node(self.INTENT_NODES[intent], state, turn).session
+            update = self.execute_node(self.INTENT_NODES[intent], state, turn)
+            state = update.session
+            steps = 0
+            while update.goto is not None:
+                if update.goto not in self.SUBSTEP_NODES:
+                    raise ValueError(f"未知子步驟節點：{update.goto}")
+                steps += 1
+                if steps > self.max_substeps_per_intent:
+                    raise RuntimeError("子步驟數超過上限，疑似無限迴圈")
+                update = self.execute_node(update.goto, state, turn)
+                state = update.session
         return self.execute_node(self.NODE_COMPOSE, state, turn).session
 
     def _call_llm(self, turn: TurnContext, fn, *args):
@@ -260,7 +318,9 @@ class RecruitmentNodeHandlers:
         return valid or [ChatIntent.GENERAL_QA]
 
     # ------------------------------------------------------------------
-    # jd_match：JD → 條件 → 候選池 → 延遲抽取 → 確定性比對/排序/瓶頸 → 敘述
+    # jd_match 子步驟 (ADR-0021)：
+    #   jd_match（JD → 條件）→ jd_search_round ⟲（檢索 → 新進者延遲抽取 → 確定性比對 → 擴大策略）
+    #   → jd_finalize（排序/證據/瓶頸 → 敘述）
     # ------------------------------------------------------------------
     def jd_match(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
         s = self._settings
@@ -286,49 +346,117 @@ class RecruitmentNodeHandlers:
             turn.warn(f"必要條件超過 {s.max_must_requirements} 項，已截斷")
 
         pool_size = min(s.candidate_pool_size, s.candidate_pool_max)
+        turn.jd_search = JdSearchProgress(
+            jd=jd,
+            requested_k=requested_k,
+            params=SearchExpansionPolicy.initial(pool_size, s.retrieval_top_k_chunks, s.retrieval_min_score),
+            warning_index=len(turn.warnings),
+        )
+        return NodeUpdate(session=state, goto=self.NODE_JD_SEARCH)
+
+    def jd_search_round(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
+        prog = self._require_progress(turn)
+        s = self._settings
+        params = prog.params
+        limits = self._expansion.limits
+        if params.round_no > limits.max_rounds:  # 防禦：Policy 之外的第二道終止保證
+            prog.stop_reason = SearchStopReason.MAX_ROUNDS
+            return NodeUpdate(session=state, goto=self.NODE_JD_FINALIZE)
         turn.check_deadline()
-        pool = self._tools.retrieve_candidate_pool(jd.retrieval_query or jd.title, s.retrieval_top_k_chunks,
-                                                   pool_size, s.retrieval_min_score)
+        jd = prog.jd
+        try:
+            pool = self._tools.retrieve_candidate_pool(jd.retrieval_query or jd.title, params.top_k_chunks,
+                                                       params.pool_target, params.min_score)
+        except (LlmQuotaExhaustedError, TurnTimeoutError):
+            raise
+        except Exception as err:
+            if params.round_no == 0:  # 基準輪維持拆分前行為：檢索失敗向上拋出
+                raise
+            logger.warning("擴大檢索失敗，以已評估之候選人收尾 (trace_id=%s, err_type=%s)",
+                           turn.trace_id, type(err).__name__)
+            turn.warn("擴大檢索失敗，已以目前評估過之候選人產出結果")
+            prog.stop_reason = SearchStopReason.EXHAUSTED
+            return NodeUpdate(session=state, goto=self.NODE_JD_FINALIZE)
+
+        # 基準輪不受擴大總人數上限截斷（維持拆分前行為）
+        base_target = prog.history[0].params.pool_target if prog.history else params.pool_target
+        room = max(max(limits.pool_max, base_target) - len(prog.candidates), 0)
+        new = [c for c in pool if c.candidate_id not in prog.candidates][:room]
+        if new:
+            # 擴大輪之抽取不得吃到保留額度（確保後續敘述仍有 LLM 預算）；基準輪維持原預算語意
+            budget = turn.budget.reserved_view(s.search_expansion_llm_reserve) if params.round_no > 0 else turn.budget
+            batch = self._profiles.get_profiles(new, budget, turn.check_deadline, turn.remaining)
+            turn.usage.profile_cache_hits += batch.cache_hits
+            turn.usage.profile_cache_misses += batch.cache_misses
+            turn.usage.profile_negative_hits += batch.negative_hits
+            for w in batch.warnings:
+                turn.warn(w)
+            for cand in new:
+                cid = cand.candidate_id
+                prog.candidates[cid] = cand
+                prog.llm_texts[cid] = batch.llm_texts.get(cid, "")
+                prog.match_texts[cid] = batch.match_texts.get(cid, "")
+                prog.evals[cid] = self._matcher.evaluate_candidate(
+                    jd, cid, cand.candidate_name, cand.max_score, batch.profiles[cid], cand.all_skills,
+                    resume_text=prog.match_texts[cid])
+
+        qualified = sum(1 for e in prog.evals.values() if e.fully_qualified)
+        prog.history.append(SearchRoundRecord(params=params, returned=len(pool), new_candidates=len(new),
+                                              qualified_total=qualified))
+        nxt, reason = self._expansion.decide(
+            prog.history, prog.requested_k, len(prog.candidates),
+            affordable_calls=turn.budget.remaining - max(int(s.search_expansion_llm_reserve), 0),
+            seconds_left=turn.remaining(),
+            min_seconds=float(s.search_expansion_min_remaining_seconds),
+        )
+        if nxt is not None:
+            prog.params = nxt
+            return NodeUpdate(session=state, goto=self.NODE_JD_SEARCH)
+        prog.stop_reason = reason
+        return NodeUpdate(session=state, goto=self.NODE_JD_FINALIZE)
+
+    def jd_finalize(self, state: ChatSessionState, turn: TurnContext) -> NodeUpdate:
+        prog = self._require_progress(turn)
+        turn.jd_search = None  # 子步驟結束即釋放履歷文字等暫態資料
+        jd, requested_k = prog.jd, prog.requested_k
+        rounds = max(len(prog.history) - 1, 0)
+        turn.usage.search_rounds = rounds
+        turn.usage.search_stop_reason = prog.stop_reason.value if prog.stop_reason else ""
+        turn.usage.pool_evaluated = len(prog.candidates)
+
+        pool = list(prog.candidates.values())
         if not pool:
             turn.add_template("資料庫中無相關人選，建議調整 JD 描述或放寬條件後再試。")
             new_state = replace(state, jd_requirements=jd, shortlist=(), pool_evaluations=(), relaxation=None,
                                 last_referenced_candidate_id=None)
             return NodeUpdate(session=new_state)
         if len(pool) < requested_k:
-            turn.warn(f"候選池僅 {len(pool)} 人，少於需求之 {requested_k} 位")
+            message = f"候選池僅 {len(pool)} 人，少於需求之 {requested_k} 位"
+            if message not in turn.warnings:
+                turn.warnings.insert(min(prog.warning_index, len(turn.warnings)), message)
 
-        batch = self._profiles.get_profiles(pool, turn.budget, turn.check_deadline, turn.remaining)
-        turn.usage.profile_cache_hits += batch.cache_hits
-        turn.usage.profile_cache_misses += batch.cache_misses
-        turn.usage.profile_negative_hits += batch.negative_hits
-        for w in batch.warnings:
-            turn.warn(w)
-
-        evals: List[CandidateEvaluation] = []
-        for cand in pool:
-            profile = batch.profiles[cand.candidate_id]
-            evals.append(self._matcher.evaluate_candidate(jd, cand.candidate_id, cand.candidate_name,
-                                                          cand.max_score, profile, cand.all_skills,
-                                                          resume_text=batch.match_texts.get(cand.candidate_id, "")))
+        evals = list(prog.evals.values())
         ranked = self._ranker.rank(evals, requested_k)
-        eval_map = {e.candidate_id: e for e in evals}
-        pool_map = {c.candidate_id: c for c in pool}
         shortlist = tuple(
             replace(entry, evidence=collect_requirement_evidence(
-                jd.all_requirements, eval_map[entry.candidate_id].profile, s.skill_aliases,
-                s.skill_version_strip_exempt) + self._lexical_evidence(
-                jd, eval_map[entry.candidate_id], pool_map[entry.candidate_id], batch.match_texts))
+                jd.all_requirements, prog.evals[entry.candidate_id].profile, self._settings.skill_aliases,
+                self._settings.skill_version_strip_exempt) + self._lexical_evidence(
+                jd, prog.evals[entry.candidate_id], prog.candidates[entry.candidate_id], prog.match_texts))
             for entry in ranked
         )
         baseline = sum(1 for e in evals if e.fully_qualified)
         relaxation = self._relaxation.analyze(evals, jd.must, requested_k) if baseline < requested_k else None
+        if relaxation is not None and rounds:
+            relaxation = replace(relaxation, scope_note=f"{relaxation.scope_note}（已自動擴大檢索 {rounds} 輪）")
 
         for entry in shortlist:
             turn.quote_sources.extend(e.quote for e in entry.evidence)
-            turn.quote_sources.append(batch.llm_texts.get(entry.candidate_id, ""))
+            turn.quote_sources.append(prog.llm_texts.get(entry.candidate_id, ""))
         turn.quote_sources.extend(r.label for r in jd.all_requirements)
 
         turn.add_template(self._render_shortlist(jd, shortlist, requested_k))
+        if rounds:
+            turn.add_template(self._render_expansion(prog), join="\n\n")
         if relaxation is not None:
             turn.add_template(self._render_relaxation(jd, relaxation), join="\n\n")
         facts = self._match_facts(jd, shortlist, requested_k, len(pool), relaxation)
@@ -341,6 +469,32 @@ class RecruitmentNodeHandlers:
         new_state = replace(state, jd_requirements=jd, shortlist=shortlist, pool_evaluations=tuple(evals),
                             relaxation=relaxation, last_referenced_candidate_id=None)
         return NodeUpdate(session=new_state)
+
+    @staticmethod
+    def _require_progress(turn: TurnContext) -> JdSearchProgress:
+        if turn.jd_search is None:
+            raise RuntimeError("jd_match 子步驟須接續 jd_match 節點執行")
+        return turn.jd_search
+
+    @staticmethod
+    def _render_expansion(prog: JdSearchProgress) -> str:
+        lines = [
+            "### 檢索擴大紀錄",
+            f"基準檢索之合格人數不足，已自動擴大檢索範圍 {len(prog.history) - 1} 輪"
+            "（僅擴大語意檢索範圍，未放寬任何招募條件）。",
+            "",
+            "| 輪次 | 相似度門檻 | 候選池目標 | 檢索回傳 | 新增評估 | 累計合格 |",
+            "| :--- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+        for rec in prog.history:
+            p = rec.params
+            label = "基準" if p.round_no == 0 else f"第 {p.round_no} 輪"
+            lines.append(f"| {label} | {p.min_score:.2f} | {p.pool_target} | {rec.returned} | {rec.new_candidates} "
+                         f"| {rec.qualified_total} |")
+        if prog.stop_reason is not None:
+            reason_text = _STOP_REASON_TEXT.get(prog.stop_reason, prog.stop_reason.value)
+            lines.append(f"\n停止原因：{reason_text}。")
+        return "\n".join(lines)
 
     def _lexical_evidence(self, jd: JdRequirements, ev: CandidateEvaluation, cand,
                           match_texts: Dict[str, str]) -> Tuple[RequirementEvidence, ...]:
