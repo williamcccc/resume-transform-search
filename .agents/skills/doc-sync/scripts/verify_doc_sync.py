@@ -10,6 +10,7 @@ verify_doc_sync.py
 3. ADR 文件中狀態是否明確標註。
 4. REQUIREMENTS.md 與 ARCHITECTURE.md 是否存在且未損毀。
 5. .claude/ 原生轉接層與 .agents/ 正本一一對應、frontmatter 一致且未複製正本內容。
+6. 涉及檢索、抽取或生成之規格，驗收標準須列出品質指標（編號 0023 起強制，較早者僅警告）。
 """
 
 import os
@@ -211,6 +212,69 @@ def check_claude_adapters(root: Path = ROOT_DIR) -> bool:
     return all_ok
 
 
+# 品質評測 Gate 1 檢查（AGENTS.md「品質評測規則」第 1 條）
+QUALITY_SCOPE_KEYWORDS = ("檢索", "抽取", "生成", "prompt", "排序", "評審", "召回")
+QUALITY_METRIC_PATTERN = re.compile(r"Recall@\w+|Precision@\w+|MRR|nDCG|F1|評審|校準|rubric", re.IGNORECASE)
+QUALITY_AC_ENFORCED_FROM = 23  # 規格編號達此值起缺漏標示 FAIL，之前的規格僅 WARN
+
+
+def extract_acceptance_section(text: str) -> str:
+    """取出「驗收標準」段落（至下一個二級標題為止）；找不到時回傳全文。"""
+    lines = text.splitlines()
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(r"^#{2,3}\s.*驗收", line):
+            start = i
+            break
+    if start is None:
+        return text
+    body = []
+    for line in lines[start + 1:]:
+        if re.match(r"^##\s", line):
+            break
+        body.append(line)
+    return "\n".join(body)
+
+
+def requires_quality_ac(text: str) -> bool:
+    lowered = text.lower()
+    return any(keyword.lower() in lowered for keyword in QUALITY_SCOPE_KEYWORDS)
+
+
+def has_quality_ac(text: str) -> bool:
+    return bool(QUALITY_METRIC_PATTERN.search(extract_acceptance_section(text)))
+
+
+def check_quality_ac_specs(specs: list) -> bool:
+    """校驗涉及檢索、抽取或生成的規格是否於驗收標準中列出品質指標。
+    編號 >= QUALITY_AC_ENFORCED_FROM 的缺漏視為 FAIL；較早的規格缺漏僅 WARN。"""
+    all_ok = True
+    scoped = 0
+    for name, text in specs:
+        if not requires_quality_ac(text):
+            continue
+        scoped += 1
+        if has_quality_ac(text):
+            continue
+        match = re.match(r"^(\d{4})-", name)
+        number = int(match.group(1)) if match else 0
+        if number >= QUALITY_AC_ENFORCED_FROM:
+            print(f"[FAIL] 規格涉及檢索/抽取/生成，但驗收標準缺少品質指標 (Recall@K、MRR、nDCG、F1 或評審條件): {name}")
+            all_ok = False
+        else:
+            print(f"[WARN] 規格涉及檢索/抽取/生成，驗收標準缺少品質指標（舊規格，暫不強制）: {name}")
+    if all_ok:
+        print(f"[PASS] 涉及檢索/抽取/生成之規格 ({scoped} 個) 品質驗收條件檢查通過")
+    return all_ok
+
+
+def check_quality_ac_directory(dir_path: Path) -> bool:
+    if not dir_path.exists():
+        return True
+    specs = [(p.name, p.read_text(encoding="utf-8")) for p in sorted(dir_path.glob("*.md")) if p.name != "README.md"]
+    return check_quality_ac_specs(specs)
+
+
 def main():
     print("=== [doc-sync] 文檔雙向同步一致性檢驗 ===")
     ok1 = check_basic_docs_exist()
@@ -218,8 +282,9 @@ def main():
     ok3 = check_directory_docs(DOCS_SPECS_DIR, "需求與技術實作規格 (Specs)", DOCS_README)
     ok4 = check_directory_docs(DOCS_QA_DIR, "QA 實測驗收報告 (QA Reports)", DOCS_README)
     ok5 = check_claude_adapters()
+    ok6 = check_quality_ac_directory(DOCS_SPECS_DIR)
 
-    if ok1 and ok2 and ok3 and ok4 and ok5:
+    if ok1 and ok2 and ok3 and ok4 and ok5 and ok6:
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")
         sys.exit(0)
     else:
