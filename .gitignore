@@ -111,6 +111,11 @@ logs/
 *scorecard*.json
 dump.rdb
 appendonlydir/
+# Spec-0024 品質評測輸出（人工觸發，含模型回答全文）
+tests/eval/results/
+# Spec-0024 合成評測資料集（全部虛構，須納入版控；上方 data/、resumes/ 規則僅針對真實履歷）
+!tests/eval/data/
+!tests/eval/data/resumes/
 
 # ==============================================================================
 # 10. 暫存與實驗區 (Scratch & Temp Files)

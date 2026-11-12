@@ -1,0 +1,37 @@
+{"query_id": "r01", "query": "熟悉 Kubernetes 與 Go 的後端工程師", "relevant_ids": ["eval_cand_03", "eval_cand_11"], "difficulty": "basic"}
+{"query_id": "r02", "query": "React 前端工程師", "relevant_ids": ["eval_cand_02", "eval_cand_15"], "difficulty": "basic"}
+{"query_id": "r03", "query": "Python Django 後端開發", "relevant_ids": ["eval_cand_01"], "difficulty": "basic"}
+{"query_id": "r04", "query": "自然語言處理與深度學習模型訓練", "relevant_ids": ["eval_cand_04", "eval_cand_16"], "difficulty": "basic"}
+{"query_id": "r05", "query": "以 Terraform 管理基礎設施的 SRE", "relevant_ids": ["eval_cand_05"], "difficulty": "basic"}
+{"query_id": "r06", "query": "Selenium 自動化測試工程師", "relevant_ids": ["eval_cand_06"], "difficulty": "basic"}
+{"query_id": "r07", "query": "Kotlin Android App 開發", "relevant_ids": ["eval_cand_07"], "difficulty": "basic"}
+{"query_id": "r08", "query": "Swift iOS 開發", "relevant_ids": ["eval_cand_08"], "difficulty": "basic"}
+{"query_id": "r09", "query": "Java Spring Boot 金融核心系統", "relevant_ids": ["eval_cand_09"], "difficulty": "basic"}
+{"query_id": "r10", "query": "Spark 與 Airflow 大數據資料管線", "relevant_ids": ["eval_cand_10"], "difficulty": "basic"}
+{"query_id": "r11", "query": "UI/UX 設計師，具使用者研究經驗", "relevant_ids": ["eval_cand_12"], "difficulty": "basic"}
+{"query_id": "r12", "query": "嵌入式韌體 C 語言 RTOS", "relevant_ids": ["eval_cand_13"], "difficulty": "basic"}
+{"query_id": "r13", "query": "產品經理，熟悉 Scrum", "relevant_ids": ["eval_cand_14"], "difficulty": "basic"}
+{"query_id": "r14", "query": "Node.js 全端工程師", "relevant_ids": ["eval_cand_15"], "difficulty": "basic"}
+{"query_id": "r15", "query": "MLOps 模型部署與訓練管線", "relevant_ids": ["eval_cand_16"], "difficulty": "basic"}
+{"query_id": "r16", "query": "網站滲透測試資安顧問", "relevant_ids": ["eval_cand_17"], "difficulty": "basic"}
+{"query_id": "r17", "query": "Tableau 報表與 SQL 資料分析", "relevant_ids": ["eval_cand_18"], "difficulty": "basic"}
+{"query_id": "r18", "query": "行動 App 開發工程師（Android 或 iOS）", "relevant_ids": ["eval_cand_07", "eval_cand_08"], "difficulty": "basic"}
+{"query_id": "r19", "query": "具 AWS 雲端實務經驗的工程師", "relevant_ids": ["eval_cand_01", "eval_cand_05", "eval_cand_16"], "difficulty": "basic"}
+{"query_id": "r20", "query": "Kafka 即時串流處理", "relevant_ids": ["eval_cand_10"], "difficulty": "basic"}
+{"query_id": "r21", "query": "PostgreSQL 資料庫效能調校", "relevant_ids": ["eval_cand_01"], "difficulty": "basic"}
+{"query_id": "r22", "query": "會計師事務所審計經驗", "relevant_ids": [], "difficulty": "basic"}
+{"query_id": "x01", "query": "容器編排平台的維運經驗", "relevant_ids": ["eval_cand_03", "eval_cand_05", "eval_cand_11"], "difficulty": "hard", "note": "未直接寫 Kubernetes"}
+{"query_id": "x02", "query": "會開發手機應用程式的人", "relevant_ids": ["eval_cand_07", "eval_cand_08"], "difficulty": "hard", "note": "描述性查詢"}
+{"query_id": "x03", "query": "懂得保護網站不被駭客入侵", "relevant_ids": ["eval_cand_17"], "difficulty": "hard", "note": "口語化描述"}
+{"query_id": "x04", "query": "能帶團隊的後端主管", "relevant_ids": ["eval_cand_01", "eval_cand_03", "eval_cand_09"], "difficulty": "hard", "note": "帶人 + 後端兩個條件"}
+{"query_id": "x05", "query": "把機器學習模型放上線的工程師", "relevant_ids": ["eval_cand_16"], "difficulty": "hard", "note": "需排除只做訓練、未參與部署的 04"}
+{"query_id": "x06", "query": "幫產品做使用者體驗研究", "relevant_ids": ["eval_cand_12"], "difficulty": "hard", "note": "描述性查詢"}
+{"query_id": "x07", "query": "有金融業背景的工程師", "relevant_ids": ["eval_cand_09"], "difficulty": "hard", "note": "產業背景"}
+{"query_id": "x08", "query": "會撰寫測試案例文件的 QA", "relevant_ids": ["eval_cand_06", "eval_cand_21"], "difficulty": "hard", "note": "包含資淺人選"}
+{"query_id": "x09", "query": "雲端資料倉儲", "relevant_ids": ["eval_cand_10", "eval_cand_20"], "difficulty": "hard", "note": "BigQuery 與 Snowflake"}
+{"query_id": "x10", "query": "Vue 前端工程師", "relevant_ids": ["eval_cand_22"], "difficulty": "hard", "note": "需排除只會 React 的 02、15"}
+{"query_id": "x11", "query": "資深 Python 後端工程師", "relevant_ids": ["eval_cand_01", "eval_cand_19"], "difficulty": "hard", "note": "Django 與 Flask"}
+{"query_id": "x12", "query": "區塊鏈智能合約開發", "relevant_ids": [], "difficulty": "hard", "note": "無相關人選"}
+{"query_id": "x13", "query": "微控制器韌體開發", "relevant_ids": ["eval_cand_13"], "difficulty": "hard", "note": "未直接寫 RTOS"}
+{"query_id": "x14", "query": "敏捷開發的產品負責人", "relevant_ids": ["eval_cand_14"], "difficulty": "hard", "note": "同義詞"}
+{"query_id": "x15", "query": "即時資料串流處理", "relevant_ids": ["eval_cand_10"], "difficulty": "hard", "note": "未直接寫 Kafka"}

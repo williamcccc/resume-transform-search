@@ -358,6 +358,11 @@ WEB_ENGINE=auto
 5. **驗證與錯誤碼**：不在選項中、重複、為空或全部放寬 → `422 INVALID_RELAXATION_DECISION`；無待決定 → `422 NO_PENDING_DECISION`；錯誤時待決定狀態保留。同一 Session 並行決定回 `409`。
 6. **稽核**：`relaxation_decision` 日誌記錄輪次、放寬之條件 ID 與合格人數前後（零個資）；`GET /api/chat/{session_id}` 回傳 `pending_decision` 與 `relaxed_requirement_ids` 供頁面還原；Redis Checkpointer 下待決定可跨實例恢復。
 
+### 6.11 需求十四：語意檢索與 answer_status 品質評測（[Spec-0024](docs/specs/0024-recruitment-retrieval-and-answer-status-eval-spec.md) / [QA-0024](docs/qa_reports/0024-recruitment-retrieval-and-answer-status-eval-qa.md)）
+1. **零評審 Token**：以 [`tests/eval/data/`](tests/eval/data/DATASET.md) 合成資料（v2：22 份虛構履歷，題目分 basic／hard 兩級分別計分）評測；檢索用 Spec-0023 的 Recall@K、MRR、nDCG@K，`answer_followup` 用 3×3 混淆矩陣與「應為 NOT_MENTIONED 卻判成 SUPPORTED」誤判率，不使用 LLM 評審。
+2. **獨立索引**：合成履歷寫入 `idx:eval:resumes:v1` 與 `eval:resume:v1:*` 前綴，啟動時檢查與正式命名空間不重疊；未變更的履歷重跑時不呼叫 Embedding。
+3. **人工觸發**：不納入 CI；結果與人工抽查 CSV 輸出至 `tests/eval/results/`（不進版控），並記錄 LLM Token 與 Embedding 呼叫量。
+
 ---
 
 ## 7. 命令列使用指南
@@ -423,6 +428,11 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 
 # 15. 執行全生命週期文檔、規格與 ADR 同步檢驗 (Doc-Sync 驗證)
 python .agents/skills/doc-sync/scripts/verify_doc_sync.py
+
+# 16. 品質評測（人工觸發，需 Redis 與 GEMINI_API_KEY；不納入 CI）
+python tests/eval/run_retrieval_eval.py              # 檢索：Recall@K、MRR、nDCG@K
+python tests/eval/run_retrieval_eval.py --cleanup    # 結束後刪除評測索引與 eval: 前綴鍵
+python tests/eval/run_followup_eval.py               # answer_status 混淆矩陣與人工抽查 CSV
 ```
 
 ---
