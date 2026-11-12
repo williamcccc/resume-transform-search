@@ -1,0 +1,17 @@
+# ==============================================================================
+# 品質評測練習專用依賴（Ragas Faithfulness 練習，非正式需求）
+# 只裝在獨立的 .venv-eval，不進生產環境與 CI；src/ 禁止 import ragas（audit_guardrails.py 擋下）
+#   python -m venv .venv-eval
+#   .venv-eval\Scripts\python -m pip install -r requirements-eval.txt
+# ==============================================================================
+-r requirements.txt
+
+ragas==0.4.3
+
+# 共用套件鎖在主環境已驗證的版本（未鎖時 Ragas 會把 langchain-core 升到 1.8、google-genai 升到 3.x）
+langchain-core==1.7.6
+langchain-google-genai==4.4.3
+google-genai==2.25.0
+langsmith==0.14.17
+# Ragas 0.4.3 的 ragas/llms/base.py 會 import langchain_community.chat_models.vertexai，0.4.2 已移除此模組
+langchain-community==0.4.1

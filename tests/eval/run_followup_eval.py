@@ -105,6 +105,32 @@ def _build_llm(cfg, counter):
     return llm, model_name
 
 
+def build_narration_facts(case: dict[str, Any]):
+    """narration_cases.jsonl 的一案 → MatchNarrationFacts（narrate_match 評測與 Ragas 練習共用，確保輸入一致）。"""
+    from src.domain.recruitment import CandidateFact, MatchNarrationFacts
+
+    candidates = tuple(
+        CandidateFact(
+            alias=f"候選人 #{i}",
+            fully_qualified=bool(c["fully_qualified"]),
+            met_labels=tuple(c["met_labels"]),
+            unmet_labels=tuple(c["unmet_labels"]),
+            unknown_labels=tuple(c["unknown_labels"]),
+            evidence_quotes=tuple(c["evidence_quotes"]),
+        )
+        for i, c in enumerate(case["candidates"], start=1)
+    )
+    return MatchNarrationFacts(
+        jd_title=case["jd_title"],
+        requested_k=int(case["requested_k"]),
+        pool_size=int(case["pool_size"]),
+        must_labels=tuple(case["must_labels"]),
+        nice_labels=tuple(case["nice_labels"]),
+        candidates=candidates,
+        relaxation=None,
+    )
+
+
 def _resume_name(text: str, fallback: str) -> str:
     for line in text.splitlines():
         if line.startswith("# "):
@@ -116,12 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-    from src.domain.recruitment import (
-        AnswerStatus,
-        CandidateFact,
-        FollowupFacts,
-        MatchNarrationFacts,
-    )
+    from src.domain.recruitment import AnswerStatus, FollowupFacts
     from src.domain.recruitment_services import EvidenceVerifier, ProtectedAttributeGuard, mask_contact_info
     from src.infrastructure.config import AppConfig
     from src.interfaces.web.server import build_recruitment_settings
@@ -217,26 +238,8 @@ def main(argv: list[str] | None = None) -> int:
             incomplete = True
             logger.warning("已達 LLM 呼叫上限 %d，停止敘述評測", args.max_llm_calls)
             break
-        candidates = tuple(
-            CandidateFact(
-                alias=f"候選人 #{i}",
-                fully_qualified=bool(c["fully_qualified"]),
-                met_labels=tuple(c["met_labels"]),
-                unmet_labels=tuple(c["unmet_labels"]),
-                unknown_labels=tuple(c["unknown_labels"]),
-                evidence_quotes=tuple(c["evidence_quotes"]),
-            )
-            for i, c in enumerate(case["candidates"], start=1)
-        )
-        facts = MatchNarrationFacts(
-            jd_title=case["jd_title"],
-            requested_k=int(case["requested_k"]),
-            pool_size=int(case["pool_size"]),
-            must_labels=tuple(case["must_labels"]),
-            nice_labels=tuple(case["nice_labels"]),
-            candidates=candidates,
-            relaxation=None,
-        )
+        facts = build_narration_facts(case)
+        candidates = facts.candidates
         summary = "；".join(
             f"{c.alias}({'完全符合' if c.fully_qualified else '補位'}) 符合[{'、'.join(c.met_labels)}] "
             f"不符[{'、'.join(c.unmet_labels)}] 未提及[{'、'.join(c.unknown_labels)}]"
