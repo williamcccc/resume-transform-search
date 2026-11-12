@@ -44,6 +44,7 @@ flowchart LR
 | **0021** | 招募助手候選人不足時自動擴大檢索 | [ADR-0021](./adr/0021-recruitment-adaptive-candidate-search-loop.md) | [Spec-0021](./specs/0021-recruitment-adaptive-candidate-search-spec.md) | `tests/unit/test_recruitment_search_expansion.py`、`tests/e2e/test_recruitment_search_expansion_e2e.py` | [QA-0021](./qa_reports/0021-recruitment-adaptive-candidate-search-qa.md) |
 | **0022** | 招募助手放寬條件之人工決策 | [ADR-0022](./adr/0022-recruitment-relaxation-human-in-the-loop.md) | [Spec-0022](./specs/0022-recruitment-relaxation-human-in-the-loop-spec.md) | `tests/unit/test_recruitment_relaxation_hitl.py`、`tests/e2e/test_recruitment_relaxation_hitl_e2e.py` | [QA-0022](./qa_reports/0022-recruitment-relaxation-hitl-qa.md) |
 | **0023** | 檢索與抽取品質指標計算模組 | — | [Spec-0023](./specs/0023-retrieval-quality-metrics-spec.md) | `tests/unit/test_evaluation_metrics.py` | [QA-0023](./qa_reports/0023-retrieval-quality-metrics-qa.md) |
+| **0024** | 招募助理語意檢索評測與 answer_status 正確率 | — | [Spec-0024](./specs/0024-recruitment-retrieval-and-answer-status-eval-spec.md) | `tests/unit/test_eval_support.py`、`tests/eval/run_*_eval.py` | [QA-0024](./qa_reports/0024-recruitment-retrieval-and-answer-status-eval-qa.md) |
 
 ---
 
