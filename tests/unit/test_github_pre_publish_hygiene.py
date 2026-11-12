@@ -15,6 +15,7 @@ class TestGitHubPrePublishHygiene(unittest.TestCase):
         self.ignore_dirs = {
             ".git",
             ".venv",
+            ".venv-eval",
             "__pycache__",
             ".pytest_cache",
             "data",

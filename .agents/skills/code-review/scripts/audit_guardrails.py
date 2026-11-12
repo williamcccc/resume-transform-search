@@ -15,6 +15,7 @@ audit_guardrails.py
 5. [P1] 例外鏈完整度 (Exception Chaining)：檢查在 except 區塊中拋出新例外時是否缺少 `from err`。
 6. [P0] 提示詞資產解耦 (Prompt-as-Code)：檢查 src/ 內是否有長篇提示詞寫死在代碼中，要求 100% 抽離至 prompts/*.md。
 7. [P0] Git 版控衛生與隱私/路徑防線 (Git Hygiene & Privacy Markers)：檢查 .gitignore 邊界、.env.example 與 AppConfig 同步性、本機絕對路徑及已知隱私識別樣式。
+8. [P0] 評測專用依賴隔離：src/ 任何層級嚴禁 import 只列於 requirements-eval.txt 的評測套件 (如 ragas)，該類套件僅限 tests/eval/ 使用。
 """
 
 import ast
@@ -353,6 +354,7 @@ REQUIRED_GITIGNORE_ENTRIES = [
 IGNORE_SCAN_DIRS = {
     ".git",
     ".venv",
+    ".venv-eval",
     "__pycache__",
     ".pytest_cache",
     "data",
@@ -513,6 +515,40 @@ def check_git_hygiene_and_pii_guardrails() -> List[str]:
     return p0_errors
 
 
+# 只列於 requirements-eval.txt、不進生產環境的評測套件（僅限 tests/eval/ 使用）
+EVAL_ONLY_MODULES = frozenset({"ragas"})
+
+
+def check_eval_only_imports(src_dir: Path = SRC_DIR) -> List[str]:
+    """檢查 src/ 全部模組（遞迴），確認未引用任何評測專用套件。"""
+    violations = []
+    if not src_dir.exists():
+        return violations
+
+    for py_file in sorted(src_dir.rglob("*.py")):
+        rel = py_file.relative_to(src_dir.parent).as_posix()
+        try:
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        except Exception as e:
+            violations.append(f"[Syntax Error] {rel}: 無法解析語法樹 - {e}")
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                modules = [node.module]
+            else:
+                continue
+            for name in modules:
+                if name.split(".")[0] in EVAL_ONLY_MODULES:
+                    violations.append(
+                        f"[P0 違規 - src 引入評測專用套件] {rel}:{node.lineno} -> '{name}' (僅限 tests/eval/ 使用)"
+                    )
+
+    return violations
+
+
 def main() -> int:
     print("=" * 70)
     print("🔍 啟動 Clean Architecture & DDD 防線靜態代碼稽核 (Code Review)")
@@ -538,6 +574,15 @@ def main() -> int:
         print("✅ [Pass] Application 層依賴反轉驗證：完全透過 Domain Interface 協調整合。")
     else:
         for err in app_errs:
+            print(f"❌ {err}")
+
+    # 2b. 評測專用依賴隔離 (src/ 嚴禁 import ragas 等評測套件)
+    eval_only_errs = check_eval_only_imports()
+    all_p0_errors.extend(eval_only_errs)
+    if not eval_only_errs:
+        print("✅ [Pass] 評測專用依賴隔離驗證：src/ 零評測套件引用 (ragas 僅限 tests/eval/)。")
+    else:
+        for err in eval_only_errs:
             print(f"❌ {err}")
 
     # 3. 資源釋放生命週期檢查 (Context Manager)
