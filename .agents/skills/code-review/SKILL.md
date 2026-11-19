@@ -50,7 +50,8 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 11. **需求—斷言追溯**：每條 AC 是否至少有一個斷言直接驗證其預期結果（而非只驗證未拋例外或呼叫次數）？抽查的預期值是否來自規格或手算，而非由被測程式輸出回填？
 
 ### 階段 C：出具審查結果
-在向使用者回報交付成果時，必須附帶審查摘要：
+1. **持久化紀錄**：將本輪審查追加至該功能 QA 報告（`docs/qa_reports/XXXX-*.md`）第 9 節「Gate 2 代碼審查紀錄」，包含審查輪次、發現項目與處置、需求—斷言追溯抽查，以及下方審查結論區塊。格式見 [QA 報告範本](../qa-testing/references/qa_report_template.md) 第 9 節。複審時新增一列輪次，不覆寫前一輪。
+2. **交付摘要**：向使用者回報交付成果時，附帶以下審查摘要：
 ```markdown
 ### 🛡️ Code Review 雙門禁審查結果
 * **架構靜態掃描**： 通過 (`audit_guardrails.py` 零 P0 違規)

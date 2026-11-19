@@ -53,5 +53,6 @@
    - 執行 python .agents/skills/code-review/scripts/audit_guardrails.py AST 靜態語法樹自動掃描。
    - 對照 review_checklist.md 人工覆核：輸入安全、with 資源釋放防檔案鎖死、API 降級、例外鏈完整度、日誌零洩漏、Git 版控衛生與零真實個資/零本機絕對路徑防線、需求—斷言追溯（每條 AC 有直接驗證預期結果之斷言）。
    - 零 P0 阻斷型違規方可簽核放行進入 Step 7；存在 P0 違規堅決駁回。
+   - 每輪審查結果（含複審）追加至該功能 QA 報告第 9 節「Gate 2 代碼審查紀錄」，不覆寫前一輪。
 3. 語言規範：回覆一律採用繁體中文，引述檔案路徑時使用 Markdown 可點擊鏈接格式。
 ```
