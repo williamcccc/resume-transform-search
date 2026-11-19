@@ -14,11 +14,11 @@ description: >-
 
 ## 審查作業流程 (Review Workflow)
 
-當進入閉環流程的 **Step 4（代碼審查階段 - Gate 2）** 時，必須嚴格依序執行以下 3 個步驟：
+當進入閉環流程的 **Step 5（代碼審查階段 - Gate 2）** 時，必須嚴格依序執行以下 3 個步驟：
 
 ```mermaid
 flowchart TD
-    Start["進入 Step 4: 代碼審查 (Gate 2)"] --> StepA["階段 A: 執行自動化架構靜態掃描<br>python .agents/skills/code-review/scripts/audit_guardrails.py"]
+    Start["進入 Step 5: 代碼審查 (Gate 2)"] --> StepA["階段 A: 執行自動化架構靜態掃描<br>python .agents/skills/code-review/scripts/audit_guardrails.py"]
     StepA --> CheckA{"AST 掃描是否零 P0 違規?"}
     CheckA -->|"有 P0 違規"| Fail["審查失敗 (Blocker)<br>打回重構"]
     CheckA -->|"合格"| StepB["階段 B: 對抗式 Checklist 人工覆核<br>比對 review_checklist.md"]
@@ -47,6 +47,7 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 8. **Twelve-Factor 配置與零硬編碼防禦**：是否零寫死 API 金鑰、零未受控 URL？所有運行時安全配額、重試退避與演算法門檻是否可由 `AppConfig` 與 `.env` 覆寫？是否零寫死本機絕對路徑？
 9. **單元測試隔離度與負面測試**：單元測試是否 100% Mock 外部連線且零依賴本機 `data/`、`resume/` 實體檔案？是否包含超時、損毀、配額耗盡等負面情境測試？
 10. **Git 版控衛生與零個資防線 (Git Hygiene & Zero-PII)**：代碼、API 參數說明、CLI 範例、測試、Prompt 與文檔是否零真實求職者姓名/檔名、零真實企業案例？專案文檔連結是否全數使用相對路徑？`.gitignore` 與 `.env.example` 是否 100% 同步對齊？
+11. **需求—斷言追溯**：每條 AC 是否至少有一個斷言直接驗證其預期結果（而非只驗證未拋例外或呼叫次數）？抽查的預期值是否來自規格或手算，而非由被測程式輸出回填？
 
 ### 階段 C：出具審查結果
 在向使用者回報交付成果時，必須附帶審查摘要：
@@ -61,6 +62,7 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 * **日誌安全合規**： 通過 (零 PII 明文與 Secrets 洩漏)
 * **資料操作與冪等性**： 通過 (Redis 清除舊切片、版本相容)
 * **測試隔離與負面覆蓋**： 通過 (單元測試 100% Mock 記憶體建構，包含異常故障注入測試)
+* **需求—斷言追溯**： 通過 (N/N 條 AC 具備直接驗證預期結果之斷言；抽查 AC-x、AC-y、AC-z 預期值來源獨立)
 * **Git 版控衛生與零個資防線**： 通過 (零真實個資/企業案例、跨平台相對路徑、.gitignore 與 .env.example 100% 同步)
 ```
 
