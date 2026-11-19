@@ -2,10 +2,10 @@
 
 本文件為 **所有 AI 開發助理（Claude Code、Google Antigravity 等）與開發團隊在進行本專案開發時的最高準則（憲法級規範）**，亦為跨工具共用之唯一正本（Single Source of Truth）。
 各工具專屬差異僅記載於對應之薄層檔案（[CLAUDE.md](CLAUDE.md)、[GEMINI.md](GEMINI.md)），以 `@AGENTS.md` 匯入本文件，嚴禁複製本文內容造成多份分歧。
-接收到任何需求或任務時，AI 必須嚴格遵循架構紅線與雙門禁 7 步驟閉環工作流，調度對應之專屬技能完成任務。
+接收到任何需求或任務時，AI 必須嚴格遵循架構紅線，依第 2 節分流表判定軌別，並按對應流程檔（`.agents/workflows/`）調度專屬技能完成任務。
 
 ### 閉環角色與 Skill 預設執行方式
-- 功能開發與缺陷修復時，由目前的助理依閉環階段依序切換 `architect`、`developer`、`gatekeeper` 角色視角；每個階段開始前讀取對應的 `.agents/<role>/AGENT.md`，並使用下表指定的 Skill。
+- 功能開發與缺陷修復時，由目前的助理依閉環階段依序切換 `architect`、`developer`、`gatekeeper` 角色視角；每個階段開始前讀取對應的 `.agents/<role>/AGENT.md`，並使用流程檔指定的 Skill。
 - 預設不建立或啟動子 Agent。角色切換是同一助理依不同職責檢查與執行；只有使用者明確要求多代理協作時，才分派子 Agent。
 - 階段交接仍依標準 Context Handoff Schema 記錄，作為同一助理內部的工作交接；Gatekeeper 階段須以獨立審查視角檢視 Developer 的變更。
 - 一般問答、解說與不涉及功能或缺陷修改的簡單文件任務，不啟動完整閉環。
@@ -41,45 +41,48 @@ src/
 
 ---
 
-## 2. 雙門禁 7 步驟自主閉環工作流 (Dual-Gate Closed-Loop Lifecycle)
+## 2. 雙門禁閉環工作流與分流 (Dual-Gate Closed-Loop Tracks)
 
-任何功能需求或缺陷修復，AI 必須嚴格執行以下閉環工作流：
+任何功能需求或缺陷修復，AI 必須先依分流表判定軌別，**讀取對應流程檔後再開始**，並於交付說明註明所走的流程檔。流程檔只寫編排（何時、先後、要不要、失敗退回哪裡）；各步驟怎麼做，以對應 Skill 為準。
 
-```mermaid
-flowchart TD
-    Req["【輸入】使用者業務需求 (簡短指令)"] --> Step1["Step 1: 需求規格化與架構前審 (Gate 1)<br>★ 呼叫 feature-design 技能<br>• 代碼探測 ➔ 產出 PRD 與 Tech Spec<br>• 規劃 QA 驗收測試案例矩陣"]
-    
-    Step1 --> Gate1{"★【門禁一：Gate 1 審查】<br>PRD、Tech Spec 與測試案例是否達標?<br>(無高風險架構債與脫軌實作)"}
-    Gate1 -->|"未達標 / 需調整"| Step1
-    Gate1 -->|"通過 (PASS)"| Step2["Step 2: 依規格實作 (Implementation)<br>• 嚴格遵循 Tech Spec 與 DDD 邊界<br>• 資源 Context Manager 保護與例外鏈完整"]
-    
-    Step2 --> Step3["Step 3: 白箱單元測試 (Unit Testing)<br>★ 呼叫 unit-testing 技能<br>• tests/unit/ 撰寫單元測試<br>• 外部相依 100% Mock 隔離 (毫秒級回饋)"]
-    Step3 --> TestCheck{"單元測試是否通過?<br>(Ran X tests ... OK)"}
-    TestCheck -->|"失敗"| Step6["Step 6: 自主診斷與修正 (Auto-Fix)<br>★ 呼叫 auto-fix 技能<br>• 閱讀 Traceback 定位根因<br>• 最小衝擊修正代碼或測試"]
-    
-    TestCheck -->|"通過"| Step4["Step 4: 黑箱/灰箱 QA 實測驗證 (QA Testing)<br>★ 呼叫 qa-testing 技能<br>• tests/e2e/ 執行真實 CLI 與 Redis 實測<br>• 邊界情境對抗 ➔ 產出 QA 實測驗收報告"]
-    Step4 --> QACheck{"QA 實測是否全數達標?<br>(零功能瑕疵、零未預期例外)"}
-    QACheck -->|"失敗"| Step6
-    Step6 --> Step3
-    
-    QACheck -->|"全部通過"| Step5["Step 5: 對抗式代碼審查 (Gate 2)<br>★ 呼叫 code-review 技能<br>• 執行 audit_guardrails.py AST 掃描<br>• 對照 review_checklist.md 人工覆核"]
-    Step5 --> Gate2{"★【門禁二：Gate 2 審查】<br>審查是否通過?<br>(零 P0 阻斷型違規)"}
-    Gate2 -->|"有 P0 違規"| Step6
-    Gate2 -->|"完全合格"| Step7["Step 7: 文檔、規格與 ADR 同步 (Doc Sync)<br>★ 呼叫 doc-sync 技能<br>• 同步 REQUIREMENTS.md 與 ARCHITECTURE.md<br>• 正式歸檔 docs/adr/ 架構決策紀錄"]
-    Step7 --> Done["【交付】出具簡潔說明、可點擊鏈接、QA 實測與代碼審查報告"]
-```
+### 分流表 (Track Routing)
 
-### 步驟與專屬技能調度矩陣 (Skills Dispatcher)
+| 請求類型 | 判斷條件 | 流程檔 |
+| :--- | :--- | :--- |
+| 簡單文件任務、問答 | 錯字、註解、說明，不改程式行為 | 不啟動閉環 |
+| 功能開發 | 新增或變更行為；或「正確行為」需重新定義 | [feature.md](.agents/workflows/feature.md) |
+| 缺陷修正 | 既有行為違反規格、文件或合理預期，嚴重度 S2／S3 | [bug.md](.agents/workflows/bug.md) |
+| 緊急止血 | 缺陷且嚴重度為 S1（資料損壞或遺失、個資外洩、安全漏洞、主要流程全面失敗） | [hotfix.md](.agents/workflows/hotfix.md) |
 
-| 步驟 | 階段名稱 | 專屬 Skill 與呼叫指令 | 核心放行條件 / 產出物 |
-| :--- | :--- | :--- | :--- |
-| **Step 1** | **需求規格化與架構前審** *(Gate 1)* | [feature-design](.agents/skills/feature-design/SKILL.md) | 產出 PRD、DDD Tech Spec 與 QA 驗收矩陣（雙寫：生成 Artifact 並同步持久化至 `docs/specs/XXXX-*.md`）；通過 **Gate 1** 審查 |
-| **Step 2** | **依規格實作** | *(DDD 架構核心約制)* | 遵循 Tech Spec，強制 `with` 資源保護、例外鏈 `raise ... from err`、API 降級、日誌零洩漏 |
-| **Step 3** | **白箱單元測試** | [unit-testing](.agents/skills/unit-testing/SKILL.md) | 在 `tests/unit/` 實作；**100% 離線 Mock 獨立性**，負面/故障注入；`unittest` 全數綠燈 |
-| **Step 4** | **黑箱/灰箱 QA 實測** | [qa-testing](.agents/skills/qa-testing/SKILL.md) | 在 `tests/e2e/` 實測真實 CLI/Redis/樣本檔；RTM 100% 覆蓋 AC；產出 **QA 實測驗收報告**（雙寫：生成 Artifact 並同步持久化至 `docs/qa_reports/XXXX-*.md`） |
-| **Step 5** | **對抗式代碼審查** *(Gate 2)* | [code-review](.agents/skills/code-review/SKILL.md) | 執行 `audit_guardrails.py` AST 靜態掃描 + Checklist 覆核；**Gate 2 零 P0 違規** |
-| **Step 6** | **自主診斷與修正** *(閉環中樞)* | [auto-fix](.agents/skills/auto-fix/SKILL.md) | 五步法根因定位 (RCA)，**嚴禁削弱斷言**；**三振熔斷機制（最多嘗試 3 輪，超額強制停機求助人類）** |
-| **Step 7** | **文檔與 ADR 同步** | [doc-sync](.agents/skills/doc-sync/SKILL.md) | 同步 `REQUIREMENTS.md`、`ARCHITECTURE.md`；歸檔 `docs/adr/` 與更新 `docs/README.md` 中樞索引；執行 `verify_doc_sync.py` 驗證 |
+判斷不明時預設功能開發，並說明理由。缺陷修正途中觸發升級條件時，**經使用者確認**後轉功能開發（規則見 [bug.md](.agents/workflows/bug.md)）。
+
+### 主控職責 (Orchestrator Duties)
+主對話（即接收需求的 Agent）負責以下事項，不另設協調者角色：
+1. 分流判斷與升級提議。
+2. 階段轉換與失敗退回判定。
+3. 三振計數與熔斷（換軌後歸零）。
+4. 交接 JSON 組裝（含 `discarded_attempts` 累積）。
+5. 多代理模式下的模型分級選擇。
+6. 最終交付報告（所走流程檔、QA 摘要、Gate 2 摘要）。
+
+### 雙門禁定義 (Gates)
+
+| 門禁 | 位置 | 放行條件 |
+| :--- | :--- | :--- |
+| **Gate 1**（架構前審） | 功能開發 Step 1；缺陷修正 Step 1B 第 6 階段（簡化版） | 功能：PRD、Tech Spec 與測試案例達標，無高風險架構債；缺陷：修正只恢復既有規格行為、影響面已列出、無介面破壞 |
+| **Gate 2**（對抗式代碼審查） | 各軌 Step 5，**任何軌別皆不可省** | `audit_guardrails.py` 零 P0，且 Checklist 覆核零 P0 |
+
+### 閉環 Skill 一覽
+
+| 步驟 | Skill | 用於 |
+| :--- | :--- | :--- |
+| Step 1 | [feature-design](.agents/skills/feature-design/SKILL.md) | 功能開發 |
+| Step 1B | [bug-triage](.agents/skills/bug-triage/SKILL.md) | 缺陷修正、緊急止血 |
+| Step 3 | [unit-testing](.agents/skills/unit-testing/SKILL.md) | 全部 |
+| Step 4 | [qa-testing](.agents/skills/qa-testing/SKILL.md) | 全部 |
+| Step 5 | [code-review](.agents/skills/code-review/SKILL.md) | 全部 |
+| Step 6 | [auto-fix](.agents/skills/auto-fix/SKILL.md) | 全部（三振熔斷：最多 3 輪，超額停機求助人類） |
+| Step 7 | [doc-sync](.agents/skills/doc-sync/SKILL.md) | 全部（缺陷修正為精簡同步） |
 
 ### 品質評測規則（檢索、抽取與 LLM 生成）
 

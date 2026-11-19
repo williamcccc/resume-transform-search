@@ -441,8 +441,8 @@ python tests/eval/run_followup_eval.py               # answer_status 混淆矩�
 
 系統嚴格落實「前後雙門禁」細化自主閉環流程：
 1. **Gate 1: 架構與規格審查 (兩階段需求規格化、8 大維度前審與 QA 測試案例矩陣)**：
-   * **Step 1A【代碼探測與 PRD 需求細化】**：AI 探測既有代碼，產出包含 In/Out Scope 與驗收標準 (AC) 之產品需求文件。
-   * **Step 1B【8 大維度架構前審與 Tech Spec】**：進行 PII、容量、演進、成本、解耦、惡意防禦、遷移、併發審查，產出 DDD 技術規格書與 **QA 測試案例矩陣**。
+   * **Step 1-1【代碼探測與 PRD 需求細化】**：AI 探測既有代碼，產出包含 In/Out Scope 與驗收標準 (AC) 之產品需求文件。
+   * **Step 1-2【8 大維度架構前審與 Tech Spec】**：進行 PII、容量、演進、成本、解耦、惡意防禦、遷移、併發審查，產出 DDD 技術規格書與 **QA 測試案例矩陣**。
    * **雙寫持久化要求**：產生物件同時輸出為 Artifact 與專案目錄 `docs/specs/XXXX-*.md`，確保版本控制透明度。
    * **門禁一放行判定**：PRD、Tech Spec 與 QA 案例驗收通過後，始得進入實作。
 2. **Step 2: 規範化實作 (Implementation)**：遵循 Tech Spec 與 DDD 分層實作。
@@ -455,4 +455,6 @@ python tests/eval/run_followup_eval.py               # answer_status 混淆矩�
    * 人工/對抗式比對 `review_checklist.md`，杜絕任何 P0 阻斷型缺陷流出。
 6. **Step 6: 自主診斷與修正 (Auto-Fix)**：任一測試或代碼審查未過，自主閉環定位修復。
 7. **Step 7: 文檔、規格與 ADR 雙向同步 (Doc Sync)**：同步最新命令、架構、ADR、規格書與 QA 報告至 `docs/README.md`，並執行 `verify_doc_sync.py` 驗證。
+
+**流程分軌（[Spec-0025](docs/specs/0025-workflow-tracks-and-bug-fix-spec.md)）**：上述 7 步驟為功能開發軌。AGENTS.md 第 2 節分流表依請求類型導向三個流程檔：功能開發（[feature.md](.agents/workflows/feature.md)）、缺陷修正（[bug.md](.agents/workflows/bug.md)，S2／S3）與緊急止血（[hotfix.md](.agents/workflows/hotfix.md)，S1）。缺陷修正以 **Step 1B（bug-triage）** 取代 Step 1：重現 → 紅燈回歸測試 → 根因與逃逸分析 → 修正範圍與升級判斷 → 簡化 Gate 1；Step 2–6 共用；Step 7 精簡同步。缺陷報告存於 `docs/bugs/`，PR 須先 `test:` 後 `fix:` 且不得 squash；觸發升級條件時經使用者確認轉功能開發軌。
 

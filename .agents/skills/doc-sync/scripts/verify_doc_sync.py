@@ -12,6 +12,9 @@ verify_doc_sync.py
 5. .claude/ 原生轉接層與 .agents/ 正本一一對應、frontmatter 一致且未複製正本內容。
 6. 規格須宣告「品質評測範圍：是/否」；宣告為「是」者，驗收標準須列出品質指標
    （編號 0023 起強制，較早者未宣告則略過、宣告為「是」但缺指標僅警告）。
+7. docs/bugs/ 缺陷報告比照規格檢查檔名、索引登錄與品質評測範圍宣告。
+8. AGENTS.md 分流表連結之 .agents/workflows/ 流程檔皆存在，且流程檔皆有登錄於分流表。
+9. docs/templates/ 範本鏡像與 .agents/ 正本內容一致。
 """
 
 import os
@@ -24,6 +27,8 @@ DOCS_DIR = ROOT_DIR / "docs"
 DOCS_ADR_DIR = DOCS_DIR / "adr"
 DOCS_SPECS_DIR = DOCS_DIR / "specs"
 DOCS_QA_DIR = DOCS_DIR / "qa_reports"
+DOCS_BUGS_DIR = DOCS_DIR / "bugs"
+AGENTS_FILE = ROOT_DIR / "AGENTS.md"
 DOCS_README = DOCS_DIR / "README.md"
 ADR_README = DOCS_ADR_DIR / "README.md"
 REQUIREMENTS_FILE = ROOT_DIR / "REQUIREMENTS.md"
@@ -298,6 +303,68 @@ def check_quality_ac_directory(dir_path: Path) -> bool:
     return check_quality_ac_specs(specs)
 
 
+# 流程分軌檢查（AGENTS.md 第 2 節分流表 ↔ .agents/workflows/）
+WORKFLOW_LINK_PATTERN = re.compile(r"\]\((?:\./)?(\.agents/workflows/[^)\s#]+\.md)(?:#[^)]*)?\)")
+
+
+def check_workflow_routing(agents_text: str, root: Path = ROOT_DIR) -> bool:
+    """校驗分流表連結之流程檔皆存在，且 .agents/workflows/ 下每個流程檔皆有登錄。"""
+    linked = set(WORKFLOW_LINK_PATTERN.findall(agents_text))
+    workflows_dir = root / ".agents" / "workflows"
+    existing = (
+        {p.relative_to(root).as_posix() for p in workflows_dir.glob("*.md")}
+        if workflows_dir.exists()
+        else set()
+    )
+    all_ok = True
+    if not linked:
+        print("[FAIL] AGENTS.md 分流表未連結任何 .agents/workflows/ 流程檔")
+        return False
+    for link in sorted(linked - existing):
+        print(f"[FAIL] AGENTS.md 分流表連結之流程檔不存在: {link}")
+        all_ok = False
+    for orphan in sorted(existing - linked):
+        print(f"[FAIL] 流程檔未登錄於 AGENTS.md 分流表: {orphan}")
+        all_ok = False
+    if all_ok:
+        print(f"[PASS] AGENTS.md 分流表與 .agents/workflows/ 流程檔一致 ({len(linked)} 個)")
+    return all_ok
+
+
+# docs/templates/ 鏡像：檔名 → 正本相對路徑
+TEMPLATE_MIRRORS = {
+    "prd_template.md": ".agents/skills/feature-design/references/prd_template.md",
+    "tech_spec_template.md": ".agents/skills/feature-design/references/tech_spec_template.md",
+    "test_case_template.md": ".agents/skills/qa-testing/references/test_case_template.md",
+    "qa_report_template.md": ".agents/skills/qa-testing/references/qa_report_template.md",
+    "bug_report_template.md": ".agents/skills/bug-triage/references/bug_report_template.md",
+}
+
+
+def _normalized(path: Path) -> str:
+    return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+def check_template_mirrors(root: Path = ROOT_DIR, mirrors: dict = TEMPLATE_MIRRORS) -> bool:
+    """校驗 docs/templates/ 鏡像與 .agents/ 正本內容一致（忽略換行符差異）。"""
+    all_ok = True
+    for name, source_rel in mirrors.items():
+        mirror = root / "docs" / "templates" / name
+        source = root / source_rel
+        if not source.exists():
+            print(f"[FAIL] 範本正本不存在: {source_rel}")
+            all_ok = False
+        elif not mirror.exists():
+            print(f"[FAIL] 缺少範本鏡像: docs/templates/{name}（正本: {source_rel}）")
+            all_ok = False
+        elif _normalized(mirror) != _normalized(source):
+            print(f"[FAIL] 範本鏡像與正本不一致，請自正本複製: docs/templates/{name} ← {source_rel}")
+            all_ok = False
+    if all_ok:
+        print(f"[PASS] docs/templates/ 範本鏡像與正本一致 ({len(mirrors)} 個)")
+    return all_ok
+
+
 def main():
     print("=== [doc-sync] 文檔雙向同步一致性檢驗 ===")
     ok1 = check_basic_docs_exist()
@@ -306,8 +373,13 @@ def main():
     ok4 = check_directory_docs(DOCS_QA_DIR, "QA 實測驗收報告 (QA Reports)", DOCS_README)
     ok5 = check_claude_adapters()
     ok6 = check_quality_ac_directory(DOCS_SPECS_DIR)
+    ok7 = check_directory_docs(DOCS_BUGS_DIR, "缺陷報告 (Bug Reports)", DOCS_README)
+    ok8 = check_quality_ac_directory(DOCS_BUGS_DIR)
+    ok9 = check_workflow_routing(AGENTS_FILE.read_text(encoding="utf-8") if AGENTS_FILE.exists() else "")
 
-    if ok1 and ok2 and ok3 and ok4 and ok5 and ok6:
+    ok10 = check_template_mirrors()
+
+    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10)):
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")
         sys.exit(0)
     else:

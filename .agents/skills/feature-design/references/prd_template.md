@@ -37,7 +37,7 @@
 ## 4. 業務邏輯與驗收標準 (Acceptance Criteria, AC)
 品質評測範圍：否
 
-> 若功能影響檢索、排序、抽取或 LLM 生成結果，或變更 `prompts/` 與模型設定，改為「品質評測範圍：是」，並於下方 AC 定義可量化品質指標（如 Recall@K、MRR、nDCG、欄位 F1、評審分數、人工校準一致率）。詳見 [quality-evaluation 技能](../../quality-evaluation/SKILL.md)。
+> 若功能影響檢索、排序、抽取或 LLM 生成結果，或變更 `prompts/` 與模型設定，改為「品質評測範圍：是」，並於下方 AC 定義可量化品質指標（如 Recall@K、MRR、nDCG、欄位 F1、評審分數、人工校準一致率）。詳見 quality-evaluation 技能（`.agents/skills/quality-evaluation/SKILL.md`）。
 
 採用條列或 Given-When-Then 格式明確定義功能驗收標準：
 
