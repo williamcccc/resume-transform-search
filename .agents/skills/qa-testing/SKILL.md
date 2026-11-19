@@ -19,6 +19,10 @@ description: >-
 * **需求追溯矩陣 (Requirements Traceability Matrix, RTM)**：
   - 自動交叉比對前期產出的「PRD」與「Tech Spec」，逐一盤點每一條 **Acceptance Criteria (AC)**。
   - 強制保證：**每一條業務驗收條件（AC）至少具備一組對應的測試案例覆蓋**，嚴禁遺漏任何需求邊界。
+  - RTM 每條 AC 標註狀態：`PASS` / `FAIL` / `DEFERRED`（須附理由、替代保障與人類核准）/ `NOT COVERED`，定義見 [QA 報告範本](./references/qa_report_template.md) 第 3 節。
+* **測試計畫先行 (Plan Before Execution)**：
+  - 執行測試前，先寫下報告範本第 2 節「測試計畫摘要」：測試範圍、**不測範圍與理由**、進入/退出條件、風險與優先順序。
+  - 「不測範圍」必須逐項附理由與替代保障，以區分「決定不測」與「漏測」；計畫不得於執行後為配合結果而回改。
 
 ### 2. 邊界與異常情境對抗挖掘 (Edge Case Discovery & Adversarial Scenarios)
 發掘人類工程師容易忽略的極限盲區，自動補充以下對抗式測試案例：
@@ -46,7 +50,7 @@ description: >-
 
 ```mermaid
 flowchart TD
-    Start["進入 Step 4: QA 實測驗證<br>(單元測試已全數通過)"] --> Phase1["階段 1: 需求追溯與邊界挖掘 (Traceability & Discovery)<br>• 對照 PRD AC 盤點 RTM 覆蓋矩陣<br>• 自動挖掘併發競態、冪等性、壞檔與斷線情境"]
+    Start["進入 Step 4: QA 實測驗證<br>(單元測試已全數通過)"] --> Phase1["階段 1: 測試計畫、需求追溯與邊界挖掘 (Plan, Traceability & Discovery)<br>• 寫下測試範圍、不測範圍與理由、進出條件<br>• 對照 PRD AC 盤點 RTM 覆蓋矩陣<br>• 自動挖掘併發競態、冪等性、壞檔與斷線情境"]
     
     Phase1 --> Phase2["階段 2: 產生實測腳本與防 Flaky 審核 (Script & Review)<br>• 產生/更新 tests/e2e/ 或 integration/ 腳本<br>• 審查隔離性，消除不穩定測試 (Flaky tests)"]
     
@@ -69,10 +73,11 @@ python -m unittest discover -s tests/e2e -p "test_*.py"
 ```
 
 ### 驗收放行標準 (Sign-Off Criteria)：
-1. **100% AC 覆蓋**：PRD 定義之驗收條件全數通過。
+1. **100% AC 覆蓋**：RTM 零 `FAIL`、零 `NOT COVERED`；`DEFERRED` 項目皆有理由、替代保障與人類核准紀錄。
 2. **零阻斷型缺陷 (Zero P0/P1 Defects)**：無崩潰、無未受控例外。
 3. **Windows 資源清潔度**：測試執行完畢後無控制代碼殘留，暫存檔乾淨卸載。
 4. **向下相容性保持**：既有 CLI 命令引數與回傳格式 100% 保持穩定。
+5. **品質評測（規格宣告 `品質評測範圍：是` 時）**：報告第 6 節記錄評測資料集、前後分數、Token 消耗與 rubric 版本；品質 AC 全數達標，分數下降項須說明理由並交 Gate 2 核准。
 
 ---
 
