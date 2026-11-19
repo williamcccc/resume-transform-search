@@ -448,7 +448,7 @@ python tests/eval/run_followup_eval.py               # answer_status 混淆矩�
 2. **Step 2: 規範化實作 (Implementation)**：遵循 Tech Spec 與 DDD 分層實作。
 3. **Step 3: 白箱單元測試 (Unit Testing)**：`tests/unit/` 100% Mock 毫秒級驗證。
 4. **Step 4: 黑箱/灰箱 QA 實測驗證 (QA Testing)**：
-   * 啟動 `qa-testing` 技能，執行 `tests/e2e/` 或 `tests/integration/` 端到端實測腳本。
+   * 啟動 `qa-testing` 技能，執行 `tests/e2e/` 端到端實測腳本。
    * 驗證真實 CLI 參數、真實 sample 檔案與真實 Redis 服務，驗收通過後出具 **QA 實測驗收報告**（同時輸出為 Artifact 並持久化存檔於 `docs/qa_reports/XXXX-*.md`）。
 5. **Gate 2: 對抗式代碼審查 (AST 靜態掃描 + Checklist)**：
    * 運行 `audit_guardrails.py`，強制驗證 Domain 零外部依賴、Application DIP 依賴反轉、檔案 open 100% 受 Context Manager 保護（防 Windows 檔案鎖死）、零盲目吞噬例外、自訂例外完整保留 `raise ... from err` 原始呼叫堆疊。

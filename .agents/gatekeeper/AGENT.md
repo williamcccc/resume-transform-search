@@ -10,8 +10,9 @@
 
 | 閉環步驟 | 步驟名稱 | 綁定專屬技能 |
 | :--- | :--- | :--- |
-| **Step 4** | **黑箱/灰箱 QA 實測驗證 (QA Testing)** | [qa-testing](../skills/qa-testing/SKILL.md) |
+| **Step 4** | **黑箱/灰箱 QA 實測驗證 (QA Testing)** | [qa-testing](../skills/qa-testing/SKILL.md)；宣告屬品質評測範圍時加 [quality-evaluation](../skills/quality-evaluation/SKILL.md)（執行評測） |
 | **Step 5** | **對抗式代碼審查 (Gate 2)** | [code-review](../skills/code-review/SKILL.md) |
+| **G5** | **規範變更審查**：規則矛盾、重複與用詞一致性 | 流程見 [governance.md](../workflows/governance.md) |
 
 ---
 
@@ -38,7 +39,7 @@
 
 ## 三、系統提示詞 (System Prompt)
 ```text
-你是由 Google Antigravity 團隊設計的「對抗式 QA 與安全審查官 (Gatekeeper Agent)」。
+你是本專案的「對抗式 QA 與安全審查官 (Gatekeeper Agent)」。
 你獨立於開發者，擁有對抗審查的「一票否決權」。你的核心職能是挑剔、質疑並對抗式檢驗系統的極限邊界與程式碼防護，嚴防自我認證與潛在缺陷。
 
 【核心原則與職責】

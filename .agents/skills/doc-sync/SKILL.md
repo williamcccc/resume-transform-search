@@ -53,17 +53,34 @@ flowchart TD
 * **檢核與同步要點**：
   1. **狀態轉換**：若本次變更在 Step 1 草擬了架構決策紀錄（狀態為 `提案中 (Proposed)`），在通過審查與實作落地後，必須正式將狀態變更為 **`已採納 (Accepted)`**，並補全實施後的評估結論。
   2. **編號與索引維護**：檢查新 ADR 是否依照連續編號命名（如 `0006-xxxx.md`），並在 [docs/adr/README.md](../../../docs/adr/README.md) 的索引表格中追加該條目，填妥編號、標題、狀態、日期與核心技術標籤。
-  3. **8 大架構維度完整性**：確保 ADR 內含 8 大維度評估（PII、Capacity、Async、Cost、Fault-Tolerance、Auditability、Compatibility、Security）。
+  3. **8 大架構維度完整性**：確保 ADR 第 5 節依 [arch_review_checklist.md](../feature-design/references/arch_review_checklist.md)（唯一正本）逐項填寫評估結論。
+
+### 階段 3.5：索引與範本鏡像同步 (Index & Mirror Sync)
+* **`docs/README.md` 索引**：本次新增的規格、QA 報告、缺陷報告須登錄於對應表格（功能規格表或缺陷修正表），並填妥測試檔與 QA 報告連結。
+* **`docs/templates/` 鏡像**：若修改了 `.agents/skills/*/references/` 下的範本，自正本重新複製至 `docs/templates/`。範本內引用其他檔案一律寫專案路徑，不使用相對連結。
+
+### 依軌別的同步範圍
+
+| 軌別 | 同步範圍 |
+| :--- | :--- |
+| 功能開發 | 階段 1–4 全部 |
+| 缺陷修正、緊急止血 | 缺陷報告結案、`docs/README.md` 缺陷索引、階段 4；REQUIREMENTS／ARCHITECTURE 僅在文件描述有誤時修改；不產出 ADR |
+| 規範變更 | `.claude/**` 轉接層、`docs/templates/` 鏡像、`docs/README.md` 索引、階段 4；另依 [governance.md](../../workflows/governance.md) 執行 G4 檢查清單 |
 
 ### 階段 4：一致性自動驗證 (Automated Verification)
 執行本技能內建的驗證腳本：
 ```bash
 python .agents/skills/doc-sync/scripts/verify_doc_sync.py
 ```
-* 該腳本將自動檢核：
-  - `docs/adr/` 目錄下的所有檔案是否 100% 登錄於 `docs/adr/README.md` 索引表。
-  - ADR 標題、狀態格式（Accepted / Proposed）是否合規。
-  - CLI 入口點 `--help` 參數是否均存在於 `REQUIREMENTS.md`。
+* 該腳本自動檢核以下項目（結束碼非 0 即未通過）：
+  - `REQUIREMENTS.md`、`ARCHITECTURE.md`、`docs/README.md`、`docs/adr/README.md` 存在且非空。
+  - `docs/adr/`、`docs/specs/`、`docs/qa_reports/`、`docs/bugs/` 的檔名格式與索引登錄；ADR 狀態標註。
+  - 規格與缺陷報告的「品質評測範圍」宣告，以及宣告屬範圍時驗收標準中的品質指標。
+  - `.claude/` 轉接層與 `.agents/` 正本一致。
+  - AGENTS.md 分流表連結的流程檔皆存在，且流程檔皆已登錄。
+  - `docs/templates/` 鏡像與正本一致。
+  - AGENTS.md 超過 200 行時印出警告（不影響結束碼）。
+* 腳本**不檢查** CLI 參數是否已寫入 `REQUIREMENTS.md`，此項依 [doc_sync_checklist.md](./references/doc_sync_checklist.md) 人工確認。
 
 ---
 

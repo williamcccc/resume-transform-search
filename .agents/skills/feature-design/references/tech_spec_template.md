@@ -93,3 +93,16 @@
    * `test_execute_timeout`：模擬外部依賴超時拋出連線異常，驗證降級或優雅報錯。
    * `test_execute_invalid_input`：傳入不合法參數，驗證引發預期的自定義領域例外。
    * `test_execute_rate_limit_429`：模擬外部 API 429 配額用罄，驗證熔斷防護。
+
+---
+
+## 7. QA 驗收案例矩陣 (QA Acceptance Test Matrix)
+對照 PRD 每一條 AC 規劃 Step 4 的驗收案例，確保每條 AC 至少一個案例。Step 4 依此矩陣實測，並於 QA 報告第 3、4 節回填狀態與實際結果。
+
+| AC | 案例編號 | 案例名稱 | 分類 | 輸入條件 / 操作 | 預期結果 |
+| :--- | :---: | :--- | :---: | :--- | :--- |
+| AC 1 | TC-01 | 正向路徑端到端實測 | Happy | CLI 轉換指定樣本 | 產出完整 Markdown，品管通過 |
+| AC 2 | TC-02 | 空檔案邊界 | Edge | 傳入 0 位元組檔案 | 拋出指定例外，程序不崩潰 |
+| AC 3 | TC-03 | 外部 API 429 | Fault | 模擬配額用罄 | 平滑降級，日誌記錄明確 |
+
+分類：Happy、Edge、Concurrency、Idempotency、Fault、Security（定義見 QA 測試個案範本）。複雜案例可另依 `.agents/skills/qa-testing/references/test_case_template.md` 補充說明。

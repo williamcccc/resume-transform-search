@@ -91,6 +91,26 @@ class TestQualityScopeDeclaration(unittest.TestCase):
         self.assertFalse(vds.quality_scope("品質評測範圍：否"))
         self.assertIsNone(vds.quality_scope("品質評測：是"))
 
+    def test_quoted_declaration_before_acceptance_section_is_ignored(self):
+        spec = "# 規格\n## 1. 背景\n舊規則要求寫「品質評測範圍：是」並附指標。\n" + make_spec(
+            "品質評測範圍：否", "- AC1：設定檔可正常載入。"
+        )
+        self.assertFalse(vds.quality_scope(spec))
+        result, output = run_check([("0027-x.md", spec)])
+        self.assertTrue(result)
+        self.assertNotIn("[FAIL]", output)
+
+    def test_acceptance_section_declaration_wins_over_earlier_opposite_quote(self):
+        spec = "# 規格\n說明：範例寫法為「品質評測範圍：否」。\n" + make_spec(
+            "品質評測範圍：是", "- AC1：Recall@10 不低於 0.8。"
+        )
+        self.assertTrue(vds.quality_scope(spec))
+        result, _ = run_check([("0027-x.md", spec)])
+        self.assertTrue(result)
+
+    def test_declaration_outside_acceptance_section_still_found_as_fallback(self):
+        self.assertFalse(vds.quality_scope("# 缺陷報告\n## 1. 受理\n內容\n\n品質評測範圍：否\n"))
+
 
 class TestQualityMetricPattern(unittest.TestCase):
     def assert_metric(self, ac_line, expected):
