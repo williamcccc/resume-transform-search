@@ -8,7 +8,7 @@ description: >-
 # 需求規格化與架構技術設計技能 (Feature Design & Arch Spec)
 
 本技能提供本專案在實施 **「門禁一：架構與規格審查 (Gate 1)」** 時的標準作業程序。
-用以杜絕 AI 助理在接收到簡短使用者指令時「天馬行空、想到哪寫到哪」的通病，確保每一項新功能或缺陷修復在動工撰寫程式碼前，均經過**充分代碼探測**、**結構化 PRD 需求細化**、**8 大架構維度衝擊評估**與**嚴謹的 DDD 技術規格書 (Tech Spec) 產出**。
+用以杜絕 AI 助理在接收到簡短使用者指令時「天馬行空、想到哪寫到哪」的通病，確保每一項新功能在動工撰寫程式碼前（缺陷修復改走 Bug 軌 Step 1B，見 [bug-triage](../bug-triage/SKILL.md)），均經過**充分代碼探測**、**結構化 PRD 需求細化**、**8 大架構維度衝擊評估**與**嚴謹的 DDD 技術規格書 (Tech Spec) 產出**。
 
 ---
 
@@ -44,15 +44,7 @@ flowchart TD
 * **驗收標準 (Acceptance Criteria)**：以條列或 Given-When-Then 明確定義正常情境、極限邊界與錯誤處理。
 
 ### 階段 3：8 大架構維度前審 (Architecture Review)
-對照 [arch_review_checklist.md](./references/arch_review_checklist.md) 進行衝擊評估：
-1. **PII 隱私**：是否涉及敏感個資上雲或未脫敏儲存？
-2. **容量與極限**：Redis 記憶體是否會 OOM？切片擴展性如何？
-3. **非同步演進**：Use Case 是否具備無狀態特性？
-4. **成本與熔斷**：Gemini API 預算與 429 熔斷機制。
-5. **可抽換性**：是否 100% 透過 Protocol 抽象，更換底層零改動？
-6. **惡意輸入硬上限**：是否防範 Zip Bomb（大小/頁數/膨脹比上限）與 Prompt 圍欄隔離？
-7. **向量索引演進遷移**：Redis 索引鍵是否支援版本平滑遷移？
-8. **分散式併發與可觀測性**：多 worker 冪等性與全鏈路 Trace ID。
+逐項對照 [arch_review_checklist.md](./references/arch_review_checklist.md)（8 大架構維度的唯一正本）進行衝擊評估，並依其「輕重分流判定原則」決定 Fast Track 或 Deep Track。
 > [!IMPORTANT]
 > 若評估為 **重大架構變更 (Deep Track)**，必須於 [`docs/adr/`](../../../docs/adr/) 先撰寫 ADR 草案。
 
@@ -63,6 +55,8 @@ flowchart TD
 * **【基礎設施層】**：外部套件串接方式、資源釋放（強制 Context Manager `with`）、例外鏈保留（`raise ... from err`）與日誌脫敏。
 * **【表現層】**：CLI 旗標設計，保證 100% 向下相容。
 * **【測試計畫】**：規劃單元測試清單（正常情境 + 負面故障注入情境）。
+* **【QA 驗收案例矩陣】**：對照每條 AC 規劃 Step 4 驗收案例（範本第 7 節）。
+* **【品質評測】**：規格宣告屬品質評測範圍時，依 [quality-evaluation](../quality-evaluation/SKILL.md) 定義品質 AC 與標註資料來源。
 
 ### 階段 5：Gate 1 門禁放行 (Gate 1 Sign-Off)
 出具 PRD 與 Tech Spec，向使用者或在工作區呈現清晰架構藍圖。

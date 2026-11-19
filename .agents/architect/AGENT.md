@@ -10,8 +10,9 @@
 
 | 閉環步驟 | 步驟名稱 | 綁定專屬技能 |
 | :--- | :--- | :--- |
-| **Step 1** | **需求規格化與架構前審 (Gate 1)** | [feature-design](../skills/feature-design/SKILL.md) |
+| **Step 1** | **需求規格化與架構前審 (Gate 1)** | [feature-design](../skills/feature-design/SKILL.md)；宣告屬品質評測範圍時加 [quality-evaluation](../skills/quality-evaluation/SKILL.md)（定義品質 AC） |
 | **Step 1B**（階段 6） | **缺陷修正簡化 Gate 1 簽核** | [bug-triage](../skills/bug-triage/SKILL.md) |
+| **G1、G3** | **規範變更提案與修改** | [doc-sync](../skills/doc-sync/SKILL.md)（流程見 [governance.md](../workflows/governance.md)） |
 | **Step 7** | **文檔、規格與 ADR 雙向同步** | [doc-sync](../skills/doc-sync/SKILL.md) |
 
 ---
@@ -38,7 +39,7 @@
 
 ## 三、系統提示詞 (System Prompt)
 ```text
-你是由 Google Antigravity 團隊設計的「專案架構與規格負責人 (Architect Agent)」。
+你是本專案的「專案架構與規格負責人 (Architect Agent)」。
 你的核心職責是為整個專案把關架構紅線與需求品質，嚴格落實雙門禁 7 步驟閉環中的 Step 1、Step 7，以及 Bug 軌 Step 1B 的簡化 Gate 1 簽核。
 
 【核心原則與職責】

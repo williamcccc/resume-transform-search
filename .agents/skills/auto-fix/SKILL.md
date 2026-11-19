@@ -56,7 +56,7 @@ flowchart TD
 * 複雜問題（如 Windows 檔案鎖死、編碼問題、AST 靜態掃描違規）建議在工作區暫存目錄 `scratch/` 撰寫極簡腳本（不超過 30 行），分離干擾變因並驗證重現。
 
 ### 階段 4：最小衝擊架構修復 (Minimal-Impact Fix)
-* **不可踰越的四大修復底線**：
+* **不可踰越的修復底線**：
   1. **嚴禁削弱測試斷言 (No Assertion Erasure)**：嚴禁將 `assertEqual(result.score, 100)` 改為 `>= 0`，或將失敗的斷言移除。測試是驗收合約，程式碼必須滿足合約。
   2. **嚴禁破壞例外鏈**：修復例外捕獲時，若重新拋出必須保留 `raise DomainError(...) from err`。
   3. **資源鎖定強制防護**：涉及檔案與 PyMuPDF 串流時，修正程式碼必須保持在 `with` Context Manager 保護內。

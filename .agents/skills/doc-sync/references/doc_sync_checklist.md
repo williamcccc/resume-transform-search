@@ -24,11 +24,19 @@
 - [ ] **狀態正規化**：已落地的 ADR 狀態是否已由 `提案中 (Proposed)` 正式變更為 **`已採納 (Accepted)`**？
 - [ ] **編號連續性**：ADR 檔名是否依循 `XXXX-kebab-case.md` 連續編號命名？
 - [ ] **索引表格同步**：[`docs/adr/README.md`](../../../../docs/adr/README.md) 的索引表格是否已新增該 ADR 條目（包含編號、標題、狀態、日期、技術標籤）？
-- [ ] **8 大維度完整度**：ADR 是否完整包含 8 大架構審查維度的分析結論？
+- [ ] **8 大維度完整度**：ADR 第 5 節是否依 `.agents/skills/feature-design/references/arch_review_checklist.md`（唯一正本）逐項填寫評估結論？
 
 ---
 
-### 四、自動化驗證執行
+### 四、索引與範本鏡像同步檢核
+- [ ] **`docs/README.md` 索引**：本次新增的規格、QA 報告、缺陷報告是否已登錄，並填妥測試檔與 QA 報告連結？
+- [ ] **缺陷報告狀態**（Bug 軌、Hotfix）：缺陷索引的狀態欄是否已更新（處理中／已止血，待補件（期限 YYYY-MM-DD）／已結案／已升級）？
+- [ ] **範本鏡像**：若修改了 `.agents/skills/*/references/` 下的範本，是否已重新複製至 `docs/templates/`？
+- [ ] **轉接層**（規範變更）：新增技能或修改技能的 `name`／`description` 時，`.claude/skills/` 轉接檔是否同步？
+
+---
+
+### 五、自動化驗證執行
 - [ ] **執行驗證腳本**：
   ```bash
   python .agents/skills/doc-sync/scripts/verify_doc_sync.py

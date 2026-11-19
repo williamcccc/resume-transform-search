@@ -43,19 +43,15 @@
 
 ## 5. 8 大架構審查維度評估 (8-Dimension Architecture Review)
 
-1. **個資隱私 (PII & Data Privacy)**：
-   - 履歷機敏資料（身分證字號、手機號碼、通訊地址等）之傳輸、儲存、快取與日誌是否具備嚴密脫敏機制？
-2. **容量與極限 (Capacity & Limits)**：
-   - 評估 Redis 記憶體足跡、向量切片上限、大量檔案批次處理時的資源佔用與極限邊界。
-3. **非同步與演進 (Async & Evolution)**：
-   - Use Case 是否保持無狀態（Stateless）？是否利於未來無縫遷移至非同步任務隊列（如 Celery/Redis Stream）？
-4. **成本與熔斷 (Cost & Circuit Breaker)**：
-   - 外部付費 API（如 Gemini LLM / Embedding）的呼叫預算控制、Token 消耗硬上限與 429 配額用罄時的平滑降級與熔斷防禦。
-5. **無損與容錯性 (Fail-Safe & Lossless Integrity)**：
-   - 磁碟原始檔案是否保證無損？外部網路斷線或資料庫重開機時，系統是否能自動恢復與優雅降級？
-6. **可稽核性 (Auditability & Observability)**：
-   - 轉檔評分、關鍵異常、品管裁定是否具備完整審計日誌與 Trace ID 關聯？
-7. **向下相容性 (Backward Compatibility)**：
-   - 根目錄 CLI 入口指令與各項參數是否 100% 維持相容？舊有切片或格式是否能平滑遷移？
-8. **安全性與注入防護 (Security & Jailbreak Defense)**：
-   - Prompt 是否具備 `<resume_content>` 等上下文標籤隔離，防範候選人惡意 Prompt 注入攻擊？是否防禦 Zip Bomb 與超大惡意畸形檔案？
+逐項對照 8 大架構維度的唯一正本 `.agents/skills/feature-design/references/arch_review_checklist.md`，每個維度寫出評估結論：
+
+| # | 維度 | 評估結論 |
+| :---: | :--- | :--- |
+| 1 | 個資隱私 (PII) | |
+| 2 | 容量與極限 (Capacity) | |
+| 3 | 非同步與演進 (Async / Evolution) | |
+| 4 | Token 能效與成本熔斷 (Token Economics & Cost) | |
+| 5 | 可抽換性 (Portability & Decoupling) | |
+| 6 | 惡意輸入與配額硬上限 (Input Security) | |
+| 7 | 向量索引演進遷移 (Index Evolution) | |
+| 8 | 分散式併發與可觀測性 (Concurrency & Traceability) | |

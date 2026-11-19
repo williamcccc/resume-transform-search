@@ -256,8 +256,10 @@ def extract_acceptance_section(text: str) -> str:
 
 
 def quality_scope(text: str):
-    """回傳規格宣告的品質評測範圍：True（是）、False（否）或 None（未宣告）。"""
-    match = QUALITY_SCOPE_PATTERN.search(text)
+    """回傳規格宣告的品質評測範圍：True（是）、False（否）或 None（未宣告）。
+    優先採用驗收標準段落內的宣告；段落內沒有時才退回全文第一個宣告，
+    避免正文引用宣告字樣（如說明文字或發現表）被誤當成宣告。"""
+    match = QUALITY_SCOPE_PATTERN.search(extract_acceptance_section(text)) or QUALITY_SCOPE_PATTERN.search(text)
     if not match:
         return None
     return match.group(1) == "是"
