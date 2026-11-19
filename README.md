@@ -376,8 +376,10 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 python .agents/skills/doc-sync/scripts/verify_doc_sync.py
 ```
 
-### 雙門禁 7 步驟自主閉環開發流程 (Dual-Gate Closed-Loop Lifecycle)
-![雙門禁 7 步驟自主閉環工作流](./docs/images/closed_loop_workflow.svg)
+### 雙門禁閉環開發流程與分軌 (Dual-Gate Closed-Loop Tracks)
+依 [AGENTS.md](AGENTS.md) 第 2 節分流表，請求分為簡單文件任務、規範變更、功能開發、缺陷修正與緊急止血；各軌流程檔位於 [`.agents/workflows/`](.agents/workflows/)。
+
+![閉環工作流分軌：分流表、規範變更 G1–G6、功能／缺陷／止血共用 Step 2–6](./docs/images/closed_loop_workflow.svg)
 
 ---
 
