@@ -45,6 +45,15 @@ flowchart LR
 | **0022** | 招募助手放寬條件之人工決策 | [ADR-0022](./adr/0022-recruitment-relaxation-human-in-the-loop.md) | [Spec-0022](./specs/0022-recruitment-relaxation-human-in-the-loop-spec.md) | `tests/unit/test_recruitment_relaxation_hitl.py`、`tests/e2e/test_recruitment_relaxation_hitl_e2e.py` | [QA-0022](./qa_reports/0022-recruitment-relaxation-hitl-qa.md) |
 | **0023** | 檢索與抽取品質指標計算模組 | — | [Spec-0023](./specs/0023-retrieval-quality-metrics-spec.md) | `tests/unit/test_evaluation_metrics.py` | [QA-0023](./qa_reports/0023-retrieval-quality-metrics-qa.md) |
 | **0024** | 招募助理語意檢索評測與 answer_status 正確率 | — | [Spec-0024](./specs/0024-recruitment-retrieval-and-answer-status-eval-spec.md) | `tests/unit/test_eval_support.py`、`tests/eval/run_*_eval.py` | [QA-0024](./qa_reports/0024-recruitment-retrieval-and-answer-status-eval-qa.md) |
+| **0025** | 閉環流程分軌與 workflows 目錄化 | — | [Spec-0025](./specs/0025-workflow-tracks-and-bug-fix-spec.md) | `tests/unit/test_workflow_tracks_doc_sync.py`、`tests/e2e/test_workflow_tracks_doc_sync_e2e.py` | [QA-0025](./qa_reports/0025-workflow-tracks-and-bug-fix-qa.md) |
+
+### 缺陷修正追溯清單
+
+編號與上表共用同一流水號。流程見 [bug.md](../.agents/workflows/bug.md)、[hotfix.md](../.agents/workflows/hotfix.md)。
+
+| 編號 | 缺陷摘要 | 嚴重度 | 缺陷報告 | 回歸測試 | QA 報告 | 狀態 |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: |
+| — | （尚無） | — | — | — | — | — |
 
 ---
 
@@ -62,14 +71,19 @@ flowchart LR
 - 收錄各項功能在 **Step 4 (QA Testing)** 階段產出的實測報告。
 - 包含需求追溯矩陣（RTM 100% 覆蓋 AC）、對抗式極端情境實測結果與驗收簽核紀錄。
 
-### 4. `docs/templates/` (工程標準範本庫)
-為方便在檔案樹直接查閱，已將 AI 閉環專屬範本同步鏡像至本目錄：
+### 4. `docs/bugs/` (缺陷報告)
+- 收錄 Bug 軌 **Step 1B (bug-triage)** 產出的缺陷報告：重現步驟、紅燈回歸測試、根因與逃逸分析、修正範圍與升級判斷。
+- 編號與 `docs/specs/` 共用流水號，說明見 [`docs/bugs/README.md`](./bugs/README.md)。
+
+### 5. `docs/templates/` (工程標準範本庫)
+為方便在檔案樹直接查閱，已將 AI 閉環專屬範本同步鏡像至本目錄（`verify_doc_sync.py` 檢查鏡像與正本一致；修改時只改正本，再複製至此）：
 - 需求規格範本：[`prd_template.md`](./templates/prd_template.md)
 - 技術設計規格範本：[`tech_spec_template.md`](./templates/tech_spec_template.md)
 - QA 測試個案設計範本：[`test_case_template.md`](./templates/test_case_template.md)
 - QA 實測驗收報告範本：[`qa_report_template.md`](./templates/qa_report_template.md)
+- 缺陷報告範本：[`bug_report_template.md`](./templates/bug_report_template.md)
 
-*(內部技能來源存放於 `.agents/skills/feature-design/references/` 與 `.agents/skills/qa-testing/references/`)*
+*(內部技能來源存放於 `.agents/skills/feature-design/references/`、`.agents/skills/qa-testing/references/` 與 `.agents/skills/bug-triage/references/`；範本內引用其他檔案一律寫專案路徑，不使用相對連結，以免鏡像斷鏈)*
 
 ---
 

@@ -48,6 +48,7 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 9. **單元測試隔離度與負面測試**：單元測試是否 100% Mock 外部連線且零依賴本機 `data/`、`resume/` 實體檔案？是否包含超時、損毀、配額耗盡等負面情境測試？
 10. **Git 版控衛生與零個資防線 (Git Hygiene & Zero-PII)**：代碼、API 參數說明、CLI 範例、測試、Prompt 與文檔是否零真實求職者姓名/檔名、零真實企業案例？專案文檔連結是否全數使用相對路徑？`.gitignore` 與 `.env.example` 是否 100% 同步對齊？
 11. **需求—斷言追溯**：每條 AC 是否至少有一個斷言直接驗證其預期結果（而非只驗證未拋例外或呼叫次數）？抽查的預期值是否來自規格或手算，而非由被測程式輸出回填？
+12. **Bug 軌專屬（缺陷修正與緊急止血）**：回歸測試是否在 `test:` commit 失敗、在 `fix:` commit 通過（先紅後綠）？缺陷報告是否含逃逸分析？
 
 ### 階段 C：出具審查結果
 1. **持久化紀錄**：將本輪審查追加至該功能 QA 報告（`docs/qa_reports/XXXX-*.md`）第 9 節「Gate 2 代碼審查紀錄」，包含審查輪次、發現項目與處置、需求—斷言追溯抽查，以及下方審查結論區塊。格式見 [QA 報告範本](../qa-testing/references/qa_report_template.md) 第 9 節。複審時新增一列輪次，不覆寫前一輪。
@@ -64,6 +65,7 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 * **資料操作與冪等性**： 通過 (Redis 清除舊切片、版本相容)
 * **測試隔離與負面覆蓋**： 通過 (單元測試 100% Mock 記憶體建構，包含異常故障注入測試)
 * **需求—斷言追溯**： 通過 (N/N 條 AC 具備直接驗證預期結果之斷言；抽查 AC-x、AC-y、AC-z 預期值來源獨立)
+* **先紅後綠與逃逸分析**（僅 Bug 軌／Hotfix）： 通過 (`test:` commit 紅燈、`fix:` commit 綠燈；逃逸分析已記錄) / 不適用
 * **Git 版控衛生與零個資防線**： 通過 (零真實個資/企業案例、跨平台相對路徑、.gitignore 與 .env.example 100% 同步)
 ```
 

@@ -35,6 +35,8 @@
 ## 3. PRD 需求驗收追溯矩陣 (Requirements Traceability Matrix, RTM)
 驗證 PRD 中的每一項 Acceptance Criteria (AC) 是否達到 **100% 測試覆蓋**：
 
+> **Bug 軌／Hotfix**：RTM 對象改為缺陷報告第 5 節的缺陷驗收條件（`BC-1`…），加上受影響功能原規格中相關的 AC；第 2 節測試計畫只涵蓋受影響範圍。Hotfix 合併前可先以冒煙測試出具報告，補件時改為完整版。
+
 | PRD 驗收條款 (AC) | 條款說明 | 覆蓋測試案例 (TC ID) | 測試類型 | 狀態 |
 | :--- | :--- | :--- | :---: | :---: |
 | **AC 1.1** | 正向履歷轉檔與切片入庫 | `TC-01` | E2E | **PASS** |
@@ -80,7 +82,7 @@
 ---
 
 ## 6. 品質評測結果 (Quality Evaluation)
-> 規格宣告 `品質評測範圍：是` 時**必填**；宣告為「否」者填「不適用（規格宣告品質評測範圍：否）」。操作細節見 [quality-evaluation 技能](../../quality-evaluation/SKILL.md)。
+> 規格宣告 `品質評測範圍：是` 時**必填**；宣告為「否」者填「不適用（規格宣告品質評測範圍：否）」。操作細節見 quality-evaluation 技能（`.agents/skills/quality-evaluation/SKILL.md`）。
 
 * **評測資料集**：`tests/eval/data/<dataset>`（合成資料，筆數 `N`）
 * **評測指令**：`python -m tests.eval.<runner> ...`
@@ -140,4 +142,4 @@
 | AC 1.1 | `tests/e2e/test_xxx.py::test_yyy` 斷言切片數 = 3 | 規格第 X 節手算 | **OK** |
 
 ### 9.4 雙門禁審查結論
-貼上 [code-review 技能](../../code-review/SKILL.md) 階段 C 之「Code Review 雙門禁審查結果」區塊（最終輪結果）。
+貼上 code-review 技能（`.agents/skills/code-review/SKILL.md`）階段 C 之「Code Review 雙門禁審查結果」區塊（最終輪結果）。

@@ -494,10 +494,12 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 
 本專案採行 **「前後雙門禁 (Dual-Gate) 7 步驟」細化品管體系**，將架構前審（Gate 1）、白箱單元測試、黑箱 QA 實測與代碼審查（Gate 2）循序整合，確保系統在戰略方向、需求規格、功能驗證與代碼架構上皆具備工業級防護。
 
+下圖為功能開發軌。自 [Spec-0025](docs/specs/0025-workflow-tracks-and-bug-fix-spec.md) 起，流程編排移至 `.agents/workflows/`（`feature.md`、`bug.md`、`hotfix.md`），由 AGENTS.md 分流表導向；缺陷修正軌以 Step 1B（bug-triage）取代 Step 1，Step 2–6 共用，Gate 2 於所有軌別皆不可省。流程檔只寫編排，各步驟作業細節仍由 `.agents/skills/` 定義。
+
 ```mermaid
 flowchart LR
     subgraph Gate1Group ["★【Gate 1：需求規格化與架構前門禁】"]
-        Step1A["Step 1A: 代碼探測與 PRD<br>• 探查既有模組<br>• 產出產品需求文件"] --> Step1B["Step 1B: 架構前審與 Tech Spec<br>• 8 大維度檢核與 ADR<br>• 產出技術規格與 QA 案例矩陣"]
+        Step1A["Step 1-1: 代碼探測與 PRD<br>• 探查既有模組<br>• 產出產品需求文件"] --> Step1B["Step 1-2: 架構前審與 Tech Spec<br>• 8 大維度檢核與 ADR<br>• 產出技術規格與 QA 案例矩陣"]
         Step1B --> Gate1Check{"Gate 1 審查合格?"}
     end
     
@@ -512,8 +514,8 @@ flowchart LR
 
 ### 10.1 兩階段需求規格化 (Two-Stage Specification)
 使用者提出的需求通常僅有一至兩句簡短指示。為杜絕實作者「天馬行空」或破壞既有設計：
-1. **Step 1A (PRD 產品需求文件)**：由 AI 主動探測相關代碼庫，釐清相依關係，產出涵蓋使用者場景、In-Scope/Out-of-Scope、資料合約與驗收標準 (AC) 的產品需求文件。
-2. **Step 1B (Tech Spec 技術規格書)**：依據 PRD 進行 8 大架構維度衝擊評估，產出涵蓋 Domain 實體與協定、Application DTO 與調度時序、Infrastructure 資源釋放 (Context Manager) 與例外鏈保留、CLI 向下相容參數、單元測試計畫以及 **QA 驗收測試案例矩陣** 的工程實作規格書。
+1. **Step 1-1 (PRD 產品需求文件)**：由 AI 主動探測相關代碼庫，釐清相依關係，產出涵蓋使用者場景、In-Scope/Out-of-Scope、資料合約與驗收標準 (AC) 的產品需求文件。
+2. **Step 1-2 (Tech Spec 技術規格書)**：依據 PRD 進行 8 大架構維度衝擊評估，產出涵蓋 Domain 實體與協定、Application DTO 與調度時序、Infrastructure 資源釋放 (Context Manager) 與例外鏈保留、CLI 向下相容參數、單元測試計畫以及 **QA 驗收測試案例矩陣** 的工程實作規格書。
 
 ### 10.2 智能 QA 實測驗證四大支柱 (Intelligent QA Live Testing)
 不同於單元測試的全面 Mock，QA 實測環節（由 [`.agents/skills/qa-testing/`](.agents/skills/qa-testing/SKILL.md) 技能調度）在真實 CLI 執行緒、真實本機 sample 檔案與真實 Redis 服務下運行端到端腳本（`tests/e2e/`），落實四大核心能力：

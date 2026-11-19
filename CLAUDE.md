@@ -16,6 +16,8 @@
    | :--- | :--- | :--- |
    | Step 1 需求規格化與 Gate 1 架構前審 | architect | `opus`（預設） |
    | Step 7 文檔與 ADR 同步 | architect | 覆寫 `sonnet` |
+   | Step 1B 缺陷分析階段 1–5（重現、紅燈測試、RCA、修正範圍） | developer | 覆寫 `opus` |
+   | Step 1B 第 6 階段簡化 Gate 1 簽核 | architect | 覆寫 `sonnet` |
    | Step 2 實作、Step 3 單元測試、Step 6 一般修正 | developer | `sonnet`（預設） |
    | Step 6 深度 RCA（根因不明、跨層缺陷、第 3 輪修正） | developer | 覆寫 `opus` |
    | Step 5 Gate 2 對抗式代碼審查（首審、或複審涉及新設計/跨層/安全邊界） | gatekeeper | `opus`（預設） |
@@ -32,4 +34,5 @@
 4. **Skill 路徑與原生探索**：閉環各階段 Skill 之正本位於 `.agents/skills/<skill>/SKILL.md`；`.claude/skills/<skill>/SKILL.md` 僅為 Claude Code 原生探索之轉接層（僅含 frontmatter 與一行讀取指示），可經 Skill 工具或 `/<skill>` 呼叫，載入後仍以 Read 讀取正本並依其指示執行。
    - 新增或修改 Skill 時只改正本；若變更 `name`/`description` 或新增 Skill，須同步更新對應轉接檔。
    - 專案之 `code-review` 技能於 Claude Code 中命名為 `gate2-code-review`，以避免與 Claude Code 內建 `/code-review` 指令衝突。
+   - 流程檔（`.agents/workflows/*.md`）不設轉接層，依 AGENTS.md 分流表以 Read 讀取。
 5. **角色子 Agent 轉接層**：`.claude/agents/<role>.md` 僅含 frontmatter（`name`、`description`、`model`）與讀取 `.agents/<role>/AGENT.md` 之指示，**僅於使用者明確要求多代理協作時派工**；子 Agent 已自動載入 AGENTS.md，轉接檔嚴禁指示重複讀取。`model` 須與第 1 項分級表之角色預設值一致。

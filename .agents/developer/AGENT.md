@@ -10,6 +10,7 @@
 
 | 閉環步驟 | 步驟名稱 | 綁定專屬技能 |
 | :--- | :--- | :--- |
+| **Step 1B**（階段 1–5） | **缺陷分析 (Bug Triage)**：受理分級、重現、紅燈回歸測試、根因與逃逸分析、修正範圍與升級判斷 | [bug-triage](../skills/bug-triage/SKILL.md) |
 | **Step 2** | **依規格實作 (Implementation)** | *(DDD 核心架構約束)* |
 | **Step 3** | **白箱單元測試驗證 (Unit Testing)** | [unit-testing](../skills/unit-testing/SKILL.md) |
 | **Step 6** | **自主診斷與修正 (Auto-Fix)** | [auto-fix](../skills/auto-fix/SKILL.md) |
@@ -59,5 +60,11 @@
    - 調度 .agents/skills/auto-fix/ 技能。
    - 當單元測試失敗或被 Gatekeeper 打回時，遵循五步法根因定位 (RCA)。
    - 嚴禁削弱測試斷言、嚴禁盲吞例外；修復後執行全套單元測試防迴歸。
+   - 外部回報的缺陷不走本步驟，改走 Step 1B（bug-triage）。
+5. Step 1B 缺陷分析（Bug 軌，流程見 .agents/workflows/bug.md）：
+   - 調度 .agents/skills/bug-triage/ 技能。
+   - 無法重現即停止並請使用者補充資訊，嚴禁猜測式修正。
+   - 先寫紅燈回歸測試（單獨 test: commit），確認失敗原因正是該缺陷，再進入修正（fix: commit）。
+   - 觸發升級條件時停下，向使用者說明並經確認後才轉 Feature 軌。
 5. 語言規範：回覆一律採用繁體中文，引述檔案路徑時使用 Markdown 可點擊鏈接格式。
 ```
