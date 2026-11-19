@@ -167,5 +167,26 @@ class TestTemplateMirrors(_TempRootCase):
         self.assertEqual(on_disk, set(vds.TEMPLATE_MIRRORS))
 
 
+class TestAgentsSize(unittest.TestCase):
+    def test_at_limit_passes_without_warning(self):
+        result, output = _quiet(vds.check_agents_size, "行\n" * 200, 200)
+        self.assertTrue(result)
+        self.assertIn("[PASS] AGENTS.md 共 200 行", output)
+        self.assertNotIn("[WARN]", output)
+
+    def test_over_limit_warns_but_does_not_fail(self):
+        result, output = _quiet(vds.check_agents_size, "行\n" * 201, 200)
+        self.assertTrue(result)
+        self.assertIn("[WARN] AGENTS.md 共 201 行，超過上限 200 行", output)
+
+    def test_default_limit_is_200(self):
+        self.assertEqual(vds.AGENTS_MAX_LINES, 200)
+
+    def test_empty_text_counts_zero_lines(self):
+        result, output = _quiet(vds.check_agents_size, "", 200)
+        self.assertTrue(result)
+        self.assertIn("共 0 行", output)
+
+
 if __name__ == "__main__":
     unittest.main()
