@@ -55,8 +55,17 @@ class TestWorkflowTracksDocSyncE2E(unittest.TestCase):
     def test_e1_baseline_copy_passes(self):
         code, out = self.run_verify()
         self.assertEqual(code, 0, out)
-        self.assertIn("分流表與 .agents/workflows/ 流程檔一致 (3 個)", out)
+        self.assertIn("分流表與 .agents/workflows/ 流程檔一致 (4 個)", out)
         self.assertIn("範本鏡像與正本一致 (5 個)", out)
+        self.assertIn("[PASS] AGENTS.md 共", out)
+
+    def test_e8_oversized_agents_md_warns_but_passes(self):
+        agents = self.root / "AGENTS.md"
+        agents.write_text(agents.read_text(encoding="utf-8") + "\n補充說明\n" * 60, encoding="utf-8")
+        code, out = self.run_verify()
+        self.assertEqual(code, 0, out)
+        self.assertIn("[WARN] AGENTS.md 共", out)
+        self.assertIn("超過上限 200 行", out)
 
     def test_e2_deleted_workflow_file_fails(self):
         (self.root / ".agents" / "workflows" / "hotfix.md").unlink()

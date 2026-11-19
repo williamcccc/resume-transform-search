@@ -494,7 +494,7 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 
 本專案採行 **「前後雙門禁 (Dual-Gate) 7 步驟」細化品管體系**，將架構前審（Gate 1）、白箱單元測試、黑箱 QA 實測與代碼審查（Gate 2）循序整合，確保系統在戰略方向、需求規格、功能驗證與代碼架構上皆具備工業級防護。
 
-下圖為功能開發軌。自 [Spec-0025](docs/specs/0025-workflow-tracks-and-bug-fix-spec.md) 起，流程編排移至 `.agents/workflows/`（`feature.md`、`bug.md`、`hotfix.md`），由 AGENTS.md 分流表導向；缺陷修正軌以 Step 1B（bug-triage）取代 Step 1，Step 2–6 共用，Gate 2 於所有軌別皆不可省。流程檔只寫編排，各步驟作業細節仍由 `.agents/skills/` 定義。
+下圖為功能開發軌。自 [Spec-0025](docs/specs/0025-workflow-tracks-and-bug-fix-spec.md) 起，流程編排移至 `.agents/workflows/`（`feature.md`、`bug.md`、`hotfix.md`，以及 [Spec-0026](docs/specs/0026-governance-track-spec.md) 新增的規範變更流程 `governance.md`），由 AGENTS.md 分流表導向；缺陷修正軌以 Step 1B（bug-triage）取代 Step 1，Step 2–6 共用，Gate 2 於所有軌別皆不可省。流程檔只寫編排，各步驟作業細節仍由 `.agents/skills/` 定義。
 
 ```mermaid
 flowchart LR

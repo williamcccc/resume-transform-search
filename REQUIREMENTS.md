@@ -458,3 +458,5 @@ python tests/eval/run_followup_eval.py               # answer_status 混淆矩�
 
 **流程分軌（[Spec-0025](docs/specs/0025-workflow-tracks-and-bug-fix-spec.md)）**：上述 7 步驟為功能開發軌。AGENTS.md 第 2 節分流表依請求類型導向三個流程檔：功能開發（[feature.md](.agents/workflows/feature.md)）、缺陷修正（[bug.md](.agents/workflows/bug.md)，S2／S3）與緊急止血（[hotfix.md](.agents/workflows/hotfix.md)，S1）。缺陷修正以 **Step 1B（bug-triage）** 取代 Step 1：重現 → 紅燈回歸測試 → 根因與逃逸分析 → 修正範圍與升級判斷 → 簡化 Gate 1；Step 2–6 共用；Step 7 精簡同步。缺陷報告存於 `docs/bugs/`，PR 須先 `test:` 後 `fix:` 且不得 squash；觸發升級條件時經使用者確認轉功能開發軌。
 
+**規範變更流程（[Spec-0026](docs/specs/0026-governance-track-spec.md)）**：修改 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 或 `.agents/**` 且不改 `src/` 時，走 [governance.md](.agents/workflows/governance.md)：G1 提案 → G2 人類核准（只有使用者能放行）→ G3 修改 → G4 一致性檢查 → G5 審查 → G6 交付。依規模分為小改（PR 描述記錄）與大改（規格與 QA 報告）；放寬架構紅線須由使用者明確提出。
+

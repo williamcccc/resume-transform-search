@@ -15,6 +15,7 @@ verify_doc_sync.py
 7. docs/bugs/ 缺陷報告比照規格檢查檔名、索引登錄與品質評測範圍宣告。
 8. AGENTS.md 分流表連結之 .agents/workflows/ 流程檔皆存在，且流程檔皆有登錄於分流表。
 9. docs/templates/ 範本鏡像與 .agents/ 正本內容一致。
+10. AGENTS.md 超過行數上限時印出警告（不影響結束碼），提醒將內容移至流程檔或技能。
 """
 
 import os
@@ -365,6 +366,23 @@ def check_template_mirrors(root: Path = ROOT_DIR, mirrors: dict = TEMPLATE_MIRRO
     return all_ok
 
 
+# AGENTS.md 常駐載入，行數過多會讓每次對話都多付 Token（governance.md G4 第 4 項）
+AGENTS_MAX_LINES = 200
+
+
+def check_agents_size(agents_text: str, max_lines: int = AGENTS_MAX_LINES) -> bool:
+    """AGENTS.md 超過行數上限時印出 WARN；僅提醒，一律回傳 True。"""
+    lines = len(agents_text.splitlines())
+    if lines > max_lines:
+        print(
+            f"[WARN] AGENTS.md 共 {lines} 行，超過上限 {max_lines} 行；"
+            "AGENTS.md 每次對話皆自動載入，請考慮將內容移至 .agents/workflows/ 或技能"
+        )
+    else:
+        print(f"[PASS] AGENTS.md 共 {lines} 行（上限 {max_lines} 行）")
+    return True
+
+
 def main():
     print("=== [doc-sync] 文檔雙向同步一致性檢驗 ===")
     ok1 = check_basic_docs_exist()
@@ -375,9 +393,10 @@ def main():
     ok6 = check_quality_ac_directory(DOCS_SPECS_DIR)
     ok7 = check_directory_docs(DOCS_BUGS_DIR, "缺陷報告 (Bug Reports)", DOCS_README)
     ok8 = check_quality_ac_directory(DOCS_BUGS_DIR)
-    ok9 = check_workflow_routing(AGENTS_FILE.read_text(encoding="utf-8") if AGENTS_FILE.exists() else "")
-
+    agents_text = AGENTS_FILE.read_text(encoding="utf-8") if AGENTS_FILE.exists() else ""
+    ok9 = check_workflow_routing(agents_text)
     ok10 = check_template_mirrors()
+    check_agents_size(agents_text)
 
     if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10)):
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")

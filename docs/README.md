@@ -46,6 +46,7 @@ flowchart LR
 | **0023** | 檢索與抽取品質指標計算模組 | — | [Spec-0023](./specs/0023-retrieval-quality-metrics-spec.md) | `tests/unit/test_evaluation_metrics.py` | [QA-0023](./qa_reports/0023-retrieval-quality-metrics-qa.md) |
 | **0024** | 招募助理語意檢索評測與 answer_status 正確率 | — | [Spec-0024](./specs/0024-recruitment-retrieval-and-answer-status-eval-spec.md) | `tests/unit/test_eval_support.py`、`tests/eval/run_*_eval.py` | [QA-0024](./qa_reports/0024-recruitment-retrieval-and-answer-status-eval-qa.md) |
 | **0025** | 閉環流程分軌與 workflows 目錄化 | — | [Spec-0025](./specs/0025-workflow-tracks-and-bug-fix-spec.md) | `tests/unit/test_workflow_tracks_doc_sync.py`、`tests/e2e/test_workflow_tracks_doc_sync_e2e.py` | [QA-0025](./qa_reports/0025-workflow-tracks-and-bug-fix-qa.md) |
+| **0026** | 新增規範變更流程 | — | [Spec-0026](./specs/0026-governance-track-spec.md) | `tests/unit/test_workflow_tracks_doc_sync.py`、`tests/e2e/test_workflow_tracks_doc_sync_e2e.py` | [QA-0026](./qa_reports/0026-governance-track-qa.md) |
 
 ### 缺陷修正追溯清單
 

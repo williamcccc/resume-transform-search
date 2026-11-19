@@ -8,7 +8,7 @@
 - 功能開發與缺陷修復時，由目前的助理依閉環階段依序切換 `architect`、`developer`、`gatekeeper` 角色視角；每個階段開始前讀取對應的 `.agents/<role>/AGENT.md`，並使用流程檔指定的 Skill。
 - 預設不建立或啟動子 Agent。角色切換是同一助理依不同職責檢查與執行；只有使用者明確要求多代理協作時，才分派子 Agent。
 - 階段交接仍依標準 Context Handoff Schema 記錄，作為同一助理內部的工作交接；Gatekeeper 階段須以獨立審查視角檢視 Developer 的變更。
-- 一般問答、解說與不涉及功能或缺陷修改的簡單文件任務，不啟動完整閉環。
+- 一般問答、解說，以及不改變任何規則或行為的簡單文件任務（錯字、說明文字），不啟動閉環；修改規範本身走規範變更流程（見第 2 節分流表）。
 
 ---
 
@@ -49,7 +49,8 @@ src/
 
 | 請求類型 | 判斷條件 | 流程檔 |
 | :--- | :--- | :--- |
-| 簡單文件任務、問答 | 錯字、註解、說明，不改程式行為 | 不啟動閉環 |
+| 簡單文件任務、問答 | 錯字、說明文字，不改變任何規則或行為 | 不啟動閉環 |
+| 規範變更 | 修改 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.agents/**`（角色、技能、流程檔、範本、檢核清單），且不改 `src/`；**只有使用者能核准** | [governance.md](.agents/workflows/governance.md) |
 | 功能開發 | 新增或變更行為；或「正確行為」需重新定義 | [feature.md](.agents/workflows/feature.md) |
 | 缺陷修正 | 既有行為違反規格、文件或合理預期，嚴重度 S2／S3 | [bug.md](.agents/workflows/bug.md) |
 | 緊急止血 | 缺陷且嚴重度為 S1（資料損壞或遺失、個資外洩、安全漏洞、主要流程全面失敗） | [hotfix.md](.agents/workflows/hotfix.md) |
