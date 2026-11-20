@@ -8,7 +8,6 @@ from typing import Optional, Dict, Any, List
 
 from fastapi import FastAPI, Query, HTTPException, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
@@ -118,7 +117,7 @@ def create_app(
 ) -> FastAPI:
     """
     建立 FastAPI 應用實例
-    配置 OpenAPI 文檔標籤、CORS 中介軟體、品管統計 API 與履歷語意檢索 API
+    配置 OpenAPI 文檔標籤、品管統計 API 與履歷語意檢索 API（僅供同源存取，不開放 CORS）
     """
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -140,14 +139,8 @@ def create_app(
         redoc_url="/redoc",
     )
 
-    # 啟用 CORS 跨來源支援
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # 不掛載 CORS 中介軟體：儀表板前端一律同源呼叫 API，任何跨來源許可都會讓
+    # 本機使用者瀏覽之外站網頁得以讀取履歷與對話內容（Bug-0029）
 
     @app.get("/redocs", include_in_schema=False)
     async def redirect_redocs():

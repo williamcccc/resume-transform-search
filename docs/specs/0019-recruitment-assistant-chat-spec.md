@@ -606,7 +606,7 @@ E2E 位於 [tests/e2e/test_recruitment_chat_e2e.py](../../tests/e2e/test_recruit
 
 | 編號 | 等級 | 項目 | 影響 | 建議處置 |
 | :---: | :---: | :--- | :--- | :--- |
-| G2-09 | P2 | CORS 白名單（既有技術債） | `allow_origins=["*"]` 加 `allow_credentials=True`，本機瀏覽之任意網頁可跨站呼叫 `/api/chat` 讀回名單與證據、消耗 Token | 新增 `WEB_CORS_ORIGINS` 由 `AppConfig` 注入，預設只允許同源 |
+| G2-09 | P2 | CORS 白名單（既有技術債） | `allow_origins=["*"]` 加 `allow_credentials=True`，本機瀏覽之任意網頁可跨站呼叫 `/api/chat` 讀回名單與證據、消耗 Token | 新增 `WEB_CORS_ORIGINS` 由 `AppConfig` 注入，預設只允許同源。**已處理**：升為 S1，由 [Bug-0029](../bugs/0029-cors-allow-any-origin.md) 移除跨來源許可（只允許同源）；白名單設定待有跨來源需求時另開規格 |
 | G2-06 | P2 | 失敗 turn 之 checkpoint 回滾 | LangGraph 每個 superstep 都落盤，複合意圖中途拋例外時，前段節點狀態已提交（半套 turn） | 失敗時回滾至該輪起始之 checkpoint，或改為只在 `compose` 成功後提交 |
 | G3-01 | P2 | 使用者自行輸入舊人選姓名送 LLM | 使用者輸入已不在候選池之舊人選姓名時，問題原文仍以明文送一般問答 LLM（歷史已代稱化，無外洩） | Session 於伺服器端保存曾出現過的姓名集合，一併遮蔽 |
 | G3-05 | P3 | 孤兒抽取浪費 Token | 單輪逾時後背景抽取仍在消耗 Token，結果被丟棄，下次查詢再付費 | 以 `add_done_callback` 將晚到之成功結果執行緒安全地寫入快取 |
