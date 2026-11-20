@@ -84,21 +84,44 @@
 
 ## 四、標準對照
 
-緩解措施與 `NFR-*` 優先引用公認標準條目，閉環只維護「適用哪些章節」，不自行列舉安全項目。依 `project.toml` 的 `[security]` 特徵選用：
+緩解措施與 `NFR-*` 優先引用公認標準條目，閉環只維護「適用哪些章節」，不自行列舉安全項目。
+
+**OWASP ASVS 5.0 全章對照**（驗證等級 = `asvs_level`）。每章歸入以下三種適用條件之一，不得有未歸屬的章節：
+
+* **一律**：任何專案皆適用。
+* **特徵**：依 `project.toml` 的 `[security]` 特徵判定。
+* **技術**：使用該項技術時適用；未使用者須於 `not_applicable` 登錄。
+
+| 章 | 名稱 | 適用條件 | 重點 |
+| :---: | :--- | :--- | :--- |
+| V1 | 編碼與淨化 | 一律 | 注入、輸出編碼 |
+| V2 | 驗證與業務邏輯 | 一律 | 輸入驗證、業務規則不可繞過 |
+| V3 | 網頁前端安全 | 特徵：`web_interface` | 跨來源、安全標頭、CSRF、點擊劫持 |
+| V4 | API 與 Web 服務 | 特徵：`api_service` | 授權、資源消耗、輸入驗證 |
+| V5 | 檔案處理 | 特徵：`processes_untrusted_files` | 檔案炸彈、路徑遍歷、類型偽裝 |
+| V6 | 身分驗證 | 特徵：`multi_user`，或 `network_exposure` 為 `lan`／`internet` | 帳號、憑證、多因素驗證 |
+| V7 | 工作階段管理 | 同 V6 | 工作階段建立、逾時、終止 |
+| V8 | 授權 | 同 V6 | 功能與資源層級授權 |
+| V9 | 自包含權杖 | 技術：使用 JWT 等自包含權杖 | 簽章驗證、有效期限、受眾 |
+| V10 | OAuth 與 OIDC | 技術：使用第三方登入，或自建授權伺服器 | 授權流程、重新導向、權杖處理 |
+| V11 | 密碼學 | 一律 | 雜湊、安全亂數、加密演算法、金鑰管理 |
+| V12 | 安全通訊 | 特徵：`network_exposure` 為 `lan`／`internet`，或對外部服務發出連線 | 傳輸加密、TLS 憑證驗證（含服務對服務連線） |
+| V13 | 組態 | 一律 | 設定安全、機密管理、相依元件 |
+| V14 | 資料保護 | 特徵：`handles_pii` | 最小化、傳輸與儲存保護、保留期限 |
+| V15 | 安全編碼與架構 | 一律 | 安全設計、相依元件風險 |
+| V16 | 安全日誌與錯誤處理 | 一律 | 日誌不洩密、錯誤訊息不外露 |
+| V17 | WebRTC | 技術：使用 WebRTC | 媒體與信令伺服器安全 |
+
+**其他標準**（與 ASVS 並用）：
 
 | 特徵 | 參照標準 | 重點 |
 | :--- | :--- | :--- |
-| 一律適用 | OWASP ASVS 5.0（等級 = `asvs_level`）：V1 編碼與淨化、V2 驗證與業務邏輯、V13 組態、V15 安全編碼與架構、V16 安全日誌與錯誤處理 | 安全需求的完整來源 |
-| `web_interface` | ASVS V3 網頁前端安全；OWASP Top 10 | 跨來源、安全標頭、CSRF、點擊劫持 |
-| `api_service` | ASVS V4 API 與 Web 服務；OWASP API Security Top 10 | 授權、資源消耗、輸入驗證 |
+| `web_interface` | OWASP Top 10 | 常見網頁應用風險 |
+| `api_service` | OWASP API Security Top 10 | 物件層級授權、資源消耗 |
 | `uses_llm` | OWASP Top 10 for LLM Applications | 提示詞注入、敏感資訊外洩、過度授權、無上限消耗 |
-| `handles_pii` | ASVS V14 資料保護 | 最小化、傳輸與儲存保護、保留期限 |
-| `processes_untrusted_files` | ASVS V5 檔案處理 | 檔案炸彈、路徑遍歷、類型偽裝 |
-| `multi_user` | ASVS V6 身分驗證、V7 工作階段管理、V8 授權 | 帳號、工作階段、資源層級授權 |
-| `network_exposure` 為 `lan` 或 `internet` | ASVS V12 安全通訊；V6～V8 一律適用 | 傳輸加密、對外存取控制 |
 
-* 章節不適用時，於 `project.toml` 的 `[[security.not_applicable]]` 登錄並附理由；特徵改變時重新評估。
-* ASVS 章節編號依 [OWASP ASVS 官方儲存庫](https://github.com/OWASP/ASVS) 5.0 版；新版發布時以規範變更更新本表。
+* `[[security.not_applicable]]` 只登錄兩種情況，每筆附理由：技術條件章節未使用該技術；或特徵判定適用，但專案另有理由排除。依特徵已判定不適用者不必重複登錄。特徵改變時重新評估。
+* ASVS 章節編號與名稱依 [OWASP ASVS 官方儲存庫](https://github.com/OWASP/ASVS) 5.0 版；新版發布時以規範變更更新本表。
 
 ---
 

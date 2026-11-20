@@ -15,7 +15,7 @@
    * `[guardrails]`：連線 scheme、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
    * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
-   * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`。
+   * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`；第四節適用條件為「技術」的章節（如 V9、V10、V17），新專案未使用該技術者須逐章登錄。
    * `[security.tools]`：`scan_paths` 改為新專案的原始碼與入口檔，`dependency_files` 改為新專案的需求檔；`baseline` 指向的基準檔**不要複製**（那是原專案的發現）。`diff_base` 改為新專案的主分支名稱；`full_scan_max_age_days` 依需要調整（預設 7 天）。
 4. **處理專屬標記**：全倉搜尋 `<!-- 專案專屬`，逐處改寫為新專案的規則，或連同規則一併刪除。**未帶專屬標記的通用核心檔不得刪除**，包括 `security_nfr_framework.md`、`security_scan.py` 與 AGENTS.md「安全與非功能需求規則」一節；`verify_doc_sync.py` 檢查核心檔存在。無檢索或 LLM 功能的專案，可刪除 AGENTS.md 第 2 節「品質評測規則」整節與 `quality-evaluation` 技能。
 5. **（選擇性）中性化舉例**：以下檔案的舉例使用了原專案元件（Redis、Gemini、PDF 轉檔等），規則本身通用，不改也能運作：
