@@ -7,7 +7,7 @@
 ### 一、獨立性與離線純潔性 (Isolation)
 - [ ] **無真實網路呼叫**：是否完全不發起真實 HTTP/HTTPS 請求？
 - [ ] **無真實外部資料庫**：是否完全未連接真實 Redis、PostgreSQL 或向量資料庫？
-- [ ] **無付費 API 消耗**：是否完全 Mock 了 Gemini LLM 與 Embedding 服務？
+- [ ] **無付費 API 消耗**：是否完全 Mock 了付費外部 API（如 LLM、Embedding 服務）？
 - [ ] **無執行順序相依 (Order Independence)**：測試方法之間是否完全無狀態殘留？任意順序執行皆能獨立通過？
 
 ---

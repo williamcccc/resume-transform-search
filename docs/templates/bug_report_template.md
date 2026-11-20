@@ -10,16 +10,16 @@
 
 ## 1. 受理資訊
 * **現象**：使用者看到什麼（錯誤訊息、錯誤輸出、崩潰）。
-* **環境**：Windows 11 / Python 3.13；Redis（Docker `localhost:6379`）；其他相依服務狀態。
+* **環境**：作業系統 / Python 版本；相依服務（如資料庫、外部 API）及其狀態。
 * **觸發條件**：在什麼輸入或操作下發生。
 * **回報來源**：使用者回報 / QA 發現 / 日誌監控。
 * **嚴重度判定理由**：
 
 ## 2. 重現步驟
-1. 準備輸入：`sample_resume.md`（合成內容）
+1. 準備輸入：`sample_input.md`（合成內容）
 2. 執行：
    ```bash
-   python convert_to_md.py <sample_path>
+   python <cli_entry>.py <sample_path>
    ```
 3. **預期結果**：
 4. **實際結果**：

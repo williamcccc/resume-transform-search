@@ -68,7 +68,7 @@
 ## 4. 基礎設施層規劃 (Infrastructure Layer Design)
 * **外部套件引用**：明確列出使用的外部套件（如 `redis`, `google-genai` 等）。
 * **資源生命週期管理 (Windows 防鎖死)**：
-  * 所有檔案 I/O、PyMuPDF Document 物件與資料庫連線必須採用 `with` Context Manager。
+  * 所有檔案 I/O、文件解析物件與資料庫連線必須採用 `with` Context Manager。
 * **例外處理與例外鏈完整度**：
   * 攔截底層例外並轉換為領域例外時，強制使用 `raise DomainException(...) from err` 保留原始 Call Stack。
 * **日誌資安規範**：
@@ -79,9 +79,9 @@
 ## 5. 表現層與向下相容性 (Presentation & Backward Compatibility)
 * **CLI 指令設計**：
   ```bash
-  python convert_to_md.py input.pdf --new-flag <value>
+  python <cli_entry>.py <input> --new-flag <value>
   ```
-* **向下相容性驗證**：若不帶 `--new-flag`，既有轉檔行為 100% 保持原有邏輯。
+* **向下相容性驗證**：若不帶 `--new-flag`，既有行為 100% 保持原有邏輯。
 
 ---
 
