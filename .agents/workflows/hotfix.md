@@ -10,7 +10,7 @@
 | **1B** | RCA 可先寫摘要；簡化 Gate 1 可於合併後補簽 | 重現、紅燈回歸測試 |
 | **2–3** | — | 紅燈測試轉綠、全套單元測試無回歸 |
 | **4 QA** | 縮為受影響範圍的冒煙測試 | — |
-| **5 Gate 2** | — | **完整執行**（`audit_guardrails.py` + Checklist） |
+| **5 Gate 2** | — | **完整執行**（`audit_guardrails.py`、`security_scan.py` + Checklist） |
 | **7** | 缺陷報告與 `docs/README.md` 缺陷索引先標「已止血，待補件（期限 YYYY-MM-DD）」，期限為合併日加 3 個工作天 | — |
 
 ## 合併後補件

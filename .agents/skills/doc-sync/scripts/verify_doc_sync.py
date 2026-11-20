@@ -18,8 +18,11 @@ verify_doc_sync.py
 9. docs/templates/ 範本鏡像與 .agents/ 正本內容一致。
 10. AGENTS.md 超過行數上限（project.toml [docs].agents_max_lines）時印出警告（不影響結束碼），
     提醒將內容移至流程檔或技能。
+11. 規格須宣告「安全評估範圍：是/否」（自 [docs].security_ac_enforced_from 之編號起強制）；
+    宣告為「是」者須含 STRIDE 威脅表與至少一條 NFR-* 驗收條件（Spec-0030）。
+12. 閉環通用核心檔（安全與非功能需求框架、安全掃描腳本）必須存在，移植時不得刪除。
 
-結束碼：0 通過；1 有 FAIL；2 專案設定檔缺漏或錯誤。
+結束碼：0 通過；1 有 FAIL；2 專案設定檔缺漏或錯誤（含 [security] 特徵與 not_applicable 理由）。
 """
 
 import os
@@ -33,7 +36,8 @@ sys.path.insert(0, str(ROOT_DIR / ".agents" / "lib"))
 from project_config import ProjectConfigError, load_project_config  # noqa: E402
 
 try:
-    DOCS_CONFIG = load_project_config(ROOT_DIR, ("docs",))["docs"]
+    # [security] 一併驗證：特徵缺鍵或 not_applicable 缺理由時以結束碼 2 中止（Spec-0030 AC-2）
+    DOCS_CONFIG = load_project_config(ROOT_DIR, ("docs", "security", "security.tools"))["docs"]
 except ProjectConfigError as _config_err:
     print(f"[FAIL] 專案設定錯誤: {_config_err}")
     sys.exit(2)
@@ -313,11 +317,81 @@ def check_quality_ac_specs(specs: list) -> bool:
     return all_ok
 
 
+def _read_specs(dir_path: Path) -> list:
+    return [(p.name, p.read_text(encoding="utf-8")) for p in sorted(dir_path.glob("*.md")) if p.name != "README.md"]
+
+
 def check_quality_ac_directory(dir_path: Path) -> bool:
     if not dir_path.exists():
         return True
-    specs = [(p.name, p.read_text(encoding="utf-8")) for p in sorted(dir_path.glob("*.md")) if p.name != "README.md"]
-    return check_quality_ac_specs(specs)
+    return check_quality_ac_specs(_read_specs(dir_path))
+
+
+# 安全與非功能需求 Gate 1 檢查（Spec-0030；框架見 feature-design/references/security_nfr_framework.md）
+SECURITY_SCOPE_PATTERN = re.compile(r"安全評估範圍[\s*]*[:：][\s*]*(是|否)")
+# 威脅表列：某一儲存格只含單一 STRIDE 字母（可加粗）
+STRIDE_ROW_PATTERN = re.compile(r"^\s*\|.*\|\s*\**\s*[STRIDE]\s*\**\s*\|", re.MULTILINE)
+NFR_ID_PATTERN = re.compile(r"(?<![A-Za-z0-9])NFR-\d+")
+SECURITY_AC_ENFORCED_FROM = DOCS_CONFIG["security_ac_enforced_from"]
+
+
+def security_scope(text: str):
+    """回傳安全評估範圍：True（是）、False（否）或 None（未宣告）；優先採驗收標準段落內的宣告。"""
+    match = SECURITY_SCOPE_PATTERN.search(extract_acceptance_section(text)) or SECURITY_SCOPE_PATTERN.search(text)
+    if not match:
+        return None
+    return match.group(1) == "是"
+
+
+def check_security_ac_specs(specs: list, enforced_from: int = None) -> bool:
+    """編號 >= enforced_from 之規格：必須宣告安全評估範圍；宣告為「是」者須含 STRIDE 威脅表與 NFR-*。
+    較早的規格不檢查（不回溯）。"""
+    enforced_from = SECURITY_AC_ENFORCED_FROM if enforced_from is None else enforced_from
+    all_ok = True
+    scoped = 0
+    for name, text in specs:
+        match = re.match(r"^(\d{4})-", name)
+        if not match or int(match.group(1)) < enforced_from:
+            continue
+        scope = security_scope(text)
+        if scope is None:
+            print(f"[FAIL] 規格缺少「安全評估範圍：是/否」宣告: {name}")
+            all_ok = False
+            continue
+        if not scope:
+            continue
+        scoped += 1
+        if not STRIDE_ROW_PATTERN.search(text):
+            print(f"[FAIL] 規格宣告屬安全評估範圍，但缺少 STRIDE 威脅表（至少一列標註 S/T/R/I/D/E）: {name}")
+            all_ok = False
+        if not NFR_ID_PATTERN.search(text):
+            print(f"[FAIL] 規格宣告屬安全評估範圍，但缺少 NFR-* 非功能驗收條件: {name}")
+            all_ok = False
+    if all_ok:
+        print(f"[PASS] 安全評估範圍宣告與威脅建模檢查通過（自編號 {enforced_from:04d} 起強制；宣告屬範圍之規格 {scoped} 個）")
+    return all_ok
+
+
+def check_security_ac_directory(dir_path: Path) -> bool:
+    if not dir_path.exists():
+        return True
+    return check_security_ac_specs(_read_specs(dir_path))
+
+
+# 閉環通用核心檔：不帶專案專屬標記，移植時不得刪除（Spec-0030 AC-1）
+CORE_FILES = (
+    Path(".agents/skills/feature-design/references/security_nfr_framework.md"),
+    Path(".agents/skills/code-review/scripts/security_scan.py"),
+)
+
+
+def check_core_files(root: Path = ROOT_DIR, core_files: tuple = CORE_FILES) -> bool:
+    missing = [p.as_posix() for p in core_files if not (root / p).is_file()]
+    for path in missing:
+        print(f"[FAIL] 閉環通用核心檔缺失（移植時不得刪除）: {path}")
+    if not missing:
+        print(f"[PASS] 閉環通用核心檔齊備 ({len(core_files)} 個)")
+    return not missing
 
 
 # 流程分軌檢查（AGENTS.md 第 2 節分流表 ↔ .agents/workflows/）
@@ -412,9 +486,11 @@ def main():
     agents_text = AGENTS_FILE.read_text(encoding="utf-8") if AGENTS_FILE.exists() else ""
     ok9 = check_workflow_routing(agents_text)
     ok10 = check_template_mirrors()
+    ok11 = check_security_ac_directory(DOCS_SPECS_DIR)
+    ok12 = check_core_files()
     check_agents_size(agents_text)
 
-    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10)):
+    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10, ok11, ok12)):
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")
         sys.exit(0)
     else:

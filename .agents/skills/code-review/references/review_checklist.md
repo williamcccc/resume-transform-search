@@ -22,6 +22,8 @@
 ### 2. 安全性與惡意輸入防護 (Input Security & Prompt Defense)
 - [ ] **[P0] 資源配額硬上限**：解析檔案前必須驗證檔案體積（預設上限 25MB）、PDF 頁數上限（預設 30 頁）與 DOCX 解壓縮膨脹比（預設 10x），杜絕 Zip Bomb 或巨型檔案造成記憶體耗盡（OOM）。*（本處為上限數值的文件正本；括號內為預設值，實際值以 `.env.example` 與 `AppConfig` 為準。）*<!-- 專案專屬 -->
 - [ ] **[P0] 提示詞注入隔離 (Context Fencing)**：傳送給 LLM（Gemini）之未受信任履歷內容，必須使用明確標籤（如 `<resume_content>...</resume_content>`）進行上下文圍欄隔離，並在 System Prompt 強調不得遵從履歷內之指示。<!-- 專案專屬：圍欄標籤名稱；同名標籤亦列於 project.toml 的 guardrails.prompt_indicators -->
+- [ ] **[P0] 安全工具掃描零新增 P0**：`security_scan.py` 回傳 0；P1 發現逐項處置（修正、或登錄基準檔並附理由與到期日），未執行項目記錄於 QA 報告。
+- [ ] **[P0] 安全殘餘風險已判定嚴重度**：規格威脅表、QA 報告與本次審查列為殘餘或延後之安全項目，皆依 `.agents/skills/feature-design/references/security_nfr_framework.md` 第五節判定 S1／S2／S3；無 S1 被延後，S2／S3 延後者記錄理由與期限。
 - [ ] **[P0] 日誌零洩漏安全 (Zero-Leak Logging)**：日誌嚴禁明文輸出未經脫敏的原始履歷全文、身分證字號、手機號碼或 API Authorization Header。<!-- 專案專屬 -->
 
 ### 3. 防禦性程式設計與邊界容錯 (Robustness & Fail-Safe)
@@ -41,7 +43,7 @@
 - [ ] **[P0] 測試獨立性**：單元測試（`tests/unit/`）必須 100% 透過 Mock 隔離真實網絡、真實 Gemini API 與真實 Redis。單元測試必須能離線且毫秒級完成。<!-- 專案專屬：外部服務名稱 -->
 - [ ] **[P1] 負面與故障注入測試 (Negative Testing)**：新加入的核心功能或修復的缺陷，必須在 `tests/unit/` 提供至少 2 組異常/故障情境測試（如：網路超時、檔案毀損、API 429 配額用罄；數量規定以 unit-testing 技能為正本）。
 - [ ] **[P1] 測試覆蓋齊全**：新功能需具備足夠斷言（禁止無意義或空斷言的 Fake Test），且回歸測試全套通過（`Ran X tests ... OK`）。
-- [ ] **[P0] 需求—斷言追溯 (AC-to-Assertion Traceability)**：對照 `docs/specs/` 的 PRD 驗收條件（AC）與 `docs/qa_reports/` 的 RTM，逐條確認每條 AC 至少有一個斷言**直接驗證其預期結果**（回傳值、狀態變化或例外型別與訊息）。僅斷言「未拋例外」、Mock 呼叫次數或回傳非空者，不算驗證該 AC。任一 AC 無有效斷言即為 P0。
+- [ ] **[P0] 需求—斷言追溯 (AC-to-Assertion Traceability)**：對照 `docs/specs/` 的 PRD 驗收條件（AC）與 `docs/qa_reports/` 的 RTM，逐條確認每條 AC 與 `NFR-*` 至少有一個斷言或實測案例**直接驗證其預期結果**（回傳值、狀態變化或例外型別與訊息）。僅斷言「未拋例外」、Mock 呼叫次數或回傳非空者，不算驗證該 AC。任一 AC 無有效斷言即為 P0。
 - [ ] **[P1] 預期值獨立性 (Oracle Independence)**：抽查斷言的預期值，須可追溯至規格、手算或固定樣本，不得由被測程式執行結果回填（如先跑一次再把輸出貼成預期值）。抽查至少 3 條 AC，或全部 AC（若少於 3 條），並在審查報告中列出抽查項目。
 - [ ] **[P0] 回歸測試先紅後綠（Bug 軌／Hotfix 適用）**：PR 須包含先 `test:` 後 `fix:` 兩個 commit。切換至 `test:` commit 執行該回歸測試，必須**失敗**且失敗原因正是缺陷本身；在 `fix:` commit 必須通過。缺少 `test:` commit、或測試在 `test:` commit 即通過者，判 P0。
 - [ ] **[P1] 逃逸分析（Bug 軌／Hotfix 適用）**：缺陷報告第 3 節須說明既有測試或防線為何沒抓到（測試缺口／斷言過弱／規格缺口／防線缺口）；屬防線缺口者須附改善建議。Hotfix 合併前可僅有摘要，但須於補件期限內補齊。

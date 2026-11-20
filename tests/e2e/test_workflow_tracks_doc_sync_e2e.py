@@ -81,7 +81,9 @@ class TestWorkflowTracksDocSyncE2E(unittest.TestCase):
         self.add_index_row("\n| 0099 | [Bug-0099](./bugs/0099-empty-file-crash.md) |\n")
         code, out = self.run_verify()
         self.assertEqual(code, 0, out)
-        self.assertIn("缺陷報告 (Bug Reports) (1 個)", out)
+        # 依實際檔案數判斷，避免倉庫新增缺陷報告後失效（Bug-0029 合併後曾因寫死 1 個而失敗）
+        expected = len([p for p in (self.root / "docs" / "bugs").glob("*.md") if p.name != "README.md"])
+        self.assertIn(f"缺陷報告 (Bug Reports) ({expected} 個)", out)
 
     def test_e4_bug_report_without_quality_scope_fails(self):
         report = SAMPLE_BUG_REPORT.replace("品質評測範圍：否", "")

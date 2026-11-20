@@ -17,7 +17,7 @@ description: >-
 
 ### 1. 需求對齊與 100% 驗收覆蓋 (Traceability & Coverage)
 * **需求追溯矩陣 (Requirements Traceability Matrix, RTM)**：
-  - 自動交叉比對前期產出的「PRD」與「Tech Spec」，逐一盤點每一條 **Acceptance Criteria (AC)**。
+  - 自動交叉比對前期產出的「PRD」與「Tech Spec」，逐一盤點每一條 **Acceptance Criteria (AC)** 與 PRD 第 5 節的非功能驗收條件 **`NFR-*`**（含威脅表各項緩解措施）。
   - 強制保證：**每一條業務驗收條件（AC）至少具備一組對應的測試案例覆蓋**，嚴禁遺漏任何需求邊界。
   - RTM 每條 AC 標註狀態：`PASS` / `FAIL` / `DEFERRED`（須附理由、替代保障與人類核准）/ `NOT COVERED`，定義見 [QA 報告範本](./references/qa_report_template.md) 第 3 節。
 * **測試計畫先行 (Plan Before Execution)**：
@@ -73,7 +73,7 @@ python -m unittest discover -s tests/e2e -p "test_*.py"
 ```
 
 ### 驗收放行標準 (Sign-Off Criteria)：
-1. **100% AC 覆蓋**：RTM 零 `FAIL`、零 `NOT COVERED`；`DEFERRED` 項目皆有理由、替代保障與人類核准紀錄。
+1. **100% AC 與 NFR 覆蓋**：RTM（含 `NFR-*`）零 `FAIL`、零 `NOT COVERED`；`DEFERRED` 項目皆有理由、替代保障與人類核准紀錄。
 2. **零阻斷型缺陷 (Zero P0/P1 Defects)**：無崩潰、無未受控例外。QA 缺陷的 P0／P1／P2 等級沿用 [review_checklist.md](../code-review/references/review_checklist.md) 第一節的定義。
 3. **Windows 資源清潔度**：測試執行完畢後無控制代碼殘留，暫存檔乾淨卸載。
 4. **向下相容性保持**：既有 CLI 命令引數與回傳格式 100% 保持穩定。

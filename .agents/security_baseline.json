@@ -1,0 +1,92 @@
+{
+  "findings": [
+    {
+      "fingerprint": "semgrep:fpef05a4b49a9a6b80",
+      "tool": "semgrep",
+      "rule": "python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure",
+      "location": "src/infrastructure/llm/gemini_recruitment_llm.py:265",
+      "reason": "誤報：記錄的是 LLM token 用量統計（output_tokens、thinking_tokens），非憑證或密鑰",
+      "expires": "2027-11-20"
+    },
+    {
+      "fingerprint": "pip-audit:fp0ef620f3a0dc95d6",
+      "tool": "pip-audit",
+      "rule": "PYSEC-2026-3046",
+      "location": "requirements-eval.txt:ragas==0.4.3",
+      "reason": "人工觸發之評測專用相依（.venv-eval），不進入執行期與 CI；上游尚無修正版本",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fp328f50e83b6d49a7",
+      "tool": "pip-audit",
+      "rule": "PYSEC-2026-2447",
+      "location": "requirements-eval.txt:diskcache==5.6.3",
+      "reason": "人工觸發之評測專用相依（.venv-eval），不進入執行期與 CI；上游尚無修正版本",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fp4a299b75d355fe35",
+      "tool": "pip-audit",
+      "rule": "PYSEC-2026-76",
+      "location": "requirements-eval.txt:langchain-openai==1.1.9",
+      "reason": "人工觸發之評測專用相依（.venv-eval），不進入執行期與 CI；有修正版本，待評測環境升級後移除",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fpc7acbd9f5b9e483c",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-59951",
+      "location": "requirements-dev.txt:mcp==1.29.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fp85d9f951989ebb02",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-116685",
+      "location": "requirements-dev.txt:mcp==1.29.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fp1d0012584795e9b2",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-116684",
+      "location": "requirements-dev.txt:mcp==1.29.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fpc91a20c9fe9ff1db",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-116686",
+      "location": "requirements-dev.txt:mcp==1.29.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fpd86c31144b0e1b6a",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-115563",
+      "location": "requirements-dev.txt:mcp==1.29.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fpa5ff1845d8275433",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-114603",
+      "location": "requirements-dev.txt:opentelemetry-api==1.37.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fpa114431373bae1df",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-126360",
+      "location": "requirements-dev.txt:opentelemetry-api==1.37.0",
+      "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
+      "expires": "2027-02-20"
+    }
+  ]
+}

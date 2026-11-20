@@ -29,7 +29,7 @@
   1. `PRD`：明確 In/Out Scope、使用者故事與驗收標準 (AC)。
   2. `Tech Spec`：DDD 四層設計、依賴反轉 Protocol 契約、資料模型與 DTO。
   3. `QA 驗收測試案例矩陣`：對照 AC 規劃之測試案例。
-* **放行門禁 (Gate 1)**：確認 8 大架構維度無高風險架構債，方可交接給 `developer`。
+* **放行門禁 (Gate 1)**：確認安全與非功能需求已轉為可驗證之 `NFR-*`、8 大架構維度無高風險架構債，方可交接給 `developer`。
 
 ### 3. 終端收尾合約 (Final Handoff ➔ 來自 `gatekeeper`)
 * **接收條件**：收到 `gatekeeper` 簽核通過的「QA 實測驗收報告」與「Gate 2 審查清單」。
@@ -47,6 +47,7 @@
 2. Step 1 規格化與架構前審 (Gate 1)：
    - 調度 .agents/skills/feature-design/ 技能。
    - 探測既有代碼，依據 prd_template.md 產出明確之 PRD (明訂 In/Out Scope 與 AC 驗收標準)。
+   - 依據 security_nfr_framework.md 執行安全與非功能需求評估：範圍宣告、ISO 25010 宣告、STRIDE 威脅表、NFR-* 驗收條件；安全殘餘風險先判定嚴重度，S1 不得延後。
    - 依據 arch_review_checklist.md 進行 8 大架構維度衝擊評估，重大決策草擬 docs/adr/。
    - 依據 tech_spec_template.md 產出技術規格書與【QA 測試案例矩陣】。
    - 唯有零高風險架構債且測試矩陣齊備，方可放行 Gate 1 並交付 Developer。

@@ -63,6 +63,7 @@ ignore_scan_dirs = [
     ".git",
     ".venv",
     ".venv-eval",
+    ".venv-tools",
     "__pycache__",
     ".pytest_cache",
     "data",
@@ -111,5 +112,53 @@ locale_patterns = ["tw_mobile", "tw_landline", "tw_id"]
 [docs]
 # 規格編號達此值起，須宣告「品質評測範圍」且缺漏即 FAIL
 quality_ac_enforced_from = 23
+# 規格編號達此值起，須宣告「安全評估範圍」且缺漏即 FAIL（Spec-0030；新專案設為 1）
+security_ac_enforced_from = 31
 # AGENTS.md 行數上限，超過時 WARN
 agents_max_lines = 200
+
+[security]
+# 專案安全特徵（Spec-0030）。移植時逐項回答；適用標準由
+# .agents/skills/feature-design/references/security_nfr_framework.md 第四節對照決定。
+# OWASP ASVS 驗證等級：本機單人工具取 1；對外服務建議 2
+asvs_level = 1
+# 網路暴露範圍：local（僅本機）| lan（內網）| internet（對外）。改變時須重新評估全專案
+network_exposure = "local"
+web_interface = true             # 提供 Web 頁面或瀏覽器可存取之端點
+api_service = true               # 提供 HTTP API
+uses_llm = true                  # 呼叫 LLM 或處理 LLM 輸出
+handles_pii = true               # 處理個人資料
+processes_untrusted_files = true # 解析使用者提供之檔案
+multi_user = false               # 多使用者或需區分身分
+
+# 不適用之標準章節；每筆必填 reason。特徵改變時須重新檢視
+[[security.not_applicable]]
+item = "ASVS V6 身分驗證、V7 工作階段管理、V8 授權"
+reason = "僅綁定 127.0.0.1 之單人本機工具（network_exposure = local、multi_user = false）；任一特徵改變時須重新評估"
+
+[[security.not_applicable]]
+item = "ASVS V9 自包含權杖、V10 OAuth 與 OIDC、V17 WebRTC"
+reason = "未使用權杖、第三方登入或 WebRTC"
+
+[security.tools]
+# Gate 2 安全掃描（security_scan.py）。工具裝在獨立虛擬環境，避免與執行期相依衝突：
+#   python -m venv .venv-tools
+#   .venv-tools/Scripts/python -m pip install -r requirements-dev.txt   （POSIX 為 .venv-tools/bin/python）
+# 找不到時退回 PATH 上的同名指令
+tools_venv = ".venv-tools"
+# 靜態掃描範圍（專案相對路徑）
+scan_paths = ["src", "convert_to_md.py", "index_to_redis.py", "search_resumes.py", "web_dashboard.py"]
+# Semgrep 規則集
+semgrep_configs = ["p/python", "p/owasp-top-ten"]
+# 新增發現達此嚴重度即 P0，其餘 P1
+semgrep_block_severities = ["ERROR"]
+# 依賴漏洞掃描之需求檔
+dependency_files = ["requirements.txt", "requirements-eval.txt", "requirements-dev.txt"]
+# 依賴套件新增已知漏洞之等級（pip-audit 不提供嚴重度）
+dependency_level = "P1"
+# 既有發現基準檔：只阻斷新增發現；每筆須有理由與到期日
+baseline = ".agents/security_baseline.json"
+# 觸發方式（Spec-0030 決議 10）：預設差異掃描——Semgrep 只掃相對 diff_base 之變更檔，
+# pip-audit 只在 dependency_files 變更時執行；上次完整掃描超過下列天數即自動完整掃描
+diff_base = "main"
+full_scan_max_age_days = 7

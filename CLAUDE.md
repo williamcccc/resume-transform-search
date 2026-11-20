@@ -27,7 +27,7 @@
    | 規範變更 G3 依已核准提案修改 | architect | 覆寫 `sonnet` |
    | 規範變更 G5 審查（大改或首審） | gatekeeper | `opus`（預設） |
    | 規範變更 G5 審查（小改，或僅驗證前次修正的複審） | gatekeeper | 覆寫 `sonnet` |
-   | 純機械化：跑測試、清理測試資料、執行 `verify_doc_sync.py` / `audit_guardrails.py`、檔案清單掃描（含規範變更 G4） | 不指定角色 | `haiku` |
+   | 純機械化：跑測試、清理測試資料、執行 `verify_doc_sync.py` / `audit_guardrails.py` / `security_scan.py`、檔案清單掃描（含規範變更 G4） | 不指定角色 | `haiku` |
 
 2. **派工一律新開子 Agent，嚴禁接續長上下文 (Fresh Agent per Dispatch)**：
    - Step 6 每一輪修正、Gate 2 每一次（含差異複審）、Step 7 文檔同步，**一律以 Agent 工具新派工**，嚴禁以 SendMessage 接續先前已完成任務之子 Agent；接續會使其攜帶全部歷史（數十次工具呼叫、全部讀檔與測試輸出），成本隨輪次累積而與實際工作量無關。

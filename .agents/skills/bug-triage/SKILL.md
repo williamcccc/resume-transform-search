@@ -59,8 +59,11 @@ flowchart TD
   - 測試缺口：該情境沒有測試；
   - 斷言過弱：有測試但斷言沒驗證到結果；
   - 規格缺口：規格沒寫到這個情境；
-  - 防線缺口：`audit_guardrails.py` 或 Checklist 應抓到但沒有。
+  - 防線缺口：`audit_guardrails.py`、`security_scan.py` 或 Checklist 應抓到但沒有。
   若屬防線缺口，在報告中提出改善建議（另案處理，不併入本次修正）。
+* **教訓歸屬**（安全或非功能缺陷必填，其他建議填寫）：依 [security_nfr_framework.md](../feature-design/references/security_nfr_framework.md) 第七節，指出失效層（範圍宣告／威脅建模／標準對照／工具規則／規範缺漏），並判定：
+  - **通用**：任何專案都可能重演 → 開規範變更回寫閉環核心層，報告記錄該變更編號；
+  - **專案專屬**：只與本專案領域或技術有關 → 回寫專案檢核實例或 `project.toml`。
 
 ### 階段 5：修正範圍與升級判斷（developer）
 * 列出預計修改的檔案與修改性質。

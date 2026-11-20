@@ -53,7 +53,33 @@ locale_patterns = []
 
 [docs]
 quality_ac_enforced_from = 1
+security_ac_enforced_from = 1
 agents_max_lines = 200
+
+[security]
+asvs_level = 2
+network_exposure = "internet"
+web_interface = true
+api_service = true
+uses_llm = false
+handles_pii = false
+processes_untrusted_files = false
+multi_user = true
+
+[[security.not_applicable]]
+item = "ASVS V17 WebRTC"
+reason = "未使用 WebRTC"
+
+[security.tools]
+scan_paths = ["app"]
+semgrep_configs = ["p/python"]
+semgrep_block_severities = ["ERROR"]
+dependency_files = ["requirements.txt"]
+dependency_level = "P0"
+baseline = ".agents/security_baseline.json"
+tools_venv = ".venv-tools"
+diff_base = "main"
+full_scan_max_age_days = 7
 """
 
 
@@ -134,7 +160,8 @@ class TestLoadProjectConfig(unittest.TestCase):
         self.assertEqual(data["guardrails"]["url_exceptions"], [])
 
     def test_only_requested_sections_are_validated(self):
-        self.write(VALID_TOML.split("[layers]")[0] + "[docs]\nquality_ac_enforced_from = 1\nagents_max_lines = 10\n")
+        self.write(VALID_TOML.split("[layers]")[0]
+                   + "[docs]\nquality_ac_enforced_from = 1\nsecurity_ac_enforced_from = 1\nagents_max_lines = 10\n")
         data = project_config.load_project_config(self.root, ("docs",))
         self.assertEqual(data["docs"]["agents_max_lines"], 10)
         self.assert_config_error("缺少區段 [layers]", ("layers",))
@@ -148,6 +175,60 @@ class TestLoadProjectConfig(unittest.TestCase):
         self.assertTrue(data["layers"]["enabled"])
         for item in data["guardrails"]["url_exceptions"]:
             self.assertTrue(item["reason"].strip())
+        for item in data["security"]["not_applicable"]:
+            self.assertTrue(item["reason"].strip())
+
+
+class TestSecurityConfigSchema(unittest.TestCase):
+    """Spec-0030 AC-2：[security] 與 [security.tools] 缺鍵、型別、理由檢查"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        (self.root / ".agents").mkdir()
+        self.config_path = self.root / ".agents" / "project.toml"
+
+    def assert_error(self, text, fragment, sections=None):
+        self.config_path.write_text(text, encoding="utf-8")
+        with self.assertRaises(project_config.ProjectConfigError) as ctx:
+            project_config.load_project_config(self.root, sections)
+        self.assertIn(fragment, str(ctx.exception))
+
+    def test_security_sections_load(self):
+        self.config_path.write_text(VALID_TOML, encoding="utf-8")
+        data = project_config.load_project_config(self.root, ("security", "security.tools"))
+        self.assertEqual(data["security"]["network_exposure"], "internet")
+        self.assertEqual(data["security"]["tools"]["dependency_level"], "P0")
+        self.assertEqual(data["security"]["not_applicable"][0]["item"], "ASVS V17 WebRTC")
+
+    def test_missing_security_section_raises(self):
+        text = VALID_TOML.split("[security]")[0]
+        self.assert_error(text, "缺少區段 [security]", ("security",))
+
+    def test_missing_nested_tools_section_raises(self):
+        text = VALID_TOML.split("[security.tools]")[0]
+        self.assert_error(text, "缺少區段 [security.tools]", ("security.tools",))
+
+    def test_missing_security_key_raises(self):
+        self.assert_error(VALID_TOML.replace("uses_llm = false\n", ""), "[security].uses_llm")
+
+    def test_not_applicable_without_reason_raises(self):
+        self.assert_error(VALID_TOML.replace('reason = "未使用 WebRTC"\n', ""), "缺少必填欄位 reason")
+
+    def test_not_applicable_blank_item_raises(self):
+        self.assert_error(VALID_TOML.replace('item = "ASVS V17 WebRTC"', 'item = " "'), "缺少必填欄位 item")
+
+    def test_invalid_enum_and_range_raise(self):
+        cases = [
+            ('network_exposure = "internet"', 'network_exposure = "public"', "local / lan / internet"),
+            ("asvs_level = 2", "asvs_level = 4", "1～3"),
+            ("asvs_level = 2", "asvs_level = true", "1～3"),
+            ('dependency_level = "P0"', 'dependency_level = "P2"', "P0 / P1"),
+        ]
+        for old, new, fragment in cases:
+            with self.subTest(new=new):
+                self.assert_error(VALID_TOML.replace(old, new, 1), fragment)
 
 
 class TestGuardrailHelpers(unittest.TestCase):
