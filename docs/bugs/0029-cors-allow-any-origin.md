@@ -1,6 +1,6 @@
 # 缺陷報告：Web 儀表板 CORS 對任意來源放行，外站網頁可跨站讀取履歷與對話
 
-> **編號**：0029｜**嚴重度**：S1｜**狀態**：處理中（PR 審核中）
+> **編號**：0029｜**嚴重度**：S1｜**狀態**：已結案
 
 ## 1. 受理資訊
 * **現象**：Web 儀表板（FastAPI 引擎）對任何 `Origin` 皆原樣回寫 `Access-Control-Allow-Origin` 並附 `Access-Control-Allow-Credentials: true`，預檢請求亦放行所有方法；內建引擎則對所有 JSON 回應寫死 `Access-Control-Allow-Origin: *`。
@@ -84,5 +84,7 @@ AssertionError: 'access-control-allow-origin' unexpectedly found in ['content-ty
 * **`fix:` commit**：`0b195a1`
 * **PR**：[#23](https://github.com/williamcccc/resume-transform-search/pull/23)
 * **QA 報告**：[QA-0029](../qa_reports/0029-cors-allow-any-origin-qa.md)
-* **結案日期**：（PR 合併後填寫）
+* **合併 commit**：`ff47cce`（一般 merge，保留 `test:` 紅燈 commit）
+* **結案日期**：2026-11-20
+* **Hotfix 補件**：完整 RCA 與逃逸分析（第 3 節）、完整 QA 報告、簡化 Gate 1 簽核（第 4 節）皆於合併前完成，無待補項目。
 * **另案追蹤**：審查時發現伺服器未驗證 `Host` 標頭（DNS rebinding 可繞過同源限制），根因不同，依 [bug.md](../../.agents/workflows/bug.md)「一個 bug 一個 PR」另案處理。
