@@ -56,7 +56,7 @@ flowchart LR
 
 | 編號 | 缺陷摘要 | 嚴重度 | 缺陷報告 | 回歸測試 | QA 報告 | 狀態 |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
-| — | （尚無） | — | — | — | — | — |
+| **0029** | Web 儀表板 CORS 對任意來源放行，外站可跨站讀取履歷與對話 | S1 | [Bug-0029](./bugs/0029-cors-allow-any-origin.md) | `tests/unit/test_web_cors_same_origin.py` | [QA-0029](./qa_reports/0029-cors-allow-any-origin-qa.md) | 處理中（PR 審核中） |
 
 ---
 

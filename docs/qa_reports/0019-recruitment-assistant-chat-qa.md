@@ -266,7 +266,7 @@
 
 | 編號 | 等級 | 項目 |
 | :---: | :---: | :--- |
-| G2-09 | P2 | CORS 白名單（既有債，影響 `/api/chat`） |
+| G2-09 | P2 | CORS 白名單（既有債，影響 `/api/chat`）；**已由 [Bug-0029](../bugs/0029-cors-allow-any-origin.md) 處理** |
 | G2-06 | P2 | 失敗 turn 之 checkpoint 回滾 |
 | G3-01 | P2 | 使用者自行輸入之舊人選姓名以明文送 LLM |
 | G3-03 | P2 | 非帶人類追問仍因非逐字引文降為 `NOT_MENTIONED` |
