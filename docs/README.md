@@ -59,6 +59,8 @@ flowchart LR
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
 | **0029** | Web 儀表板 CORS 對任意來源放行，外站可跨站讀取履歷與對話 | S1 | [Bug-0029](./bugs/0029-cors-allow-any-origin.md) | `tests/unit/test_web_cors_same_origin.py` | [QA-0029](./qa_reports/0029-cors-allow-any-origin-qa.md) | 已結案 |
 | **0031** | DDD 分層檢查只掃 Domain／Application 第一層檔案，子資料夾模組漏檢 | S3 | [Bug-0031](./bugs/0031-layer-check-skips-nested-modules.md) | 待撰寫 | — | 待處理 |
+| **0032** | 環境變數同步檢查只認設定模組內的 `os.environ.get()`，其他檔案與其他寫法漏檢 | S3 | [Bug-0032](./bugs/0032-env-sync-check-narrow-detection.md) | 待撰寫 | — | 待處理 |
+| **0033** | 設定模組或 `.env.example` 不存在時，環境變數同步檢查靜默跳過 | S3 | [Bug-0033](./bugs/0033-env-sync-check-skips-missing-files.md) | 待撰寫 | — | 待處理 |
 
 ---
 
