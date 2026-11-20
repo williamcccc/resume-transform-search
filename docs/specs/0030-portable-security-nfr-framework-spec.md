@@ -1,6 +1,6 @@
 # 提案與規格書：安全與非功能需求評估通用化（閉環核心層）
 
-> **狀態**：提案（G1，待 G2 使用者核准）｜**類型**：規範變更（大改：新增技能參考檔與閘門腳本、修改驗證腳本）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`AGENTS.md`、`.agents/**`、閘門腳本與其單元測試，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-20 核准，待決事項全數採建議；QA 見 [QA-0030](../qa_reports/0030-portable-security-nfr-framework-qa.md)）｜**類型**：規範變更（大改：新增技能參考檔與閘門腳本、修改驗證腳本）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`AGENTS.md`、`.agents/**`、閘門腳本與其單元測試，不涉及 `src/`
 
 ## 一、動機
 
@@ -69,7 +69,7 @@
 | `handles_pii = true` | ASVS V14 資料保護 | 儲存、傳輸、保留期限 |
 | `processes_untrusted_files = true` | ASVS V5 檔案處理 | 檔案炸彈、路徑遍歷 |
 
-> 章節編號於 G3 實作時，以 [OWASP ASVS 官方儲存庫](https://github.com/OWASP/ASVS) 之 5.0 正式版逐一核對；本表以章節名稱為準。
+> 章節編號已於 G3 以 [OWASP ASVS 官方儲存庫](https://github.com/OWASP/ASVS) 5.0 版之章節檔名核對（V1～V17）；如有出入，以章節名稱為準。
 
 ### 3.2 專案設定檔：`project.toml` 新增 `[security]`
 
@@ -202,6 +202,18 @@ reason = "目前僅綁定 127.0.0.1 之單人本機工具；network_exposure 改
 | 7 | 跨專案教訓回流 | 本案只建立「教訓歸屬」欄位；另案建立閉環正本儲存庫，各專案歸屬「通用」之規範變更回寫正本，移植一律從正本複製 | 不設正本，各專案自行維護（教訓無法跨專案累積） |
 | 8 | 需連網之掃描於離線時 | WARN 不阻斷，QA 報告記錄未執行 | 離線即 FAIL（本機開發常離線，易誤擋） |
 | 9 | 開發工具相依如何管理 | 新增 `requirements-dev.txt`，與執行期相依分開 | 併入 `requirements.txt`（執行環境會多裝不需要的工具） |
+
+**G2 決議**（2026-11-20）：使用者核准本提案，待決事項 1～9 全數採建議。
+
+### 實作後修訂（G3）
+
+以下修訂不改變提案範圍與決議，記錄於此供日後查證：
+
+1. **工具改裝於獨立虛擬環境**：Semgrep 鎖定 `opentelemetry-api~=1.37`，裝入執行期環境會使 fastapi（需 ≥ 1.44）相依衝突。工具改裝於 `.venv-tools`（已列入 `.gitignore`），`[security.tools]` 新增 `tools_venv` 鍵；`security_scan.py` 先找該虛擬環境，找不到才退回 PATH。仍符合決議 9（`requirements-dev.txt` 與執行期相依分開）。
+2. **發現指紋加上 `fp` 前綴**：純十六進位雜湊可能被隱私掃描的證號樣式誤判，指紋格式定為 `<工具>:fp<SHA-256 前 16 碼>`。
+3. **Semgrep 對 CORS 萬用字元之規則嚴重度為 WARNING**：依決議 3（`ERROR` 為 P0），Bug-0029 型態會判為 P1，不會直接阻斷，但 Gate 2 Checklist 要求 P1 逐項處置。若要直接阻斷，可將 `semgrep_block_severities` 加入 `WARNING`（會增加阻斷數量，建議先觀察）。
+4. **基準檔初始內容**：首次掃描 11 項（1 項 Semgrep 誤報、10 項評測與工具相依之已知漏洞），逐項附具體理由；執行期相依 `requirements.txt` 無已知漏洞。
+5. **順帶修正之既有測試**：`test_workflow_tracks_doc_sync_e2e::test_e3` 寫死缺陷報告數量，Bug-0029 合併後失效，改為依實際檔案數判斷。
 
 ### 不在本案範圍
 

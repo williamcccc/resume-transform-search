@@ -1,0 +1,7 @@
+# 開發與閘門工具相依（Spec-0030）：不屬於執行期相依，與 requirements.txt 分開
+# 請安裝在獨立虛擬環境（semgrep 鎖定之 opentelemetry 版本與執行期 fastapi 衝突）：
+#   python -m venv .venv-tools
+#   .venv-tools/Scripts/python -m pip install -r requirements-dev.txt   （POSIX 為 .venv-tools/bin/python）
+# Gate 2 安全掃描（.agents/skills/code-review/scripts/security_scan.py）
+semgrep==1.186.0
+pip-audit==2.10.1

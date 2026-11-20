@@ -71,7 +71,7 @@ src/
 | 門禁 | 位置 | 放行條件 |
 | :--- | :--- | :--- |
 | **Gate 1**（架構前審） | 功能開發 Step 1；缺陷修正 Step 1B 第 6 階段（簡化版） | 功能：PRD、Tech Spec 與測試案例達標，無高風險架構債；缺陷：修正只恢復既有規格行為、影響面已列出、無介面破壞 |
-| **Gate 2**（對抗式代碼審查） | 各軌 Step 5，**任何軌別皆不可省** | `audit_guardrails.py` 零 P0，且 Checklist 覆核零 P0 |
+| **Gate 2**（對抗式代碼審查） | 各軌 Step 5，**任何軌別皆不可省** | `audit_guardrails.py` 與 `security_scan.py` 零 P0，且 Checklist 覆核零 P0 |
 
 ### 閉環 Skill 一覽
 
@@ -97,6 +97,15 @@ src/
 6. **評分標準視為評測資產**：rubric 與評審 prompt 的變更須記錄原因，變更後不得直接與舊分數比較。
 
 操作細節（指標定義、資料集格式、rubric 寫法、人工校準流程）見 [quality-evaluation 技能](.agents/skills/quality-evaluation/SKILL.md)。
+
+### 安全與非功能需求規則
+
+本節為閉環通用核心，移植時不得刪除；方法、標準對照與判定細節見 [security_nfr_framework.md](.agents/skills/feature-design/references/security_nfr_framework.md)。
+
+1. **Step 1 宣告並轉為可驗證條件**：每份規格宣告 `安全評估範圍：是／否`；為「是」者須有 STRIDE 威脅表與 `NFR-*` 驗收條件，敘述性的品質或安全要求一律改寫為 `NFR-*`（`verify_doc_sync.py` 自 `docs.security_ac_enforced_from` 編號起強制）。
+2. **專案只宣告特徵**：適用標準由 `project.toml` 的 `[security]` 特徵對照決定，不適用者須附理由。
+3. **Step 5 執行安全工具掃描**：`security_scan.py` 零新增 P0；P1 逐項處置或登錄基準檔（附理由與到期日）。
+4. **安全風險不得無條件延後**：殘餘風險先依缺陷嚴重度表判定，S1 不得延後；逃逸分析須判定教訓歸屬，通用者回寫核心層。
 
 ---
 

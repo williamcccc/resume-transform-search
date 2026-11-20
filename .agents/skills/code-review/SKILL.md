@@ -18,8 +18,8 @@ description: >-
 
 ```mermaid
 flowchart TD
-    Start["進入 Step 5: 代碼審查 (Gate 2)"] --> StepA["階段 A: 執行自動化架構靜態掃描<br>python .agents/skills/code-review/scripts/audit_guardrails.py"]
-    StepA --> CheckA{"AST 掃描是否零 P0 違規?"}
+    Start["進入 Step 5: 代碼審查 (Gate 2)"] --> StepA["階段 A: 執行自動化靜態掃描<br>audit_guardrails.py（架構與衛生）<br>security_scan.py（安全工具）"]
+    StepA --> CheckA{"兩支掃描是否皆零 P0?"}
     CheckA -->|"有 P0 違規"| Fail["審查失敗 (Blocker)<br>打回重構"]
     CheckA -->|"合格"| StepB["階段 B: 對抗式 Checklist 人工覆核<br>比對 review_checklist.md"]
     StepB --> CheckB{"核心防護是否全數達標?<br>(安全/資源/例外/冪等/測試)"}
@@ -27,13 +27,16 @@ flowchart TD
     CheckB -->|"全數通過"| StepC["階段 C: 出具審查檢核表並放行"]
 ```
 
-### 階段 A：執行自動化架構靜態掃描
-在終端機執行本技能內建的靜態分析腳本：
+### 階段 A：執行自動化靜態掃描
+在終端機執行本技能內建的兩支掃描腳本：
 ```bash
 python .agents/skills/code-review/scripts/audit_guardrails.py
+python .agents/skills/code-review/scripts/security_scan.py
 ```
-* **阻斷條件 (P0)**：若回傳 Exit Code $\neq 0$（存在 P0 級違規，如 Domain 污染、DIP 違規、非 with 管理之 open 呼叫），禁止交付，必須立即分析錯誤訊息並修正。
-* **警告處置 (P1)**：若存在 P1 級警告（例如盲目吞噬例外、例外鏈未關聯 `raise ... from`），評估是否應加入明確例外捕獲或補全原始堆疊追蹤。
+* `audit_guardrails.py` 檢查本閉環自訂的架構、資源、例外、硬編碼與版控衛生規則。
+* `security_scan.py`（閉環通用核心）依 `project.toml` 的 `[security.tools]` 執行 Semgrep 靜態掃描與 pip-audit 依賴漏洞掃描，只阻斷基準檔（`baseline`）以外的新增發現；工具無法連網時印 WARN 不阻斷，須於 QA 報告記錄未執行項目。
+* **阻斷條件 (P0)**：任一腳本回傳 Exit Code $\neq 0$（存在 P0 級違規，如 Domain 污染、DIP 違規、非 with 管理之 open 呼叫、高嚴重度安全發現、掃描工具缺失），禁止交付，必須立即分析錯誤訊息並修正。
+* **警告處置 (P1)**：若存在 P1 級警告（例如盲目吞噬例外、例外鏈未關聯 `raise ... from`、中低嚴重度安全發現），評估是否應修正；保留者須附理由。安全掃描發現的處置方式以 [review_checklist.md](./references/review_checklist.md)「安全工具掃描」項為準。
 
 ### 階段 B：對抗式 Checklist 覆核
 針對變更程式碼，逐項對照 [review_checklist.md](./references/review_checklist.md)（Gate 2 檢核項的唯一正本）進行對抗式覆核。檢核項與等級只在該清單維護，本檔不另行列舉。
@@ -45,6 +48,7 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 ```markdown
 ### 🛡️ Code Review 雙門禁審查結果
 * **架構靜態掃描**： 通過 (`audit_guardrails.py` 零 P0 違規)
+* **安全工具掃描**： 通過 (`security_scan.py` 零 P0；P1 N 項已處置；未執行項目：無 / 列出)
 * **DDD 依賴邊界**： 通過 (Domain 純潔、Application DIP 完整)
 * **安全與配額硬上限**： 通過 (Zip Bomb 防禦、Prompt 標籤圍欄防注入)
 * **資源釋放與鎖定防禦**： 通過 (強制 Context Manager，防止 Windows 檔案鎖死)
@@ -63,3 +67,4 @@ python .agents/skills/code-review/scripts/audit_guardrails.py
 ## 相關參考資料
 * [審查檢核清單與等級定義](./references/review_checklist.md)
 * [架構掃描腳本](./scripts/audit_guardrails.py)
+* [安全掃描腳本](./scripts/security_scan.py)

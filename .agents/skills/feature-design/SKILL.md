@@ -8,19 +8,20 @@ description: >-
 # 需求規格化與架構技術設計技能 (Feature Design & Arch Spec)
 
 本技能提供本專案在實施 **「門禁一：架構與規格審查 (Gate 1)」** 時的標準作業程序。
-用以杜絕 AI 助理在接收到簡短使用者指令時「天馬行空、想到哪寫到哪」的通病，確保每一項新功能在動工撰寫程式碼前（缺陷修復改走 Bug 軌 Step 1B，見 [bug-triage](../bug-triage/SKILL.md)），均經過**充分代碼探測**、**結構化 PRD 需求細化**、**8 大架構維度衝擊評估**與**嚴謹的 DDD 技術規格書 (Tech Spec) 產出**。
+用以杜絕 AI 助理在接收到簡短使用者指令時「天馬行空、想到哪寫到哪」的通病，確保每一項新功能在動工撰寫程式碼前（缺陷修復改走 Bug 軌 Step 1B，見 [bug-triage](../bug-triage/SKILL.md)），均經過**充分代碼探測**、**結構化 PRD 需求細化**、**安全與非功能需求評估**、**8 大架構維度衝擊評估**與**嚴謹的 DDD 技術規格書 (Tech Spec) 產出**。
 
 ---
 
 ## 作業流程 (Feature Design Workflow)
 
-當進入閉環流程的 **Step 1（規劃與架構前審階段 - Gate 1）** 時，必須嚴格依序執行以下 5 個階段：
+當進入閉環流程的 **Step 1（規劃與架構前審階段 - Gate 1）** 時，必須嚴格依序執行以下階段（1、2、2.5、3、4、5）：
 
 ```mermaid
 flowchart TD
     Start["【輸入】使用者簡短需求 (一兩句話)"] --> Phase1["階段 1: 代碼庫主動探測 (Codebase Probe)<br>• 檢索既有 Domain 實體、Use Case 與底層 Adapter<br>• 梳理相依關係，避免重複造輪子"]
     Phase1 --> Phase2["階段 2: 產出產品需求文件 (PRD)<br>• 參照 references/prd_template.md<br>• 明確 In/Out Scope 與驗收標準 (AC)"]
-    Phase2 --> Phase3["階段 3: 8 大架構維度前審 (Arch Review)<br>• 參照 references/arch_review_checklist.md<br>• 重大變更於 docs/adr/ 產出 ADR 草案"]
+    Phase2 --> Phase25["階段 2.5: 安全與非功能需求評估 (Security & NFR)<br>• 參照 references/security_nfr_framework.md<br>• 範圍宣告、ISO 25010 宣告、STRIDE 威脅表、NFR-* 驗收條件"]
+    Phase25 --> Phase3["階段 3: 8 大架構維度前審 (Arch Review)<br>• 參照 references/arch_review_checklist.md<br>• 重大變更於 docs/adr/ 產出 ADR 草案"]
     Phase3 --> Phase4["階段 4: 產出 DDD 技術實作規格書 (Tech Spec)<br>• 參照 references/tech_spec_template.md<br>• 定義 Domain Protocol、DTO、資源 with 與測試計畫"]
     Phase4 --> Gate1{"★【門禁一：Gate 1 審查】<br>PRD 與 Tech Spec 是否達標?<br>(零架構債、零天馬行空)"}
     Gate1 -->|"未達標 / 需調整"| Phase1
@@ -43,6 +44,14 @@ flowchart TD
 * **輸入與輸出合約**：定義參數型別、必填性與回傳格式。
 * **驗收標準 (Acceptance Criteria)**：以條列或 Given-When-Then 明確定義正常情境、極限邊界與錯誤處理。
 
+### 階段 2.5：安全與非功能需求評估 (Security & NFR Assessment)
+依 [security_nfr_framework.md](./references/security_nfr_framework.md)（閉環通用核心，移植時不得刪除）執行，結果寫入 PRD 第 5 節：
+* **範圍宣告**：於驗收標準段落宣告 `安全評估範圍：是／否`（判定條件見框架第一節）；輕量變更也須書面宣告，不得只做心智自檢。
+* **非功能需求宣告**：依 ISO/IEC 25010 逐項宣告適用與否；適用者至少一條可驗證的 `NFR-*`，敘述性要求一律改寫為 `NFR-*`。
+* **威脅建模**：範圍為「是」時，對每條跨信任邊界的資料流以 STRIDE 六問推導威脅，緩解措施引用框架第四節之標準條目，並對應 `NFR-*` 或測試案例。
+* **殘餘風險**：依框架第五節判定嚴重度與處置。
+* 自 `project.toml` 的 `docs.security_ac_enforced_from` 編號起，`verify_doc_sync.py` 強制檢查宣告、威脅表與 `NFR-*`。
+
 ### 階段 3：8 大架構維度前審 (Architecture Review)
 逐項對照 [arch_review_checklist.md](./references/arch_review_checklist.md)（8 大架構維度的唯一正本）進行衝擊評估，並依其「輕重分流判定原則」決定 Fast Track 或 Deep Track。
 > [!IMPORTANT]
@@ -55,7 +64,7 @@ flowchart TD
 * **【基礎設施層】**：外部套件串接方式、資源釋放（強制 Context Manager `with`）、例外鏈保留（`raise ... from err`）與日誌脫敏。
 * **【表現層】**：CLI 旗標設計，保證 100% 向下相容。
 * **【測試計畫】**：規劃單元測試清單（正常情境 + 負面故障注入情境）。
-* **【QA 驗收案例矩陣】**：對照每條 AC 規劃 Step 4 驗收案例（範本第 7 節）。
+* **【QA 驗收案例矩陣】**：對照每條 AC 與 `NFR-*` 規劃 Step 4 驗收案例（範本第 7 節）。
 * **【品質評測】**：規格宣告屬品質評測範圍時，依 [quality-evaluation](../quality-evaluation/SKILL.md) 定義品質 AC 與標註資料來源。
 
 ### 階段 5：Gate 1 門禁放行 (Gate 1 Sign-Off)
@@ -68,3 +77,4 @@ flowchart TD
 * [產品需求文件範本 (PRD Template)](./references/prd_template.md)
 * [技術實作規格書範本 (Tech Spec Template)](./references/tech_spec_template.md)
 * [8 大架構維度檢核清單 (Arch Review Checklist)](./references/arch_review_checklist.md)
+* [安全與非功能需求評估框架 (Security & NFR Framework)](./references/security_nfr_framework.md)

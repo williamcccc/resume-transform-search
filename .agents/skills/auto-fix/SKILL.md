@@ -74,7 +74,7 @@ flowchart TD
 2. **重送原發步驟**：
    - 若由 Step 3 觸發 ➔ 確認單元測試通過後進入 Step 4。
    - 若由 Step 4 觸發 ➔ 重新執行 `tests/e2e/` 實測腳本確認 AC 達成。
-   - 若由 Step 5 觸發 ➔ 重新執行 `audit_guardrails.py` 與 Checklist 覆核。
+   - 若由 Step 5 觸發 ➔ 重新執行 `audit_guardrails.py`、`security_scan.py` 與 Checklist 覆核。
 
 ---
 

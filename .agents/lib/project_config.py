@@ -49,7 +49,30 @@ SCHEMA: Dict[str, Dict[str, str]] = {
     },
     "docs": {
         "quality_ac_enforced_from": "int",
+        "security_ac_enforced_from": "int",
         "agents_max_lines": "int",
+    },
+    # 專案安全特徵（Spec-0030）：移植時只回答特徵，由框架對照適用標準
+    "security": {
+        "asvs_level": "int_range:1-3",
+        "network_exposure": "enum:local|lan|internet",
+        "web_interface": "bool",
+        "api_service": "bool",
+        "uses_llm": "bool",
+        "handles_pii": "bool",
+        "processes_untrusted_files": "bool",
+        "multi_user": "bool",
+        "not_applicable": "item_reason_list",
+    },
+    # Gate 2 安全掃描工具設定（Spec-0030）
+    "security.tools": {
+        "scan_paths": "str_list",
+        "semgrep_configs": "str_list",
+        "semgrep_block_severities": "str_list",
+        "dependency_files": "str_list",
+        "dependency_level": "enum:P0|P1",
+        "baseline": "str",
+        "tools_venv": "str",
     },
 }
 
@@ -68,16 +91,28 @@ def _check_type(section: str, key: str, value, kind: str) -> None:
         ok = isinstance(value, str) and value.strip() != ""
     elif kind == "str_list":
         ok = isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
-    elif kind == "exception_list":
+    elif kind in ("exception_list", "item_reason_list"):
+        fields = ("path", "reason") if kind == "exception_list" else ("item", "reason")
         if not isinstance(value, list):
             raise ProjectConfigError(f"{where} 須為陣列")
         for index, item in enumerate(value):
             if not isinstance(item, dict):
-                raise ProjectConfigError(f"{where}[{index}] 須為表格（含 path 與 reason）")
-            for field in ("path", "reason"):
+                raise ProjectConfigError(f"{where}[{index}] 須為表格（含 {' 與 '.join(fields)}）")
+            for field in fields:
                 field_value = item.get(field)
                 if not isinstance(field_value, str) or not field_value.strip():
                     raise ProjectConfigError(f"{where}[{index}] 缺少必填欄位 {field}")
+        return
+    elif kind.startswith("enum:"):
+        choices = kind[len("enum:"):].split("|")
+        if not (isinstance(value, str) and value in choices):
+            raise ProjectConfigError(f"{where} 須為 {' / '.join(choices)} 之一")
+        return
+    elif kind.startswith("int_range:"):
+        low, high = (int(v) for v in kind[len("int_range:"):].split("-"))
+        ok = isinstance(value, int) and not isinstance(value, bool) and low <= value <= high
+        if not ok:
+            raise ProjectConfigError(f"{where} 須為 {low}～{high} 之整數")
         return
     else:  # pragma: no cover - SCHEMA 內部錯誤
         raise ProjectConfigError(f"未知的型別定義: {kind}")
@@ -99,7 +134,9 @@ def load_project_config(root: Path, sections: Optional[Iterable[str]] = None) ->
     for section in (sections if sections is not None else SCHEMA.keys()):
         if section not in SCHEMA:
             raise ProjectConfigError(f"未定義的設定區段: [{section}]")
-        table = data.get(section)
+        table = data
+        for part in section.split("."):  # 支援巢狀區段，如 security.tools
+            table = table.get(part) if isinstance(table, dict) else None
         if not isinstance(table, dict):
             raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 缺少區段 [{section}]")
         for key, kind in SCHEMA[section].items():

@@ -78,6 +78,7 @@
 [標準輸出]: ...
 [測試結果]: Ran X tests in Ys ... OK
 ```
+* **安全工具掃描**（`python .agents/skills/code-review/scripts/security_scan.py`）：`P0=0 P1=N 基準內=M 未執行=K`；未執行項目（無法連網）逐項列出。
 
 ---
 
@@ -123,9 +124,9 @@
 
 ### 9.1 審查輪次
 
-| 輪次 | 日期 | 審查範圍 (commit / diff) | `audit_guardrails.py` | P0 | P1 | P2 | 判定 |
-| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| 1 | YYYY-MM-DD | `abc1234..def5678` | Exit 0 | 0 | 1 | 2 | **PASS** / **REJECT** |
+| 輪次 | 日期 | 審查範圍 (commit / diff) | `audit_guardrails.py` | `security_scan.py` | P0 | P1 | P2 | 判定 |
+| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| 1 | YYYY-MM-DD | `abc1234..def5678` | Exit 0 | Exit 0 | 0 | 1 | 2 | **PASS** / **REJECT** |
 
 ### 9.2 發現項目
 
