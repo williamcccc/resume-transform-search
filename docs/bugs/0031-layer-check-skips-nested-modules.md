@@ -41,7 +41,7 @@ application violations: 1 ['top.py']
 | `.agents/skills/code-review/scripts/audit_guardrails.py` | 兩處 `glob` 改 `rglob`；違規訊息改印相對路徑 |
 | `tests/unit/`（新增或擴充一個測試檔） | 紅燈回歸測試：巢狀模組違規須被抓到 |
 
-**修正軌別注意**：修正只改 `.agents/**` 與測試、不改 `src/`，依 [AGENTS.md](../../AGENTS.md) 第 2 節分流表屬**規範變更**；[governance.md](../../.agents/workflows/governance.md) 將「修改驗證腳本」列為大改，需 G1 提案、使用者 G2 核准、spec 與 QA 報告。修正時應先由使用者決定：沿用本報告作為缺陷紀錄、以 governance 流程執行修正（建議），並於本報告第 6 節記錄對應編號。
+**修正軌別注意**：修正只改 `.agents/**` 與測試、不改 `src/`，依 [AGENTS.md](../../AGENTS.md) 第 2 節分流表屬**規範變更**；[governance.md](../../.agents/workflows/governance.md) 將「修改驗證腳本」列為大改，需 G1 提案、使用者 G2 核准、spec 與 QA 報告。修正時應先由使用者決定：沿用本報告作為缺陷紀錄、以 governance 流程執行修正（建議），並於本報告第 6 節記錄對應編號。同類守門腳本缺陷 [Bug-0032](./0032-env-sync-check-narrow-detection.md)、[Bug-0033](./0033-env-sync-check-skips-missing-files.md) 可併入同一份規範變更提案。
 
 **升級條件檢查**：
 
