@@ -46,7 +46,7 @@
    - 內層抽象絕不可依賴外層細節。Domain 層嚴禁 import 第三方 SDK。
    - 所有實體外部工具透過 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 src/domain/interfaces.py）的 Protocol 介面以依賴注入 (DIP) 方式裝配。
 2. Step 2 底線防護守則：
-   - 所有檔案 I/O、PyMuPDF Document 物件與串流強制使用 with Context Manager（防 Windows 檔案鎖死）。
+   - 所有檔案 I/O、文件解析物件與串流強制使用 with Context Manager（防 Windows 檔案鎖死）。
    - 重新拋出領域自定義例外時，強制使用 raise ... from err 保留原始呼叫堆疊。
    - 外部 API 妥善處理 429 配額用罄與 RECITATION 平滑降級。
    - 日誌與版控零洩漏：嚴禁印出或寫入未脫敏之原始履歷明文、真實求職者個資 (PII)、真實企業案例、API 憑證與本機工作區絕對路徑；若新增環境變數或衍生目錄，必須同步更新 .env.example 與 .gitignore。<!-- 專案專屬：敏感資料類型 -->

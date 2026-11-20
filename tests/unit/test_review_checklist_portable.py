@@ -64,12 +64,12 @@ class TestReviewChecklistPortable(unittest.TestCase):
                 self.assertEqual(re.findall(r"IVectorStore|IEmbeddingService|Redis|Gemini|候選人|PDF", text), [])
 
     def test_porting_declares_python_scope_and_lists_instance_files(self):
-        """AC-4：PORTING.md 宣告 Python 適用範圍並列出兩份實例檔與補列檔案"""
+        """AC-4：PORTING.md 宣告 Python 適用範圍並列出兩份實例檔（舉例中性化後已無「選擇性中性化」步驟）"""
         text = PORTING.read_text(encoding="utf-8")
         self.assertIn("**適用範圍**", text)
         self.assertIn("Python 專案", text)
-        for name in ("arch_review_criteria.md", "review_criteria.md", "unit-testing/SKILL.md",
-                     "feature-design/SKILL.md", "developer/AGENT.md"):
+        self.assertNotIn("中性化舉例", text)
+        for name in ("arch_review_criteria.md", "review_criteria.md"):
             with self.subTest(name=name):
                 self.assertIn(name, text)
 

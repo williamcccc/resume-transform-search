@@ -1,6 +1,6 @@
 # 根因分析與故障診斷手冊 (RCA Guide)
 
-本手冊彙整專案常見核心異常的根因定位路徑（5-Whys）與診斷技巧：
+本手冊彙整常見核心異常的根因定位路徑（5-Whys）與診斷技巧：
 
 ---
 
@@ -13,7 +13,7 @@
 ### 根因分析 (RCA Path)
 1. **為什麼 Windows 會鎖定檔案？** 因為某個檔案 Handle 仍處於開啟狀態未被 close。
 2. **為什麼 Handle 未被 close？**
-   - 使用了 `open(f)` 或 `pymupdf.open(f)` 但未置於 `with` Context Manager 中。
+   - 使用了 `open(f)` 或文件解析函式庫的開檔函式但未置於 `with` Context Manager 中。
    - 例外發生在中途，流程直接跳出導致外層 `close()` 未被執行。
    - 物件被全域變數或垃圾回收器延遲持有。
 3. **標準修復方針**：
@@ -25,7 +25,7 @@
 ## 二、字元編碼與特殊路徑異常 (UnicodeDecodeError / Windows Path)
 
 ### 症狀 (Symptom)
-讀取履歷檔案或產出 Markdown 時拋出 `UnicodeDecodeError: 'cp950' / 'gbk' codec can't decode...`。
+讀取輸入檔案或寫出產出檔案時拋出 `UnicodeDecodeError: 'cp950' / 'gbk' codec can't decode...`。
 
 ### 根因分析 (RCA Path)
 1. **為什麼會使用 cp950？** 在 Windows 系統上，Python 的 `open()` 預設編碼依賴系統語系設定（預設為 ANSI/cp950）。
@@ -35,28 +35,28 @@
 
 ---
 
-## 三、Redis 向量搜尋或 HNSW 索引報錯 (ResponseError: no such index)
+## 三、資料庫索引或資料表不存在 (例：Redis `ResponseError: no such index`)
 
 ### 症狀 (Symptom)
-執行向量搜尋或存入切片時，Redis 拋出 `no such index idx:resumes` 或資料遺失。
+執行查詢或寫入時，資料庫回報索引（或資料表）不存在，或資料遺失。
 
 ### 根因分析 (RCA Path)
 1. **為什麼找不到索引？** 
-   - Redis 服務剛啟動，尚未執行 `ft.create` 建立 HNSW 索引。
+   - 資料庫服務剛啟動或剛重建，尚未建立索引或執行綱要遷移。
    - 或者查詢傳入了錯誤的索引名稱（如測試環境傳入了開發環境的索引名）。
 2. **標準修復方針**：
-   - 在 `RedisVectorStore` 初始化或初次執行搜尋前，加入「索引存在性檢查」與「自動冪等建構（Lazy Index Creation）」。
-   - 跳脫 Tag 欄位保留字元（使用 `_escape_redis_tag`）。
+   - 在資料存取類別初始化或初次查詢前，加入「索引存在性檢查」與「自動冪等建構（Lazy Index Creation）」。
+   - 查詢條件中的使用者輸入須依資料庫語法跳脫保留字元。
 
 ---
 
 ## 四、外部 API 429 配額用罄與中斷 (ResourceExhausted / RateLimit)
 
 ### 症狀 (Symptom)
-大量檔案轉檔或評審時，拋出 `429 Too Many Requests` 或 `ResourceExhausted`。
+大量批次處理或呼叫 LLM 評審時，拋出 `429 Too Many Requests` 或 `ResourceExhausted`。
 
 ### 根因分析 (RCA Path)
-1. **為什麼會觸發 429？** 請求頻率超過了 Gemini API 免費或付費層級的 RPM/TPM 硬限制。
+1. **為什麼會觸發 429？** 請求頻率超過了外部 API 方案的 RPM/TPM 硬限制。
 2. **標準修復方針**：
    - 實作平滑降級與重試機制（Exponential Backoff with Jitter）。
-   - 當 LLM Judge 遭遇 429 時，平滑回退至「純確定性規則驗證（Rule-Based Fallback）」，並在報告中明確標註 `degraded: True`，保證轉檔流程不崩潰中斷。
+   - 當 LLM Judge 遭遇 429 時，平滑回退至「純確定性規則驗證（Rule-Based Fallback）」，並在報告中明確標註 `degraded: True`，保證主流程不崩潰中斷。

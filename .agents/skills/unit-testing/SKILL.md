@@ -36,8 +36,8 @@ flowchart TD
 ### 1. 100% 離線 Mock 獨立性 (Pure Offline Isolation)
 * **紅線禁令**：單元測試檔案（`tests/unit/test_*.py`）中**嚴禁發送真實 HTTP 請求、嚴禁調用真實 Gemini API、嚴禁連接真實 Redis 資料庫**。<!-- 專案專屬：外部服務名稱 -->
 * 所有對外介面一律使用 `unittest.mock.Mock` 或 `MagicMock` 模擬：
-  - 模擬 Embedding 服務：回傳預設長度之零向量或特定固定維度向量（如 768 維）。
-  - 模擬 Redis 客戶端：以內建 dictionary 或假物件模擬 `hset`, `hgetall`, `ft().search`。
+  - 模擬 Embedding 服務：回傳與實際模型維度相同之固定向量（維度取自設定，勿在測試中另寫一份）。
+  - 模擬資料庫客戶端（如 Redis）：以內建 dictionary 或假物件模擬其讀寫與查詢方法。
   - 模擬 LLM 回應：回傳預設之 JSON 結構字串或 mock response。
 
 ### 2. AAA 結構與語義化命名 (Arrange-Act-Assert)
@@ -55,7 +55,7 @@ flowchart TD
 ### 3. 必備負面情境與故障注入 (Negative & Fault Injection)
 * 每個新功能模組必須包含**至少 1 組正常流程（Happy Path）與 2 組異常流程（Negative Paths）**：
   - **超時與中斷**：模擬外部網路斷線拋出 `TimeoutError`。
-  - **配額耗盡**：模擬 Gemini API 回傳 `ResourceExhausted` (429)。
+  - **配額耗盡**：模擬外部 API 回傳限流或配額用罄錯誤（HTTP 429）。
   - **損毀與畸形**：傳入非預期的零長度檔案、破壞的結構字串。
   - **例外鏈檢核**：使用 `with self.assertRaises(ExpectedDomainError) as ctx:` 斷言例外，並驗證 `ctx.exception.__cause__` 不為空。
 
