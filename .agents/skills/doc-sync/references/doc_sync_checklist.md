@@ -24,7 +24,7 @@
 - [ ] **狀態正規化**：已落地的 ADR 狀態是否已由 `提案中 (Proposed)` 正式變更為 **`已採納 (Accepted)`**？
 - [ ] **編號連續性**：ADR 檔名是否依循 `XXXX-kebab-case.md` 連續編號命名？
 - [ ] **索引表格同步**：[`docs/adr/README.md`](../../../../docs/adr/README.md) 的索引表格是否已新增該 ADR 條目（包含編號、標題、狀態、日期、技術標籤）？
-- [ ] **8 大維度完整度**：ADR 第 5 節是否依 `.agents/skills/feature-design/references/arch_review_checklist.md`（唯一正本）逐項填寫評估結論？
+- [ ] **8 大維度完整度**：ADR 第 5 節是否依 `.agents/skills/feature-design/references/arch_review_checklist.md`（維度定義唯一正本；本專案通過標準見 `.agents/project/arch_review_criteria.md`）逐項填寫評估結論，不適用者寫理由？
 
 ---
 

@@ -53,7 +53,7 @@ flowchart TD
 * **檢核與同步要點**：
   1. **狀態轉換**：若本次變更在 Step 1 草擬了架構決策紀錄（狀態為 `提案中 (Proposed)`），在通過審查與實作落地後，必須正式將狀態變更為 **`已採納 (Accepted)`**，並補全實施後的評估結論。
   2. **編號與索引維護**：檢查新 ADR 是否依照連續編號命名（如 `0006-xxxx.md`），並在 [docs/adr/README.md](../../../docs/adr/README.md) 的索引表格中追加該條目，填妥編號、標題、狀態、日期與核心技術標籤。
-  3. **8 大架構維度完整性**：確保 ADR 第 5 節依 [arch_review_checklist.md](../feature-design/references/arch_review_checklist.md)（唯一正本）逐項填寫評估結論。
+  3. **8 大架構維度完整性**：確保 ADR 第 5 節依 [arch_review_checklist.md](../feature-design/references/arch_review_checklist.md)（維度定義唯一正本；本專案通過標準見 [arch_review_criteria.md](../../project/arch_review_criteria.md)）逐項填寫評估結論，不適用者寫理由。
 
 ### 階段 3.5：索引與範本鏡像同步 (Index & Mirror Sync)
 * **`docs/README.md` 索引**：本次新增的規格、QA 報告、缺陷報告須登錄於對應表格（功能規格表或缺陷修正表），並填妥測試檔與 QA 報告連結。

@@ -43,15 +43,15 @@
 
 ## 5. 8 大架構審查維度評估 (8-Dimension Architecture Review)
 
-逐項對照 8 大架構維度的唯一正本 `.agents/skills/feature-design/references/arch_review_checklist.md`，每個維度寫出評估結論：
+逐項對照 8 大架構維度的唯一正本 `.agents/skills/feature-design/references/arch_review_checklist.md`（本專案通過標準見 `.agents/project/arch_review_criteria.md`），每個維度寫出評估結論；不適用者寫一句理由，不得留白：
 
 | # | 維度 | 評估結論 |
 | :---: | :--- | :--- |
-| 1 | 個資隱私 (PII) | |
-| 2 | 容量與極限 (Capacity) | |
-| 3 | 非同步與演進 (Async / Evolution) | |
-| 4 | Token 能效與成本熔斷 (Token Economics & Cost) | |
+| 1 | 個資與敏感資料 (Sensitive Data) | |
+| 2 | 容量與資源上限 (Capacity) | |
+| 3 | 解耦與非同步演進 (Async / Evolution) | |
+| 4 | 外部呼叫成本與配額 (External Cost & Quota) | |
 | 5 | 可抽換性 (Portability & Decoupling) | |
-| 6 | 惡意輸入與配額硬上限 (Input Security) | |
-| 7 | 向量索引演進遷移 (Index Evolution) <!-- 專案專屬：整個維度 --> | |
-| 8 | 分散式併發與可觀測性 (Concurrency & Traceability) | |
+| 6 | 惡意輸入與資源上限 (Input Security) | |
+| 7 | 資料結構演進 (Schema Evolution) | |
+| 8 | 併發與可觀測性 (Concurrency & Traceability) | |

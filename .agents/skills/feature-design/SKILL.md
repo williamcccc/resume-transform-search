@@ -53,7 +53,7 @@ flowchart TD
 * 自 `project.toml` 的 `docs.security_ac_enforced_from` 編號起，`verify_doc_sync.py` 強制檢查宣告、威脅表與 `NFR-*`。
 
 ### 階段 3：8 大架構維度前審 (Architecture Review)
-逐項對照 [arch_review_checklist.md](./references/arch_review_checklist.md)（8 大架構維度的唯一正本）進行衝擊評估，並依其「輕重分流判定原則」決定 Fast Track 或 Deep Track。
+逐項對照 [arch_review_checklist.md](./references/arch_review_checklist.md)（8 大架構維度的唯一正本）進行衝擊評估，適用維度依本專案通過標準 [arch_review_criteria.md](../../project/arch_review_criteria.md) 判定，並依其「輕重分流判定原則」決定 Fast Track 或 Deep Track。
 > [!IMPORTANT]
 > 若評估為 **重大架構變更 (Deep Track)**，必須於 [`docs/adr/`](../../../docs/adr/) 先撰寫 ADR 草案。
 

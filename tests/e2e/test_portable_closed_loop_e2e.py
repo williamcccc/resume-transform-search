@@ -18,6 +18,8 @@ AUDIT_REL = Path(".agents/skills/code-review/scripts/audit_guardrails.py")
 VERIFY_REL = Path(".agents/skills/doc-sync/scripts/verify_doc_sync.py")
 SCAN_REL = Path(".agents/skills/code-review/scripts/security_scan.py")
 FRAMEWORK_REL = Path(".agents/skills/feature-design/references/security_nfr_framework.md")
+CHECKLIST_REL = Path(".agents/skills/feature-design/references/arch_review_checklist.md")
+CRITERIA_REL = Path(".agents/project/arch_review_criteria.md")
 TOOLS_VENV = PROJECT_ROOT / ".venv-tools"
 CORS_SOURCE = (
     "from fastapi import FastAPI\n"
@@ -80,6 +82,14 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         config.write_text(_rewrite_project_toml(config.read_text(encoding="utf-8")), encoding="utf-8")
         self.config = tomllib.loads(config.read_text(encoding="utf-8"))
 
+        # PORTING.md 第 4 步（Spec-0035）：專案實例檔整份替換，新專案先留空表
+        (self.root / CRITERIA_REL).write_text(
+            "# 架構前審：本專案通過標準\n\n"
+            "> 依 [arch_review_checklist.md](../skills/feature-design/references/arch_review_checklist.md) 逐維度補齊。\n\n"
+            "| # | 維度 | 本專案通過標準 |\n| :---: | :--- | :--- |\n",
+            encoding="utf-8",
+        )
+
         docs = self.root / "docs"
         for sub in ("specs", "qa_reports", "adr", "bugs", "templates"):
             (docs / sub).mkdir(parents=True)
@@ -126,6 +136,20 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         code, out = self.run_script(AUDIT_REL)
         self.assertEqual(code, 0, out)
         self.assertIn("Domain 層純潔性驗證", out)
+
+    def test_a1_arch_review_core_kept_and_project_criteria_replaced(self):
+        """Spec-0035 AC-4：替換專案實例檔後核心清單原樣保留、原專案答案不殘留，閘門仍通過"""
+        core = (self.root / CHECKLIST_REL).read_text(encoding="utf-8")
+        self.assertEqual(core, (PROJECT_ROOT / CHECKLIST_REL).read_text(encoding="utf-8"))
+        self.assertNotIn("<!-- 專案專屬", core)
+        project_dir = self.root / ".agents" / "project"
+        leftovers = [
+            path.name for path in project_dir.rglob("*.md")
+            if re.search(r"Redis|resume_content|Celery", path.read_text(encoding="utf-8"))
+        ]
+        self.assertEqual(leftovers, [])
+        code, out = self.run_script(VERIFY_REL)
+        self.assertEqual(code, 0, out)
 
     def test_p2_original_fingerprints_absent_after_porting(self):
         original = tomllib.loads((PROJECT_ROOT / ".agents" / "project.toml").read_text(encoding="utf-8"))
