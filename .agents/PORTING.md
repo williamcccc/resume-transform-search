@@ -4,6 +4,9 @@
 
 * **值**：集中在 [project.toml](project.toml)，閘門腳本只讀這份設定。
 * **規則**：留在規範文字中，以 `<!-- 專案專屬` 開頭的 HTML 註解標記（畫面上看不到，搜尋得到）。
+* **答案**：通用檢核清單的本專案具體標準，集中在 [project/](project/) 下的專案實例檔，移植時整份替換（[Spec-0035](../docs/specs/0035-portable-arch-review-checklist-spec.md)、[Spec-0036](../docs/specs/0036-portable-review-checklist-spec.md)）。
+
+**適用範圍**：閘門腳本與測試規範綁定 **Python 專案**——`audit_guardrails.py` 以 Python AST 掃描、`security_scan.py` 使用 Semgrep `p/python` 規則與 pip-audit、單元測試規範以 `unittest` 為準。其他語言的專案可沿用流程、角色、技能與檢核清單，但兩支閘門腳本與測試指令須自行替換。
 
 ## 步驟
 
@@ -17,10 +20,12 @@
    * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
    * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`；第四節適用條件為「技術」的章節（如 V9、V10、V17），新專案未使用該技術者須逐章登錄。
    * `[security.tools]`：`scan_paths` 改為新專案的原始碼與入口檔，`dependency_files` 改為新專案的需求檔；`baseline` 指向的基準檔**不要複製**（那是原專案的發現）。`diff_base` 改為新專案的主分支名稱；`full_scan_max_age_days` 依需要調整（預設 7 天）。
-4. **替換專案實例檔**：[project/](project/) 下的檔案（目前為 [arch_review_criteria.md](project/arch_review_criteria.md)）是原專案的通過標準，整份替換為新專案內容；新專案尚無程式碼時可先留空表，隨首份規格補齊。核心檢核清單（如 `arch_review_checklist.md`）不必改寫。
+4. **替換專案實例檔**：[project/](project/) 下的檔案是原專案的具體標準，整份替換為新專案內容；新專案尚無程式碼時可先留空表或只留類別標題，隨首份規格與首次審查補齊。核心檢核清單不必改寫。
+   * [arch_review_criteria.md](project/arch_review_criteria.md)：Gate 1 架構前審 8 大維度的通過標準（核心為 `arch_review_checklist.md`）。
+   * [review_criteria.md](project/review_criteria.md)：Gate 2 代碼審查的本專案檢核項與數值（核心為 `review_checklist.md`）。
 5. **處理專屬標記**：全倉搜尋 `<!-- 專案專屬`，逐處改寫為新專案的規則，或連同規則一併刪除。**未帶專屬標記的通用核心檔不得刪除**，包括 `security_nfr_framework.md`、`security_scan.py` 與 AGENTS.md「安全與非功能需求規則」一節；`verify_doc_sync.py` 檢查核心檔存在。無檢索或 LLM 功能的專案，可刪除 AGENTS.md 第 2 節「品質評測規則」整節與 `quality-evaluation` 技能。
 6. **（選擇性）中性化舉例**：以下檔案的舉例使用了原專案元件（Redis、Gemini、PDF 轉檔等），規則本身通用，不改也能運作：
-   `code-review/SKILL.md`、`auto-fix/SKILL.md`、`auto-fix/references/{rca_guide,fix_anti_patterns}.md`、`unit-testing/references/{mocking_patterns,unit_test_checklist}.md`、`feature-design/references/{prd_template,tech_spec_template}.md`、`qa-testing/references/{test_case_template,qa_report_template}.md`、`bug-triage/references/bug_report_template.md`。
+   `code-review/SKILL.md`、`auto-fix/SKILL.md`、`unit-testing/SKILL.md`、`feature-design/SKILL.md`、`developer/AGENT.md`、`auto-fix/references/{rca_guide,fix_anti_patterns}.md`、`unit-testing/references/{mocking_patterns,unit_test_checklist}.md`、`feature-design/references/{prd_template,tech_spec_template}.md`、`qa-testing/references/{test_case_template,qa_report_template}.md`、`bug-triage/references/bug_report_template.md`。
 7. **安裝安全掃描工具並建立基準**：工具裝在獨立虛擬環境，避免與執行期相依衝突：
 
    ```bash

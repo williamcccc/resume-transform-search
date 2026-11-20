@@ -20,6 +20,8 @@ SCAN_REL = Path(".agents/skills/code-review/scripts/security_scan.py")
 FRAMEWORK_REL = Path(".agents/skills/feature-design/references/security_nfr_framework.md")
 CHECKLIST_REL = Path(".agents/skills/feature-design/references/arch_review_checklist.md")
 CRITERIA_REL = Path(".agents/project/arch_review_criteria.md")
+REVIEW_CHECKLIST_REL = Path(".agents/skills/code-review/references/review_checklist.md")
+REVIEW_CRITERIA_REL = Path(".agents/project/review_criteria.md")
 TOOLS_VENV = PROJECT_ROOT / ".venv-tools"
 CORS_SOURCE = (
     "from fastapi import FastAPI\n"
@@ -89,6 +91,12 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
             "| # | 維度 | 本專案通過標準 |\n| :---: | :--- | :--- |\n",
             encoding="utf-8",
         )
+        # Spec-0036：Gate 2 專案實例檔整份替換，先只留類別標題
+        (self.root / REVIEW_CRITERIA_REL).write_text(
+            "# Gate 2 代碼審查：本專案檢核項\n\n"
+            + "".join(f"### {n}. （待補）\n\n" for n in range(1, 10)),
+            encoding="utf-8",
+        )
 
         docs = self.root / "docs"
         for sub in ("specs", "qa_reports", "adr", "bugs", "templates"):
@@ -150,6 +158,17 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         self.assertEqual(leftovers, [])
         code, out = self.run_script(VERIFY_REL)
         self.assertEqual(code, 0, out)
+
+    def test_a2_review_checklist_core_kept_and_project_criteria_replaced(self):
+        """Spec-0036 AC-4：替換 Gate 2 實例檔後核心清單原樣保留、實例檔無原專案內容，兩支閘門通過"""
+        core = (self.root / REVIEW_CHECKLIST_REL).read_text(encoding="utf-8")
+        self.assertEqual(core, (PROJECT_ROOT / REVIEW_CHECKLIST_REL).read_text(encoding="utf-8"))
+        criteria = (self.root / REVIEW_CRITERIA_REL).read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"Redis|Gemini|resume_content|25MB", criteria))
+        for rel in (VERIFY_REL, AUDIT_REL):
+            with self.subTest(script=rel.name):
+                code, out = self.run_script(rel)
+                self.assertEqual(code, 0, out)
 
     def test_p2_original_fingerprints_absent_after_porting(self):
         original = tomllib.loads((PROJECT_ROOT / ".agents" / "project.toml").read_text(encoding="utf-8"))

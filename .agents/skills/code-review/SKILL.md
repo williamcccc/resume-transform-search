@@ -40,8 +40,8 @@ python .agents/skills/code-review/scripts/security_scan.py
 * **警告處置 (P1)**：若存在 P1 級警告（例如盲目吞噬例外、例外鏈未關聯 `raise ... from`、中低嚴重度安全發現），評估是否應修正；保留者須附理由。安全掃描發現的處置方式以 [review_checklist.md](./references/review_checklist.md)「安全工具掃描」項為準。
 
 ### 階段 B：對抗式 Checklist 覆核
-針對變更程式碼，逐項對照 [review_checklist.md](./references/review_checklist.md)（Gate 2 檢核項的唯一正本）進行對抗式覆核。檢核項與等級只在該清單維護，本檔不另行列舉。
-：架構邊界、輸入安全、防禦與容錯、冪等與索引演進、代碼品質與測試防護（含需求—斷言追溯、Bug 軌先紅後綠與逃逸分析）、Token 能效、零硬編碼配置、Prompt 治理、Git 版控衛生與零個資。
+針對變更程式碼，逐項對照 [review_checklist.md](./references/review_checklist.md)（Gate 2 通用檢核項與嚴重等級的唯一正本）與本專案實例檔 [review_criteria.md](../../project/review_criteria.md) 進行對抗式覆核。檢核項與等級只在這兩份清單維護，本檔不另行列舉。
+：架構邊界、輸入安全、防禦與容錯、冪等與資料結構演進、代碼品質與測試防護（含需求—斷言追溯、Bug 軌先紅後綠與逃逸分析）、外部呼叫成本、零硬編碼配置、Prompt 治理、Git 版控衛生與零個資。
 
 ### 階段 C：出具審查結果
 1. **持久化紀錄**：將本輪審查追加至該功能 QA 報告（`docs/qa_reports/XXXX-*.md`）第 9 節「Gate 2 代碼審查紀錄」，包含審查輪次、發現項目與處置、需求—斷言追溯抽查，以及下方審查結論區塊。格式見 [QA 報告範本](../qa-testing/references/qa_report_template.md) 第 9 節。複審時新增一列輪次，不覆寫前一輪。

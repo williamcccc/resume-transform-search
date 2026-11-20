@@ -14,9 +14,9 @@
 
 ### 二、ARCHITECTURE.md 同步檢核
 - [ ] **DDD 四層邊界維持**：新增之模組是否被精準分類至 Domain / Application / Infrastructure / Interfaces 四層？
-- [ ] **Domain 實體與 Value Objects**：新增或擴充的資料欄位（如 ChunkType, QualityReport）是否已反映於架構文檔的類別圖或資料結構章節？
-- [ ] **Protocol 協定介面**：新增的 IVectorStore、IQualityValidator 或 IEmbeddingService 介面是否已記錄於依賴反轉說明中？
-- [ ] **Mermaid 流程圖/時序圖同步**：系統的 Use Case 流程圖或兩階段處理時序圖是否更新？（確保無語法錯誤且與程式碼一致）
+- [ ] **Domain 實體與 Value Objects**：新增或擴充的實體、值物件與資料欄位是否已反映於架構文檔的類別圖或資料結構章節？
+- [ ] **Protocol 協定介面**：新增的 Domain 契約介面（Protocol，定義於 `layers.domain_interfaces`）是否已記錄於依賴反轉說明中？
+- [ ] **Mermaid 流程圖/時序圖同步**：系統的 Use Case 流程圖或處理時序圖是否更新？（確保無語法錯誤且與程式碼一致）
 
 ---
 
