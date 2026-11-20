@@ -8,6 +8,7 @@
 | [skills/](skills/) | 各步驟技能與其範本、檢核清單、腳本 | 怎麼做、用什麼範本、通過標準 |
 | [architect/](architect/AGENT.md)、[developer/](developer/AGENT.md)、[gatekeeper/](gatekeeper/AGENT.md) | 角色手冊：負責步驟、綁定技能、交接合約 | 誰做、交給誰 |
 | [project.toml](project.toml)、[lib/](lib/project_config.py) | 專案專屬值的唯一正本與其讀取模組 | 閘門腳本檢查哪些路徑、清單與門檻 |
+| [project/](project/arch_review_criteria.md) | 專案實例檔：本專案對通用檢核清單的具體通過標準 | 本專案的答案是什麼（移植時整份替換） |
 | [PORTING.md](PORTING.md) | 移植指南 | 搬到其他專案時要改什麼 |
 
 **使用方式**：

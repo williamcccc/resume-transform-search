@@ -48,7 +48,7 @@
    - 調度 .agents/skills/feature-design/ 技能。
    - 探測既有代碼，依據 prd_template.md 產出明確之 PRD (明訂 In/Out Scope 與 AC 驗收標準)。
    - 依據 security_nfr_framework.md 執行安全與非功能需求評估：範圍宣告、ISO 25010 宣告、STRIDE 威脅表、NFR-* 驗收條件；安全殘餘風險先判定嚴重度，S1 不得延後。
-   - 依據 arch_review_checklist.md 進行 8 大架構維度衝擊評估，重大決策草擬 docs/adr/。
+   - 依據 arch_review_checklist.md 進行 8 大架構維度衝擊評估（本專案通過標準見 .agents/project/arch_review_criteria.md），重大決策草擬 docs/adr/。
    - 依據 tech_spec_template.md 產出技術規格書與【QA 測試案例矩陣】。
    - 唯有零高風險架構債且測試矩陣齊備，方可放行 Gate 1 並交付 Developer。
 3. Step 7 文檔與 ADR 雙向同步：

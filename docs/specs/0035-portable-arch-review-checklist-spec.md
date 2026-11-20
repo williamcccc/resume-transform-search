@@ -1,6 +1,6 @@
 # 提案與規格書：架構前審 8 大維度通用化（問題放核心，答案放專案）
 
-> **狀態**：提案（G1，待核准；尚未實作）｜**類型**：規範變更（大改：搬移與重組章節、新增專案實例檔）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：[arch_review_checklist.md](../../.agents/skills/feature-design/references/arch_review_checklist.md)、ADR 範本、[PORTING.md](../../.agents/PORTING.md) 與引用處，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-20 核准，待決事項全數採建議；QA 見 [QA-0035](../qa_reports/0035-portable-arch-review-checklist-qa.md)）｜**類型**：規範變更（大改：搬移與重組章節、新增專案實例檔）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：[arch_review_checklist.md](../../.agents/skills/feature-design/references/arch_review_checklist.md)、ADR 範本、[PORTING.md](../../.agents/PORTING.md) 與引用處，不涉及 `src/`
 
 ## 一、動機
 
@@ -86,7 +86,7 @@
 | 4 | 是否以腳本檢查專案實例檔存在、核心檔無專屬標記 | 本次不改腳本；併入 [Spec-0034](./0034-asvs-chapter-coverage-check-spec.md) 一起評估 | 本次一併修改 `verify_doc_sync.py` |
 | 5 | Gate 2 `review_checklist.md`（13 處專屬標記）是否一併處理 | 本次不處理，另開提案；先以本案驗證「核心問題 + 專案實例檔」模式 | 一併納入，範圍加倍 |
 
-## 七、驗收標準（草案，G2 核准後定稿）
+## 七、驗收標準
 
 * **AC-1**：`arch_review_checklist.md` 不含 `<!-- 專案專屬` 標記；8 個維度皆有適用條件、要問的問題與對應標準。
 * **AC-2**：原 8 列「通過標準」的每一項，都能在專案實例檔找到（逐項比對，零遺失）。

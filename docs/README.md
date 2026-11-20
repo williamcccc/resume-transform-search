@@ -51,7 +51,7 @@ flowchart LR
 | **0028** | 閉環可移植化（專案專屬內容抽離為設定與標記） | [ADR-0028](./adr/0028-portable-closed-loop-project-config.md) | [Spec-0028](./specs/0028-portable-closed-loop-spec.md) | `tests/unit/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0028](./qa_reports/0028-portable-closed-loop-qa.md) |
 | **0030** | 安全與非功能需求評估通用化（閉環核心層） | — | [Spec-0030](./specs/0030-portable-security-nfr-framework-spec.md) | `tests/unit/test_security_scan.py`、`tests/unit/test_security_ac_gate.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0030](./qa_reports/0030-portable-security-nfr-framework-qa.md) |
 | **0034** | ASVS 章節歸屬自動檢查（提案，待核准） | — | [Spec-0034](./specs/0034-asvs-chapter-coverage-check-spec.md) | — | — |
-| **0035** | 架構前審 8 大維度通用化（提案，待核准） | — | [Spec-0035](./specs/0035-portable-arch-review-checklist-spec.md) | — | — |
+| **0035** | 架構前審 8 大維度通用化（問題放核心，答案放專案） | — | [Spec-0035](./specs/0035-portable-arch-review-checklist-spec.md) | `tests/unit/test_arch_review_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0035](./qa_reports/0035-portable-arch-review-checklist-qa.md) |
 
 ### 缺陷修正追溯清單
 
