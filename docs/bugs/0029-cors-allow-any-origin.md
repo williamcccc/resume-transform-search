@@ -82,7 +82,7 @@ AssertionError: 'access-control-allow-origin' unexpectedly found in ['content-ty
 ## 6. 結案
 * **`test:` commit**：`44a1c7d`
 * **`fix:` commit**：`0b195a1`
-* **PR**：（待建立）
+* **PR**：[#23](https://github.com/williamcccc/resume-transform-search/pull/23)
 * **QA 報告**：[QA-0029](../qa_reports/0029-cors-allow-any-origin-qa.md)
 * **結案日期**：（PR 合併後填寫）
 * **另案追蹤**：審查時發現伺服器未驗證 `Host` 標頭（DNS rebinding 可繞過同源限制），根因不同，依 [bug.md](../../.agents/workflows/bug.md)「一個 bug 一個 PR」另案處理。
