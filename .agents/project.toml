@@ -131,11 +131,8 @@ handles_pii = true               # 處理個人資料
 processes_untrusted_files = true # 解析使用者提供之檔案
 multi_user = false               # 多使用者或需區分身分
 
-# 不適用之標準章節；每筆必填 reason。特徵改變時須重新檢視
-[[security.not_applicable]]
-item = "ASVS V6 身分驗證、V7 工作階段管理、V8 授權"
-reason = "僅綁定 127.0.0.1 之單人本機工具（network_exposure = local、multi_user = false）；任一特徵改變時須重新評估"
-
+# 不適用之標準章節；每筆必填 reason。只登錄「技術條件章節未使用」或「特徵判定適用但另有理由排除」者
+# （規則見 security_nfr_framework.md 第四節）；依特徵已判定不適用者不必登錄。特徵改變時須重新檢視
 [[security.not_applicable]]
 item = "ASVS V9 自包含權杖、V10 OAuth 與 OIDC、V17 WebRTC"
 reason = "未使用權杖、第三方登入或 WebRTC"
