@@ -38,6 +38,8 @@ dependency_files = ["requirements.txt"]
 dependency_level = "P1"
 baseline = ".agents/security_baseline.json"
 tools_venv = ".venv-tools"
+diff_base = "main"
+full_scan_max_age_days = 7
 """
 
 CORS_RESULT = {
@@ -77,21 +79,44 @@ def make_root(tmp: str, baseline: dict = None) -> pathlib.Path:
 
 
 class FakeRunner:
-    def __init__(self, semgrep=(0, {"results": []}, ""), pip_audit=(0, {"dependencies": []}, "")):
+    """依指令分派假結果；git 預設模擬「不是 git 儲存庫」。"""
+
+    def __init__(self, semgrep=(0, {"results": []}, ""), pip_audit=(0, {"dependencies": []}, ""),
+                 git_diff=None, git_untracked="", git_ok=False):
         self.semgrep, self.pip_audit, self.calls = semgrep, pip_audit, []
+        self.git_diff, self.git_untracked, self.git_ok = git_diff or [], git_untracked, git_ok
 
     def __call__(self, cmd, cwd):
         self.calls.append(cmd)
+        if cmd[0] == "git":
+            if not self.git_ok:
+                return 128, "", "fatal: not a git repository"
+            sub = cmd[1]
+            if sub == "merge-base":
+                return 0, "abc123\n", ""
+            if sub == "diff":
+                return 0, "\n".join(self.git_diff), ""
+            return 0, self.git_untracked, ""
         code, payload, stderr = self.semgrep if "semgrep" in cmd[0] else self.pip_audit
         stdout = json.dumps(payload) if isinstance(payload, dict) else payload
         return code, stdout, stderr
 
+    def tool_calls(self, name):
+        return [c for c in self.calls if name in c[0]]
 
-def run_scan(root, runner, write=None):
+
+def run_scan(root, runner, write=None, force_full=True):
+    """既有案例預設完整掃描；觸發模式案例另行指定 force_full=False。"""
     buffer = io.StringIO()
     with contextlib.redirect_stdout(buffer):
-        code = ss.scan(root, runner, TODAY, write)
+        code = ss.scan(root, runner, TODAY, write, force_full)
     return code, buffer.getvalue()
+
+
+def write_state(root, day):
+    path = root / ".venv-tools" / ss.STATE_FILE_NAME
+    path.write_text(json.dumps({"last_full_scan": day.isoformat()}), encoding="utf-8")
+    return path
 
 
 class TestParsing(unittest.TestCase):
@@ -269,6 +294,113 @@ class TestScan(unittest.TestCase):
         audit_calls = [c for c in runner.calls if "pip-audit" in c[0]]
         self.assertEqual(len(audit_calls), 1)
         self.assertEqual(audit_calls[0][1:5], ["-r", "requirements.txt", "--format", "json"])
+
+
+class TestTriggerModes(unittest.TestCase):
+    """Spec-0030 決議 10／AC-4b：程式碼與套件分開觸發，並定期完整掃描"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = make_root(self._tmp.name)
+        (self.root / "app" / "server.py").write_text("x = 1\n", encoding="utf-8")
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "note.md").write_text("n\n", encoding="utf-8")
+        self.state = write_state(self.root, TODAY - dt.timedelta(days=1))
+
+    def scan_diff(self, runner):
+        return run_scan(self.root, runner, force_full=False)
+
+    def test_code_change_scans_only_changed_files_in_scan_paths(self):
+        runner = FakeRunner(git_ok=True, git_diff=["app/server.py", "docs/note.md"])
+        code, out = self.scan_diff(runner)
+        self.assertEqual(code, 0)
+        semgrep, = runner.tool_calls("semgrep")
+        self.assertEqual(semgrep[-1:], ["app/server.py"])
+        self.assertNotIn("app", semgrep[:-1])
+        self.assertEqual(runner.tool_calls("pip-audit"), [])
+        self.assertIn("pip-audit：需求檔無變更，略過", out)
+        self.assertIn("模式：差異掃描", out)
+
+    def test_untracked_and_windows_paths_are_included_deleted_files_skipped(self):
+        (self.root / "app" / "new_mod.py").write_text("y = 2\n", encoding="utf-8")
+        runner = FakeRunner(git_ok=True, git_diff=["app\\server.py", "app/deleted.py"], git_untracked="app/new_mod.py\n")
+        self.scan_diff(runner)
+        semgrep, = runner.tool_calls("semgrep")
+        self.assertEqual(semgrep[-2:], ["app/new_mod.py", "app/server.py"])
+
+    def test_no_changes_runs_neither_tool(self):
+        runner = FakeRunner(git_ok=True, git_diff=[])
+        code, out = self.scan_diff(runner)
+        self.assertEqual(code, 0)
+        self.assertEqual(runner.tool_calls("semgrep") + runner.tool_calls("pip-audit"), [])
+        self.assertIn("semgrep：scan_paths 內無程式變更，略過", out)
+        self.assertNotIn("[WARN]", out)
+
+    def test_requirement_change_runs_only_pip_audit_on_that_file(self):
+        runner = FakeRunner(git_ok=True, git_diff=["requirements.txt"])
+        self.scan_diff(runner)
+        self.assertEqual(runner.tool_calls("semgrep"), [])
+        audit, = runner.tool_calls("pip-audit")
+        self.assertEqual(audit[1:3], ["-r", "requirements.txt"])
+
+    def test_stale_full_scan_triggers_full_and_updates_state(self):
+        write_state(self.root, TODAY - dt.timedelta(days=8))
+        runner = FakeRunner(git_ok=True, git_diff=[])
+        code, out = self.scan_diff(runner)
+        self.assertEqual(code, 0)
+        self.assertIn("已超過 7 天", out)
+        semgrep, = runner.tool_calls("semgrep")
+        self.assertEqual(semgrep[-1], "app")
+        self.assertEqual(len(runner.tool_calls("pip-audit")), 1)
+        self.assertEqual(ss.load_last_full_scan(self.state), TODAY)
+
+    def test_exactly_max_age_days_stays_in_diff_mode(self):
+        write_state(self.root, TODAY - dt.timedelta(days=7))
+        runner = FakeRunner(git_ok=True, git_diff=[])
+        _, out = self.scan_diff(runner)
+        self.assertIn("模式：差異掃描", out)
+
+    def test_missing_or_corrupt_state_triggers_full(self):
+        for content in (None, "{broken"):
+            with self.subTest(content=content):
+                if content is None:
+                    self.state.unlink(missing_ok=True)
+                else:
+                    self.state.write_text(content, encoding="utf-8")
+                runner = FakeRunner(git_ok=True, git_diff=[])
+                _, out = self.scan_diff(runner)
+                self.assertIn("本機無完整掃描紀錄", out)
+                self.assertEqual(len(runner.tool_calls("semgrep")), 1)
+
+    def test_git_failure_falls_back_to_full_with_warning(self):
+        runner = FakeRunner(git_ok=False)
+        code, out = self.scan_diff(runner)
+        self.assertEqual(code, 0)
+        self.assertIn("無法取得相對 main 的 git 差異，改為完整掃描", out)
+        self.assertEqual(len(runner.tool_calls("pip-audit")), 1)
+
+    def test_forced_full_ignores_diff_and_updates_state(self):
+        runner = FakeRunner(git_ok=True, git_diff=[])
+        _, out = run_scan(self.root, runner, force_full=True)
+        self.assertIn("指定完整掃描", out)
+        self.assertEqual(len(runner.tool_calls("semgrep")), 1)
+        self.assertEqual([c for c in runner.calls if c[0] == "git"], [])
+        self.assertEqual(ss.load_last_full_scan(self.state), TODAY)
+
+    def test_full_scan_with_offline_tool_does_not_update_state(self):
+        before = ss.load_last_full_scan(self.state)
+        offline = (2, "", "ConnectionError: Max retries exceeded")
+        run_scan(self.root, FakeRunner(pip_audit=offline), force_full=True)
+        self.assertEqual(ss.load_last_full_scan(self.state), before)
+
+    def test_stale_baseline_hint_only_in_full_mode(self):
+        baseline = {"findings": [{"fingerprint": "semgrep:fpgone", "rule": "r", "reason": "r", "expires": "2027-01-01"}]}
+        (self.root / ".agents" / "security_baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+        _, diff_out = self.scan_diff(FakeRunner(git_ok=True, git_diff=["app/server.py"]))
+        self.assertNotIn("可移除", diff_out)
+        _, full_out = run_scan(self.root, FakeRunner(), force_full=True)
+        self.assertIn("基準項目已無對應發現，可移除: semgrep:fpgone", full_out)
 
 
 class TestCli(unittest.TestCase):

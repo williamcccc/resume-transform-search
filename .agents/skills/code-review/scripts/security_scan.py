@@ -15,8 +15,16 @@ Gate 2 通用安全掃描閘門（Spec-0030）。依 `.agents/project.toml` 的 
 * 工具無法連網（規則集下載、漏洞資料庫查詢）時印 WARN 並記為「未執行」，不阻斷。
 * 工具未安裝、或非網路因素之執行錯誤時 FAIL。
 
+觸發方式（Spec-0030 決議 10）：
+* 差異掃描（預設）：Semgrep 只掃相對 diff_base 有變更且位於 scan_paths 內的檔案；
+  pip-audit 只在 dependency_files 有變更時執行，且只掃變更的需求檔。
+* 完整掃描：指定 --full 或 --write-baseline、上次完整掃描超過 full_scan_max_age_days、
+  無紀錄、或無法取得 git 差異時。上次完整掃描日期存於 tools_venv 目錄（不進版控），
+  僅在完整掃描無工具錯誤且無未執行項目時更新。
+
 用法：
   python .agents/skills/code-review/scripts/security_scan.py
+  python .agents/skills/code-review/scripts/security_scan.py --full
   python .agents/skills/code-review/scripts/security_scan.py --write-baseline --reason "導入前既有發現，待評估" --expires 2027-02-28
 
 結束碼：0 無 P0；1 有 P0、工具缺失或執行錯誤、基準檔格式錯誤；2 專案設定檔缺漏或錯誤。
@@ -67,6 +75,7 @@ class ToolOutcome:
     findings: List[Finding] = field(default_factory=list)
     skipped: List[str] = field(default_factory=list)   # 無法連網，未執行
     errors: List[str] = field(default_factory=list)    # 工具缺失或執行錯誤
+    notes: List[str] = field(default_factory=list)     # 差異掃描下無須執行之說明
 
 
 @dataclass
@@ -249,16 +258,23 @@ def _parse_json(stdout: str) -> Optional[dict]:
     return data if isinstance(data, dict) else None
 
 
-def run_semgrep(tools: dict, root: Path, runner: Runner) -> ToolOutcome:
+def run_semgrep(tools: dict, root: Path, runner: Runner, targets: Optional[List[str]] = None) -> ToolOutcome:
+    """targets 為 None 表示完整掃描 scan_paths；為清單時只掃描這些變更檔（空清單即略過）。"""
     outcome = ToolOutcome()
+    if targets is not None and not targets:
+        outcome.notes.append("semgrep：scan_paths 內無程式變更，略過")
+        return outcome
     exe = resolve_tool("semgrep", root, tools["tools_venv"])
     if exe is None:
         outcome.errors.append("找不到 semgrep，請依 requirements-dev.txt 安裝至 tools_venv")
         return outcome
-    paths = [p for p in tools["scan_paths"] if (root / p).exists()]
-    missing = sorted(set(tools["scan_paths"]) - set(paths))
-    if missing:
-        outcome.errors.append(f"scan_paths 不存在: {', '.join(missing)}")
+    if targets is None:
+        paths = [p for p in tools["scan_paths"] if (root / p).exists()]
+        missing = sorted(set(tools["scan_paths"]) - set(paths))
+        if missing:
+            outcome.errors.append(f"scan_paths 不存在: {', '.join(missing)}")
+    else:
+        paths = list(targets)
     if not paths:
         return outcome
     cmd = [exe, "scan", "--json", "--metrics=off", "--quiet"]
@@ -280,13 +296,17 @@ def run_semgrep(tools: dict, root: Path, runner: Runner) -> ToolOutcome:
     return outcome
 
 
-def run_pip_audit(tools: dict, root: Path, runner: Runner) -> ToolOutcome:
+def run_pip_audit(tools: dict, root: Path, runner: Runner, requirement_files: Optional[List[str]] = None) -> ToolOutcome:
+    """requirement_files 為 None 表示掃描全部 dependency_files；為清單時只掃描變更的需求檔（空清單即略過）。"""
     outcome = ToolOutcome()
+    if requirement_files is not None and not requirement_files:
+        outcome.notes.append("pip-audit：需求檔無變更，略過")
+        return outcome
     exe = resolve_tool("pip-audit", root, tools["tools_venv"])
     if exe is None:
         outcome.errors.append("找不到 pip-audit，請依 requirements-dev.txt 安裝至 tools_venv")
         return outcome
-    for req in tools["dependency_files"]:
+    for req in (tools["dependency_files"] if requirement_files is None else requirement_files):
         if not (root / req).is_file():
             outcome.errors.append(f"dependency_files 不存在: {req}")
             continue
@@ -302,6 +322,63 @@ def run_pip_audit(tools: dict, root: Path, runner: Runner) -> ToolOutcome:
     return outcome
 
 
+# ----------------------------------------------------------------------------- 觸發方式（決議 10）
+
+STATE_FILE_NAME = ".security_scan_state.json"
+
+
+def state_path(root: Path, tools: dict) -> Path:
+    return root / tools["tools_venv"] / STATE_FILE_NAME
+
+
+def load_last_full_scan(path: Path) -> Optional[dt.date]:
+    """讀取上次完整掃描日期；檔案不存在或內容損壞視為無紀錄。"""
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return dt.date.fromisoformat(json.load(handle)["last_full_scan"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def save_last_full_scan(path: Path, day: dt.date) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        json.dump({"last_full_scan": day.isoformat()}, handle)
+        handle.write("\n")
+
+
+def changed_files(root: Path, base: str, runner: Runner) -> Optional[List[str]]:
+    """回傳相對 base 分支（merge-base 起算）之已提交、未提交與未追蹤變更檔；git 失敗時回傳 None。"""
+    code, out, _ = runner(["git", "merge-base", base, "HEAD"], root)
+    merge_base = out.strip()
+    if code != 0 or not merge_base:
+        return None
+    code_diff, diff_out, _ = runner(["git", "diff", "--name-only", merge_base], root)
+    code_new, new_out, _ = runner(["git", "ls-files", "--others", "--exclude-standard"], root)
+    if code_diff != 0 or code_new != 0:
+        return None
+    names = {line.strip().replace("\\", "/") for line in (diff_out + "\n" + new_out).splitlines() if line.strip()}
+    return sorted(n for n in names if (root / n).is_file())  # 已刪除之檔案不掃描
+
+
+def _within(path: str, prefixes: Sequence[str]) -> bool:
+    return any(path == p.rstrip("/") or path.startswith(p.rstrip("/") + "/") for p in prefixes)
+
+
+def decide_mode(force_full: bool, last_full: Optional[dt.date], today: dt.date, max_age_days: int,
+                changed: Optional[List[str]]) -> Tuple[bool, str]:
+    """回傳 (是否完整掃描, 原因)。"""
+    if force_full:
+        return True, "指定完整掃描"
+    if last_full is None:
+        return True, "本機無完整掃描紀錄"
+    if (today - last_full).days > max_age_days:
+        return True, f"上次完整掃描 {last_full.isoformat()} 已超過 {max_age_days} 天"
+    if changed is None:
+        return True, "無法取得 git 差異"
+    return False, f"上次完整掃描 {last_full.isoformat()}"
+
+
 # ----------------------------------------------------------------------------- 主流程
 
 def _print_findings(label: str, findings: Sequence[Finding]) -> None:
@@ -310,7 +387,7 @@ def _print_findings(label: str, findings: Sequence[Finding]) -> None:
 
 
 def scan(root: Path = ROOT_DIR, runner: Runner = default_runner, today: Optional[dt.date] = None,
-         write: Optional[Tuple[str, str]] = None) -> int:
+         write: Optional[Tuple[str, str]] = None, force_full: bool = False) -> int:
     try:
         tools = load_project_config(root, ("security.tools",))["security"]["tools"]
     except ProjectConfigError as err:
@@ -323,20 +400,43 @@ def scan(root: Path = ROOT_DIR, runner: Runner = default_runner, today: Optional
         print(f"[FAIL] {err}")
         return 1
 
-    outcomes = [run_semgrep(tools, root, runner), run_pip_audit(tools, root, runner)]
+    today = today or dt.date.today()
+    forced = force_full or write is not None
+    state = state_path(root, tools)
+    changed = None if forced else changed_files(root, tools["diff_base"], runner)
+    full, reason = decide_mode(forced, load_last_full_scan(state), today,
+                               tools["full_scan_max_age_days"], changed)
+    if full:
+        outcomes = [run_semgrep(tools, root, runner), run_pip_audit(tools, root, runner)]
+    else:
+        code_targets = [f for f in changed if _within(f, tools["scan_paths"])]
+        req_targets = [f for f in changed if f in set(tools["dependency_files"])]
+        outcomes = [run_semgrep(tools, root, runner, code_targets),
+                    run_pip_audit(tools, root, runner, req_targets)]
     findings = dedupe([f for o in outcomes for f in o.findings])
     skipped = [s for o in outcomes for s in o.skipped]
     errors = [e for o in outcomes for e in o.errors]
+    notes = [n for o in outcomes for n in o.notes]
+    if full and not skipped and not errors:
+        save_last_full_scan(state, today)
 
     if write is not None:
         added = write_baseline(baseline_path, baseline, findings, *write)
         print(f"[INFO] 已將 {added} 筆新發現寫入基準檔 {tools['baseline']}（請逐筆檢視理由與到期日）")
         baseline = load_baseline(baseline_path)
 
-    result = classify(findings, baseline, today or dt.date.today(),
+    result = classify(findings, baseline, today,
                       tools["semgrep_block_severities"], tools["dependency_level"])
+    if not full:
+        result.stale_entries = []  # 差異掃描未涵蓋全部檔案，無法判斷基準項目是否已失效
 
     print("=== [security-scan] Gate 2 安全掃描 ===")
+    mode = "完整掃描" if full else f"差異掃描（相對 {tools['diff_base']}）"
+    print(f"[INFO] 模式：{mode}；{reason}")
+    if changed is None and not forced:
+        print(f"[WARN] 無法取得相對 {tools['diff_base']} 的 git 差異，改為完整掃描")
+    for item in notes:
+        print(f"[INFO] {item}")
     for item in skipped:
         print(f"[WARN] 未執行：{item}")
     for item in errors:
@@ -359,7 +459,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Gate 2 通用安全掃描（Semgrep + pip-audit，Spec-0030）")
-    parser.add_argument("--write-baseline", action="store_true", help="將目前未登錄之發現寫入基準檔")
+    parser.add_argument("--full", action="store_true", help="完整掃描（忽略差異與上次完整掃描日期）")
+    parser.add_argument("--write-baseline", action="store_true", help="將目前未登錄之發現寫入基準檔（隱含完整掃描）")
     parser.add_argument("--reason", help="寫入基準檔時之理由（必填）")
     parser.add_argument("--expires", help="寫入基準檔時之到期日 YYYY-MM-DD（必填）")
     args = parser.parse_args(argv)
@@ -372,7 +473,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         except ValueError:
             parser.error("--expires 須為 YYYY-MM-DD")
         write = (args.reason.strip(), args.expires)
-    return scan(write=write)
+    return scan(write=write, force_full=args.full)
 
 
 if __name__ == "__main__":

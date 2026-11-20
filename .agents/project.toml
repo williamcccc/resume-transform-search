@@ -158,3 +158,7 @@ dependency_files = ["requirements.txt", "requirements-eval.txt", "requirements-d
 dependency_level = "P1"
 # 既有發現基準檔：只阻斷新增發現；每筆須有理由與到期日
 baseline = ".agents/security_baseline.json"
+# 觸發方式（Spec-0030 決議 10）：預設差異掃描——Semgrep 只掃相對 diff_base 之變更檔，
+# pip-audit 只在 dependency_files 變更時執行；上次完整掃描超過下列天數即自動完整掃描
+diff_base = "main"
+full_scan_max_age_days = 7

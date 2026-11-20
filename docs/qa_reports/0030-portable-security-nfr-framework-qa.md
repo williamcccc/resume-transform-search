@@ -35,6 +35,7 @@
 | **AC-2** | `[security]` 缺鍵 exit 2；`not_applicable` 缺理由 FAIL | `TC-03`、`TC-04` | Unit + E2E | **PASS** |
 | **AC-3** | 範圍宣告強制、威脅表與 `NFR-*` 檢查、不回溯 | `TC-05`、`TC-06` | Unit + E2E | **PASS** |
 | **AC-4** | 掃描抓到 CORS 萬用字元；基準不阻斷；到期 FAIL；離線 WARN | `TC-07`～`TC-10` | Unit + E2E | **PASS** |
+| **AC-4b** | 程式碼與套件分開觸發、定期完整掃描（決議 10） | `TC-16`～`TC-18` | Unit + 實測 | **PASS** |
 | **AC-5** | 回溯演練：框架推導出 Bug-0029 威脅 | `TC-11` | 演練 | **PASS** |
 | **AC-6** | 移植演練：三支腳本於假專案可執行並通過 | `TC-12` | E2E | **PASS** |
 | **AC-7** | 本專案既有 PASS 不變；首次掃描發現全數登錄基準檔 | `TC-13`、`TC-14` | 實測 | **PASS** |
@@ -60,7 +61,10 @@
 | **TC-12** | 移植演練 | E2E | `test_portable_closed_loop_e2e` 13 項 | 全數通過 | `Ran 13 tests ... OK` | **PASS** |
 | **TC-13** | 本專案既有檢查不變 | Regression | `verify_doc_sync.py`、`audit_guardrails.py` | 既有 PASS 不變 | 皆通過；新增兩項 PASS | **PASS** |
 | **TC-14** | 首次掃描與基準檔 | Happy | `security_scan.py` | 既有發現全數登錄 | `P0=0 P1=0 基準內=11 未執行=0 錯誤=0` | **PASS** |
-| **TC-15** | G4 與全套測試 | Regression | 見第 5 節 | 全數通過 | 單元 681 項 OK；E2E 21 項 OK | **PASS** |
+| **TC-15** | G4 與全套測試 | Regression | 見第 5 節 | 全數通過 | 單元 692 項 OK；E2E 21 項 OK | **PASS** |
+| **TC-16** | 差異掃描選檔 | Unit | `test_security_scan::TestTriggerModes`（11 項） | 只掃 `scan_paths` 內變更檔（含未追蹤、Windows 路徑正規化、略過已刪除）；無變更兩者皆略過；只變更需求檔時只跑該份 pip-audit | 符合 | **PASS** |
+| **TC-17** | 完整掃描觸發與紀錄 | Unit | 同上 | 超過 7 天、無紀錄、紀錄損壞、git 失敗、`--full` 時完整掃描；剛好 7 天仍為差異；完整掃描成功才更新日期，離線不更新；「可移除」提示只在完整掃描 | 符合 | **PASS** |
+| **TC-18** | 本專案實測耗時 | 實測 | `--full`；預設；Semgrep 掃 2 個程式檔 | 差異掃描明顯快於完整掃描 | 完整約 5 分鐘並寫入紀錄；本分支差異掃描約 1 分 8 秒（僅因新增 `requirements-dev.txt` 而跑該份 pip-audit，Semgrep 略過）；只改 2 個程式檔時 Semgrep 約 18 秒 | **PASS** |
 
 ---
 
@@ -73,7 +77,9 @@ python -m unittest discover -s tests/unit -p "test_*.py"   → Ran 681 tests ...
 python -m unittest tests.e2e.test_workflow_tracks_doc_sync_e2e tests.e2e.test_portable_closed_loop_e2e → Ran 21 tests ... OK
 ```
 
-* **安全工具掃描**（`python .agents/skills/code-review/scripts/security_scan.py`）：`P0=0 P1=0 基準內=11 未執行=0 錯誤=0`，約 4 分鐘（多數時間為 pip-audit 解析三份需求檔）。
+* **安全工具掃描**（`python .agents/skills/code-review/scripts/security_scan.py`）：
+  * 完整掃描（`--full`）：`P0=0 P1=0 基準內=11 未執行=0 錯誤=0`，約 4～5 分鐘（多數時間為 pip-audit 解析三份需求檔）。
+  * 差異掃描（預設）：`P0=0 P1=0 基準內=7 未執行=0 錯誤=0`，約 1 分 8 秒；本分支只有 `requirements-dev.txt` 屬需求檔變更，Semgrep 因無程式變更而略過。
 
 **首次掃描發現與處置**（登錄於 `.agents/security_baseline.json`）
 
@@ -136,12 +142,14 @@ python -m unittest tests.e2e.test_workflow_tracks_doc_sync_e2e tests.e2e.test_po
 | 輪次 | 日期 | 審查範圍 (commit / diff) | `audit_guardrails.py` | `security_scan.py` | P0 | P1 | P2 | 判定 |
 | :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | 1 | 2026-11-20 | `main..docs/spec-0030-security-nfr-framework`（程式部分：`project_config.py`、`verify_doc_sync.py`、`security_scan.py` 與測試） | Exit 0 | Exit 0 | 0 | 0 | 1 | **PASS** |
+| 2 | 2026-11-20 | `01cd612..` 工作目錄（決議 10：觸發方式、設定鍵 `diff_base`、`full_scan_max_age_days` 與測試） | Exit 0 | Exit 0 | 0 | 0 | 0 | **PASS** |
 
 ### 9.2 發現項目
 
 | ID | 等級 | 檢核項 | 檔案:行號 | 描述 | 處置 |
 | :--- | :---: | :--- | :--- | :--- | :--- |
-| R1-01 | P2 | 效率 | `security_scan.py` `run_pip_audit` | 三份需求檔逐一由 pip-audit 解析，全程約 4 分鐘 | 保留：Gate 2 每次變更執行一次，時間可接受；日後可改為只掃描本次變更的需求檔 |
+| R1-01 | P2 | 效率 | `security_scan.py` `run_pip_audit` | 三份需求檔逐一由 pip-audit 解析，全程約 4 分鐘 | 第 2 輪已處理：使用者核准決議 10，改為分開觸發，平常只改程式時約 18 秒 |
+| R2-01 | 確認 | 差異掃描盲點 | `security_scan.py` `decide_mode` | 差異掃描不會發現既有套件事後公布之漏洞，也不會以新規則重掃未變更檔案 | 已由「超過 7 天自動完整掃描」涵蓋；QA 第 2 節不測範圍未受影響 |
 
 **G5 規範審查**（規則矛盾、重複、用詞一致）：
 
@@ -163,12 +171,12 @@ python -m unittest tests.e2e.test_workflow_tracks_doc_sync_e2e tests.e2e.test_po
 
 ### 🛡️ Code Review 雙門禁審查結果
 * **架構靜態掃描**： 通過 (`audit_guardrails.py` 零 P0 違規)
-* **安全工具掃描**： 通過 (`security_scan.py` 零 P0；首次發現 11 項皆已處置並登錄基準檔；未執行項目：無)
+* **安全工具掃描**： 通過 (`security_scan.py` 零 P0；首次發現 11 項皆已處置並登錄基準檔；完整與差異兩種模式皆實測；未執行項目：無)
 * **DDD 依賴邊界**： 不適用 (未修改 `src/`)
 * **資源釋放與鎖定防禦**： 通過 (檔案讀寫皆使用 `with`)
 * **Twelve-Factor 配置治理**： 通過 (工具、路徑、規則集、等級、門檻皆由 `project.toml` 注入；零寫死金鑰與絕對路徑)
 * **邊界例外與例外鏈**： 通過 (`BaselineError` 以 `from err` 保留原因；工具錯誤分網路與非網路處理)
 * **日誌安全合規**： 通過 (輸出僅含規則、路徑與漏洞編號)
 * **測試隔離與負面覆蓋**： 通過 (單元測試以假 runner 注入，零網路；負面案例涵蓋離線、工具缺失、設定錯誤、基準檔錯誤、到期)
-* **需求—斷言追溯**： 通過 (8/8 條 AC 具備直接驗證預期結果之斷言或實測；抽查 AC-3、AC-4、AC-6 預期值來源獨立)
+* **需求—斷言追溯**： 通過 (9/9 條 AC（含 AC-4b）具備直接驗證預期結果之斷言或實測；抽查 AC-3、AC-4、AC-6 預期值來源獨立)
 * **Git 版控衛生與零個資防線**： 通過 (`.venv-tools/` 已列入 `.gitignore`；測試資料全為虛構；隱私掃描通過)

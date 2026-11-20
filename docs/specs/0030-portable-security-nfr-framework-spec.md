@@ -108,6 +108,7 @@ reason = "目前僅綁定 127.0.0.1 之單人本機工具；network_exposure 改
   * **依賴漏洞掃描**：`pip-audit`，比對 `requirements*.txt` 的已知漏洞。
 * **基準檔**：`.agents/security_baseline.json` 記錄導入前的既有發現，每筆附理由與到期日；閘門只阻斷**新增**發現，避免導入當天全面卡住。到期未處理者轉為 FAIL。
 * **判定**：新增之高嚴重度發現為 P0，其餘為 P1（待決事項 3）。
+* **觸發方式**（決議 10）：預設為差異掃描，Semgrep 只掃變更檔、pip-audit 只在需求檔變更時執行；上次完整掃描超過 `full_scan_max_age_days`、無紀錄、無法取得 git 差異、使用 `--full` 或 `--write-baseline` 時改為完整掃描。上次完整掃描日期存於 `tools_venv` 目錄內（不進版控），僅在完整掃描無工具錯誤且無未執行項目時更新。
 * **離線**：`pip-audit` 需連網查詢漏洞資料庫；無法連線時印 WARN 不阻斷，並於 QA 報告記錄未執行。
 * **Gate 2 流程**：code-review 技能階段 A 由「執行 `audit_guardrails.py`」擴充為「執行 `audit_guardrails.py` 與 `security_scan.py`」，兩者皆零 P0 始得進入階段 B。
 * **工具安裝**：新增 `requirements-dev.txt`，與執行期相依分開（待決事項 9）。
@@ -176,6 +177,7 @@ reason = "目前僅綁定 127.0.0.1 之單人本機工具；network_exposure 改
 * **AC-2**：`project.toml` 缺 `[security]` 任一必要鍵時，腳本以結束碼 2 中止並指出缺鍵；`not_applicable` 缺 `reason` 時 FAIL。
 * **AC-3**：規格編號 ≥ `security_ac_enforced_from` 且缺少安全評估範圍宣告者 FAIL；宣告「是」但缺威脅表或 `NFR-*` 者 FAIL；宣告「否」者 PASS。既有規格（0030 以前）不受影響。
 * **AC-4**：`security_scan.py` 對含 `CORSMiddleware(allow_origins=["*"], allow_credentials=True)` 的測試夾具回報發現（重現 Bug-0029 之程式碼型態）；對基準檔已登錄的發現不阻斷；基準項目到期後 FAIL；無法連網時 `pip-audit` 部分 WARN 不阻斷。
+* **AC-4b**（決議 10）：差異掃描時，Semgrep 只收到變更且位於 `scan_paths` 內的檔案；無程式變更時略過 Semgrep；需求檔未變更時略過 pip-audit；只變更某一份需求檔時只掃該份。上次完整掃描超過設定天數、無紀錄、git 差異取得失敗或指定 `--full` 時執行完整掃描；完整掃描成功後更新日期，有未執行項目時不更新；基準檔「可移除」提示只在完整掃描時輸出。
 * **AC-5**：**回溯演練**：以框架重新評估 Spec-0015 之變更範圍，威脅表在「瀏覽器↔儀表板」邊界的「資訊洩漏」類別產出跨來源讀取威脅，並對應到 `NFR-*`。演練結果記錄於 QA 報告。
 * **AC-6**：**移植演練**：將閉環檔案複製至暫存目錄的最小假專案，依更新後之 `PORTING.md` 填寫 `[security]` 後，`verify_doc_sync.py`、`audit_guardrails.py`、`security_scan.py` 皆可執行並通過。
 * **AC-7**：本專案執行 `verify_doc_sync.py` 與 `audit_guardrails.py`，既有 PASS 項目不變；`security_scan.py` 首次執行之發現全數登錄於基準檔（附理由與到期日）。
@@ -204,6 +206,12 @@ reason = "目前僅綁定 127.0.0.1 之單人本機工具；network_exposure 改
 | 9 | 開發工具相依如何管理 | 新增 `requirements-dev.txt`，與執行期相依分開 | 併入 `requirements.txt`（執行環境會多裝不需要的工具） |
 
 **G2 決議**（2026-11-20）：使用者核准本提案，待決事項 1～9 全數採建議。
+
+**範圍變更與再核准**（2026-11-20，G3 實測後）：完整掃描約需 4 分鐘，其中 pip-audit 約 3 分鐘。使用者指出兩種掃描的觸發來源不同（程式碼與套件），提出並核准新增決議 10：
+
+| # | 問題 | 決議 |
+| :---: | :--- | :--- |
+| 10 | 兩種掃描的觸發時機 | **分開觸發**：Semgrep 每次 Gate 2 都執行，但只掃描相對 `diff_base` 有變更且位於 `scan_paths` 內的檔案；pip-audit 只在 `dependency_files` 有變更時執行，且只掃描變更的需求檔。為彌補「既有套件事後公布新漏洞」與「規則庫更新後未變更檔案未重掃」兩個盲點，本機記錄上次完整掃描日期，超過 `full_scan_max_age_days`（預設 7 天）時自動改為完整掃描；另提供 `--full` 手動完整掃描。 |
 
 ### 實作後修訂（G3）
 

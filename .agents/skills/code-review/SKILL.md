@@ -35,6 +35,7 @@ python .agents/skills/code-review/scripts/security_scan.py
 ```
 * `audit_guardrails.py` 檢查本閉環自訂的架構、資源、例外、硬編碼與版控衛生規則。
 * `security_scan.py`（閉環通用核心）依 `project.toml` 的 `[security.tools]` 執行 Semgrep 靜態掃描與 pip-audit 依賴漏洞掃描，只阻斷基準檔（`baseline`）以外的新增發現；工具無法連網時印 WARN 不阻斷，須於 QA 報告記錄未執行項目。
+  * **兩種掃描分開觸發**：預設為差異掃描，Semgrep 只掃相對 `diff_base` 的變更程式檔，pip-audit 只在需求檔變更時執行；上次完整掃描超過 `full_scan_max_age_days` 時自動完整掃描，也可加 `--full` 手動執行。輸出第一行標示本次模式。
 * **阻斷條件 (P0)**：任一腳本回傳 Exit Code $\neq 0$（存在 P0 級違規，如 Domain 污染、DIP 違規、非 with 管理之 open 呼叫、高嚴重度安全發現、掃描工具缺失），禁止交付，必須立即分析錯誤訊息並修正。
 * **警告處置 (P1)**：若存在 P1 級警告（例如盲目吞噬例外、例外鏈未關聯 `raise ... from`、中低嚴重度安全發現），評估是否應修正；保留者須附理由。安全掃描發現的處置方式以 [review_checklist.md](./references/review_checklist.md)「安全工具掃描」項為準。
 

@@ -78,6 +78,8 @@ dependency_files = ["requirements.txt"]
 dependency_level = "P0"
 baseline = ".agents/security_baseline.json"
 tools_venv = ".venv-tools"
+diff_base = "main"
+full_scan_max_age_days = 7
 """
 
 

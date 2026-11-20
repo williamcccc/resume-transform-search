@@ -78,7 +78,7 @@
 [標準輸出]: ...
 [測試結果]: Ran X tests in Ys ... OK
 ```
-* **安全工具掃描**（`python .agents/skills/code-review/scripts/security_scan.py`）：`P0=0 P1=N 基準內=M 未執行=K`；未執行項目（無法連網）逐項列出。
+* **安全工具掃描**（`python .agents/skills/code-review/scripts/security_scan.py`）：模式（差異／完整）與 `P0=0 P1=N 基準內=M 未執行=K`；未執行項目（無法連網）逐項列出。
 
 ---
 

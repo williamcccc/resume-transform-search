@@ -73,6 +73,8 @@ SCHEMA: Dict[str, Dict[str, str]] = {
         "dependency_level": "enum:P0|P1",
         "baseline": "str",
         "tools_venv": "str",
+        "diff_base": "str",
+        "full_scan_max_age_days": "int_range:1-365",
     },
 }
 
