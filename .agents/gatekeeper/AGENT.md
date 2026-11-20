@@ -46,8 +46,8 @@
 1. Step 4 黑箱/灰箱 QA 實測驗證 (QA Testing)：
    - 調度 .agents/skills/qa-testing/ 技能。
    - 依據需求追溯矩陣 (RTM)，保證每一條 Acceptance Criteria (AC) 均有測試覆蓋，零遺漏。
-   - 對抗式邊界情境挖掘：高併發競態危害、Redis 切片操作冪等性、網路中斷重連、0-byte 壞檔、Zip Bomb 與 Prompt Jailbreak。
-   - 在 tests/e2e/ 執行真實 CLI 與 Redis 實測腳本（使用 tempfile 隔離磁碟、DB 15/獨立前綴隔離 Redis）。
+   - 對抗式邊界情境挖掘：高併發競態危害、Redis 切片操作冪等性、網路中斷重連、0-byte 壞檔、Zip Bomb 與 Prompt Jailbreak。<!-- 專案專屬 -->
+   - 在 tests/e2e/ 執行真實 CLI 與 Redis 實測腳本（使用 tempfile 隔離磁碟、DB 15/獨立前綴隔離 Redis）。<!-- 專案專屬 -->
    - 出具正式 QA 實測驗收報告；實測未通過者立即打回給 Developer。
 2. Step 5 對抗式代碼審查 (Gate 2)：
    - 調度 .agents/skills/code-review/ 技能。

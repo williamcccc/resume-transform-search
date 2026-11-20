@@ -48,6 +48,7 @@ flowchart LR
 | **0025** | 閉環流程分軌與 workflows 目錄化 | — | [Spec-0025](./specs/0025-workflow-tracks-and-bug-fix-spec.md) | `tests/unit/test_workflow_tracks_doc_sync.py`、`tests/e2e/test_workflow_tracks_doc_sync_e2e.py` | [QA-0025](./qa_reports/0025-workflow-tracks-and-bug-fix-qa.md) |
 | **0026** | 新增規範變更流程 | — | [Spec-0026](./specs/0026-governance-track-spec.md) | `tests/unit/test_workflow_tracks_doc_sync.py`、`tests/e2e/test_workflow_tracks_doc_sync_e2e.py` | [QA-0026](./qa_reports/0026-governance-track-qa.md) |
 | **0027** | 規範體系一致性清理 | — | [Spec-0027](./specs/0027-governance-consistency-cleanup-spec.md) | `tests/unit/test_quality_ac_gate.py` | [QA-0027](./qa_reports/0027-governance-consistency-cleanup-qa.md) |
+| **0028** | 閉環可移植化（專案專屬內容抽離為設定與標記） | [ADR-0028](./adr/0028-portable-closed-loop-project-config.md) | [Spec-0028](./specs/0028-portable-closed-loop-spec.md) | `tests/unit/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0028](./qa_reports/0028-portable-closed-loop-qa.md) |
 
 ### 缺陷修正追溯清單
 

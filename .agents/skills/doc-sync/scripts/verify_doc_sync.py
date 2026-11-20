@@ -11,11 +11,15 @@ verify_doc_sync.py
 4. REQUIREMENTS.md 與 ARCHITECTURE.md 是否存在且未損毀。
 5. .claude/ 原生轉接層與 .agents/ 正本一一對應、frontmatter 一致且未複製正本內容。
 6. 規格須宣告「品質評測範圍：是/否」；宣告為「是」者，驗收標準須列出品質指標
-   （編號 0023 起強制，較早者未宣告則略過、宣告為「是」但缺指標僅警告）。
+   （自 project.toml [docs].quality_ac_enforced_from 之編號起強制，較早者未宣告則略過、
+   宣告為「是」但缺指標僅警告）。
 7. docs/bugs/ 缺陷報告比照規格檢查檔名、索引登錄與品質評測範圍宣告。
 8. AGENTS.md 分流表連結之 .agents/workflows/ 流程檔皆存在，且流程檔皆有登錄於分流表。
 9. docs/templates/ 範本鏡像與 .agents/ 正本內容一致。
-10. AGENTS.md 超過行數上限時印出警告（不影響結束碼），提醒將內容移至流程檔或技能。
+10. AGENTS.md 超過行數上限（project.toml [docs].agents_max_lines）時印出警告（不影響結束碼），
+    提醒將內容移至流程檔或技能。
+
+結束碼：0 通過；1 有 FAIL；2 專案設定檔缺漏或錯誤。
 """
 
 import os
@@ -24,6 +28,16 @@ import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[4]
+
+sys.path.insert(0, str(ROOT_DIR / ".agents" / "lib"))
+from project_config import ProjectConfigError, load_project_config  # noqa: E402
+
+try:
+    DOCS_CONFIG = load_project_config(ROOT_DIR, ("docs",))["docs"]
+except ProjectConfigError as _config_err:
+    print(f"[FAIL] 專案設定錯誤: {_config_err}")
+    sys.exit(2)
+
 DOCS_DIR = ROOT_DIR / "docs"
 DOCS_ADR_DIR = DOCS_DIR / "adr"
 DOCS_SPECS_DIR = DOCS_DIR / "specs"
@@ -230,7 +244,7 @@ QUALITY_METRIC_PATTERN = re.compile(
     + r"|評審(?:平均)?分數|一致率",
     re.IGNORECASE,
 )
-QUALITY_AC_ENFORCED_FROM = 23  # 規格編號達此值起須宣告範圍且缺漏標示 FAIL
+QUALITY_AC_ENFORCED_FROM = DOCS_CONFIG["quality_ac_enforced_from"]  # 規格編號達此值起須宣告範圍且缺漏標示 FAIL
 _HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
 _FENCE_PATTERN = re.compile(r"^\s*(```|~~~)")
 
@@ -369,7 +383,7 @@ def check_template_mirrors(root: Path = ROOT_DIR, mirrors: dict = TEMPLATE_MIRRO
 
 
 # AGENTS.md 常駐載入，行數過多會讓每次對話都多付 Token（governance.md G4 第 4 項）
-AGENTS_MAX_LINES = 200
+AGENTS_MAX_LINES = DOCS_CONFIG["agents_max_lines"]
 
 
 def check_agents_size(agents_text: str, max_lines: int = AGENTS_MAX_LINES) -> bool:

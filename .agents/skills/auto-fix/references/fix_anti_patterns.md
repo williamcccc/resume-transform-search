@@ -35,7 +35,7 @@
 ---
 
 ### ❌ 反模式 5：破壞 DDD 分層依賴反轉
-* **危險行為**：為求快速修復，直接在 `src/domain/` 引入第三方 SDK（如 `fitz`, `google-genai`），或在 Use Case 中直接實例化基礎設施實作類別。
+* **危險行為**：為求快速修復，直接在 Domain 層（`project.toml` 的 `layers.domain`）引入第三方 SDK（如 `fitz`, `google-genai`），或在 Use Case 中直接實例化基礎設施實作類別。
 * **正確做法**：維持 Domain 純潔性，透過 Protocol 介面進行依賴注入（DIP）。
 
 ---

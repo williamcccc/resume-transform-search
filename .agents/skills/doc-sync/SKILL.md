@@ -37,7 +37,7 @@ flowchart TD
 ### 階段 1：需求與命令對齊 (Requirements Sync)
 * **目標檔案**：[`REQUIREMENTS.md`](../../../REQUIREMENTS.md)
 * **檢核與同步要點**：
-  1. **CLI 參數對齊**：若本次異動新增或修改了命令列參數（如 `--review`, `--index-to-redis`, `--skills` 等），必須在 `REQUIREMENTS.md` 中詳細列出參數名稱、型別、預設值與使用範例。
+  1. **CLI 參數對齊**：若本次異動新增或修改了命令列參數（如 `--review`, `--index-to-redis`, `--skills` 等<!-- 專案專屬 -->），必須在 `REQUIREMENTS.md` 中詳細列出參數名稱、型別、預設值與使用範例。
   2. **業務驗收追溯**：將本次 PRD 中的主要驗收標準（AC）成果反映至需求文檔的「核心功能實作狀態」章節。
   3. **向下相容性聲明**：確認既有命令語法與範例依然有效，無非預期的破壞性更動。
 
@@ -45,7 +45,7 @@ flowchart TD
 * **目標檔案**：[`ARCHITECTURE.md`](../../../ARCHITECTURE.md)
 * **檢核與同步要點**：
   1. **DDD 領域實體與 DTO**：若有新增或擴充的資料模型（如 `ResumeChunk`, `SearchQuery`, `QualityReport`），必須同步更新文檔中的實體欄位定義與職責說明。
-  2. **依賴反轉 Protocol 契約**：若在 `src/domain/interfaces.py` 增修了協定介面，需於基礎設施章節記錄對應的實作類別。
+  2. **依賴反轉 Protocol 契約**：若在 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）增修了協定介面，需於基礎設施章節記錄對應的實作類別。
   3. **Mermaid 流程與時序圖**：若調度流程有異動，必須更新 Markdown 內嵌的 Mermaid `flowchart` 或 `sequenceDiagram`，維持可視化架構與代碼完全相符。
 
 ### 階段 3：ADR 生命週期歸檔 (ADR Lifecycle Sync)
