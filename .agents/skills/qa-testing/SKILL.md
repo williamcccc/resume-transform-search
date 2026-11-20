@@ -27,7 +27,7 @@ description: >-
 ### 2. 邊界與異常情境對抗挖掘 (Edge Case Discovery & Adversarial Scenarios)
 發掘人類工程師容易忽略的極限盲區，自動補充以下對抗式測試案例：
 * **併發競態危害 (Concurrency & Race Conditions)**：多 Worker 或多執行緒同時轉檔/更新同位候選人時的狀態衝突防護。
-* **重複請求與操作冪等性 (Idempotency)**：重複執行批次轉檔或重覆寫入 Redis 時，切片不會重複堆疊或污染。
+* **重複請求與操作冪等性 (Idempotency)**：重複執行批次轉檔或重覆寫入 Redis 時，切片不會重複堆疊或污染。<!-- 專案專屬 -->
 * **網路抖動與服務斷線 (Network Glitches & Reconnection)**：模擬 Redis 離線、Gemini API 429 配額用罄或連線超時的平滑降級與熔斷重連。
 * **惡意與畸形輸入注入 (Adversarial Injections)**：傳入 0-byte 空檔案、損毀 ZIP、超大 PDF 頁數、特殊字元路徑與提示詞注入攻擊（Resume Jailbreak）。
 

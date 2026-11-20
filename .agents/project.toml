@@ -1,0 +1,115 @@
+# 閉環專案設定（Spec-0028）
+# 本檔是閘門腳本（audit_guardrails.py、verify_doc_sync.py）所有專案專屬值的唯一正本。
+# 移植到其他專案時，依 .agents/PORTING.md 逐鍵改寫；腳本找不到本檔或缺鍵時會以結束碼 2 中止。
+
+[layers]
+# DDD 四層分層檢查（Domain 純潔性、Application 依賴反轉）。非 DDD 專案設為 false。
+enabled = true
+# 原始碼掃描根目錄；enabled = false 時仍用於資源、例外、硬編碼與提示詞檢查。
+src = "src"
+domain = "src/domain"
+application = "src/application"
+infrastructure = "src/infrastructure"
+interfaces = "src/interfaces"
+# Domain 契約檔（Protocol 介面）
+domain_interfaces = "src/domain/interfaces.py"
+
+[config]
+# 唯一可讀環境變數的模組；其 os.environ.get() 變數須全數列於 env_example。
+module = "src/infrastructure/config.py"
+env_example = ".env.example"
+
+[guardrails]
+# 原始碼禁止寫死的連線 URL scheme
+url_schemes = ["redis", "postgres", "postgresql", "mongodb", "amqp", "http", "https"]
+# 金鑰格式（正規式）；命中即 P0
+api_key_patterns = ['AQ\.[a-zA-Z0-9_-]{20,}', 'AIzaSy[a-zA-Z0-9_-]{33}']
+# 長度 >= 20 的字串常數含以下片語，視為寫死提示詞
+prompt_indicators = [
+    "你是一個",
+    "你是一位",
+    "你扮演",
+    "請遵守以下規則",
+    "遵守以下規則",
+    "<resume_content",
+    "</resume_content>",
+    "自我修復後的",
+    "請對照原始資料",
+    "你是一個專業的",
+    "=== 原始文件資訊",
+    "=== 待審核",
+    "=== 原始提取文字",
+]
+# 只列於評測專用 requirements、原始碼禁止 import 的套件
+eval_only_modules = ["ragas"]
+# .gitignore 必備項目（AGENTS.md 紅線 7 之唯一正本）
+required_gitignore = [
+    ".env",
+    "data/",
+    "resume/",
+    "resumes/",
+    "output/",
+    "output_md/",
+    "markdown_out/",
+    "markdown_output/",
+    "quarantine/",
+    "scorecards/",
+    "logs/",
+    "dump.rdb",
+    "appendonlydir/",
+]
+# 全倉隱私掃描略過的目錄名稱
+ignore_scan_dirs = [
+    ".git",
+    ".venv",
+    ".venv-eval",
+    "__pycache__",
+    ".pytest_cache",
+    "data",
+    "resume",
+    "resumes",
+    "output",
+    "output_md",
+    "markdown_out",
+    "markdown_output",
+    "quarantine",
+    "scorecards",
+    "logs",
+    "scratch",
+    ".vscode",
+]
+
+# 允許寫死連線 URL 的檔案；每筆必填 reason。
+[[guardrails.url_exceptions]]
+path = "src/infrastructure/stores/redis_vector_store.py"
+reason = "建構子 redis_url 參數的本機開發預設值；正式連線一律由 AppConfig 注入覆寫"
+
+[privacy]
+# 受保護身分之 SHA-256 前 16 碼指紋（3～4 字 CJK 片段）。移植時必須清空。
+forbidden_hash_prefixes = [
+    "03e6e7b373fdf9b2",
+    "fd33828acba22b0c",
+    "7bc129af776b874e",
+    "b9820ab4f19e7ac7",
+    "6862896e289fdce0",
+    "ab41d159b7aabb68",
+]
+safe_email_domains = ["example.com", "example.org", "example.net", "invalid", "localhost"]
+# 檔名主幹屬於以下通用字詞時，不視為個人檔名
+safe_filename_stems = [
+    "sample", "example", "demo", "test", "fake", "mock", "bad", "large",
+    "corrupt", "invalid", "fixture", "candidate", "document", "source", "output",
+    "converted", "file", "input", "resume", "sample_resume", "candidate_one",
+]
+# 存放敏感原始檔的目錄名稱；引用其下 .pdf/.docx/.doc/.md 實際檔名即視為隱私線索
+sensitive_dirs = ["resume", "resumes", "markdown_out", "markdown_output", "output_md"]
+# 「人名-關鍵字」形式的個人檔名關鍵字
+personal_filename_keywords = ["CV", "resume"]
+# 啟用的地區樣式組（audit_guardrails.py 內建）：tw_mobile、tw_landline、tw_id
+locale_patterns = ["tw_mobile", "tw_landline", "tw_id"]
+
+[docs]
+# 規格編號達此值起，須宣告「品質評測範圍」且缺漏即 FAIL
+quality_ac_enforced_from = 23
+# AGENTS.md 行數上限，超過時 WARN
+agents_max_lines = 200

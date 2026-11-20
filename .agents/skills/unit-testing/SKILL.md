@@ -34,7 +34,7 @@ flowchart TD
 ## 二、四大核心不可變規範 (4 Inviolable Rules)
 
 ### 1. 100% 離線 Mock 獨立性 (Pure Offline Isolation)
-* **紅線禁令**：單元測試檔案（`tests/unit/test_*.py`）中**嚴禁發送真實 HTTP 請求、嚴禁調用真實 Gemini API、嚴禁連接真實 Redis 資料庫**。
+* **紅線禁令**：單元測試檔案（`tests/unit/test_*.py`）中**嚴禁發送真實 HTTP 請求、嚴禁調用真實 Gemini API、嚴禁連接真實 Redis 資料庫**。<!-- 專案專屬：外部服務名稱 -->
 * 所有對外介面一律使用 `unittest.mock.Mock` 或 `MagicMock` 模擬：
   - 模擬 Embedding 服務：回傳預設長度之零向量或特定固定維度向量（如 768 維）。
   - 模擬 Redis 客戶端：以內建 dictionary 或假物件模擬 `hset`, `hgetall`, `ft().search`。

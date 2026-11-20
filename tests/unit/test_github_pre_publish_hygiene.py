@@ -1,4 +1,5 @@
 import re
+import tomllib
 import unittest
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -12,25 +13,14 @@ class TestGitHubPrePublishHygiene(unittest.TestCase):
 
     def setUp(self):
         self.root_dir = Path(__file__).resolve().parents[2]
-        self.ignore_dirs = {
-            ".git",
-            ".venv",
-            ".venv-eval",
-            "__pycache__",
-            ".pytest_cache",
-            "data",
-            "resume",
-            "resumes",
-            "output",
-            "output_md",
-            "markdown_out",
-            "markdown_output",
-            "quarantine",
-            "scorecards",
-            "logs",
-            "scratch",
-            ".vscode",
-        }
+        # 清單正本為 .agents/project.toml（Spec-0028），測試不另存一份
+        with (self.root_dir / ".agents" / "project.toml").open("rb") as handle:
+            project = tomllib.load(handle)
+        guardrails = project["guardrails"]
+        self.config_module = self.root_dir / project["config"]["module"]
+        self.env_example = self.root_dir / project["config"]["env_example"]
+        self.ignore_dirs = set(guardrails["ignore_scan_dirs"])
+        self.required_gitignore = list(guardrails["required_gitignore"])
 
     def test_gitignore_covers_sensitive_and_runtime_paths(self):
         # 1. Arrange
@@ -41,29 +31,15 @@ class TestGitHubPrePublishHygiene(unittest.TestCase):
         content = gitignore_path.read_text(encoding="utf-8")
         lines = {line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("#")}
 
-        # 3. Assert
-        required_entries = [
-            ".env",
-            "data/",
-            "resume/",
-            "resumes/",
-            "output/",
-            "output_md/",
-            "markdown_out/",
-            "markdown_output/",
-            "quarantine/",
-            "scorecards/",
-            "logs/",
-            "dump.rdb",
-            "appendonlydir/",
-        ]
-        for entry in required_entries:
+        # 3. Assert：機密檔 .env 為不可移除之最低要求，其餘以設定正本為準
+        self.assertIn(".env", self.required_gitignore, "project.toml 必備清單不得移除 .env")
+        for entry in self.required_gitignore:
             self.assertIn(entry, lines, f".gitignore 漏列關鍵保護項目: {entry}")
 
     def test_env_example_covers_all_app_config_variables_and_has_no_real_secrets(self):
         # 1. Arrange
-        config_path = self.root_dir / "src" / "infrastructure" / "config.py"
-        env_example_path = self.root_dir / ".env.example"
+        config_path = self.config_module
+        env_example_path = self.env_example
         self.assertTrue(config_path.exists())
         self.assertTrue(env_example_path.exists())
 

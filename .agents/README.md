@@ -7,6 +7,8 @@
 | [workflows/](workflows/) | 流程檔：[feature.md](workflows/feature.md)、[bug.md](workflows/bug.md)、[hotfix.md](workflows/hotfix.md)、[governance.md](workflows/governance.md) | 何時做、先後順序、要不要做、失敗退回哪裡 |
 | [skills/](skills/) | 各步驟技能與其範本、檢核清單、腳本 | 怎麼做、用什麼範本、通過標準 |
 | [architect/](architect/AGENT.md)、[developer/](developer/AGENT.md)、[gatekeeper/](gatekeeper/AGENT.md) | 角色手冊：負責步驟、綁定技能、交接合約 | 誰做、交給誰 |
+| [project.toml](project.toml)、[lib/](lib/project_config.py) | 專案專屬值的唯一正本與其讀取模組 | 閘門腳本檢查哪些路徑、清單與門檻 |
+| [PORTING.md](PORTING.md) | 移植指南 | 搬到其他專案時要改什麼 |
 
 **使用方式**：
 1. 依 AGENTS.md 第 2 節分流表判定軌別，讀取對應流程檔。

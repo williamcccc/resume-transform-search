@@ -35,7 +35,7 @@ flowchart TD
 
   | 等級 | 定義 | 流程 |
   | :--- | :--- | :--- |
-  | **S1** | 資料損壞或遺失、個資外洩、安全漏洞、主要流程（轉檔、檢索）全面失敗 | [hotfix.md](../../workflows/hotfix.md) |
+  | **S1** | 資料損壞或遺失、個資外洩、安全漏洞、主要流程（轉檔、檢索<!-- 專案專屬 -->）全面失敗 | [hotfix.md](../../workflows/hotfix.md) |
   | **S2** | 功能錯誤但有替代做法，或影響非主要流程 | [bug.md](../../workflows/bug.md) |
   | **S3** | 邊角情境、訊息文字、不影響結果的瑕疵 | [bug.md](../../workflows/bug.md) |
 
@@ -65,8 +65,8 @@ flowchart TD
 ### 階段 5：修正範圍與升級判斷（developer）
 * 列出預計修改的檔案與修改性質。
 * 逐條檢查升級條件（[bug.md](../../workflows/bug.md)「升級回 Feature 軌」）：
-  1. 需修改 `src/domain/interfaces.py` 的 Protocol 或 DTO 欄位；
-  2. 需修改資料模型或 Redis 索引結構；
+  1. 需修改 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）的 Protocol 或 DTO 欄位；
+  2. 需修改資料模型或 Redis 索引結構；<!-- 專案專屬 -->
   3. 需新增 `AppConfig` 環境變數或 CLI 參數；
   4. 「正確行為」在現有規格中未定義或定義矛盾；
   5. 修正範圍跨越 3 個以上 DDD 層。

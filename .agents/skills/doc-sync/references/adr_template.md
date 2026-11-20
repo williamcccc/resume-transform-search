@@ -53,5 +53,5 @@
 | 4 | Token 能效與成本熔斷 (Token Economics & Cost) | |
 | 5 | 可抽換性 (Portability & Decoupling) | |
 | 6 | 惡意輸入與配額硬上限 (Input Security) | |
-| 7 | 向量索引演進遷移 (Index Evolution) | |
+| 7 | 向量索引演進遷移 (Index Evolution) <!-- 專案專屬：整個維度 --> | |
 | 8 | 分散式併發與可觀測性 (Concurrency & Traceability) | |

@@ -30,8 +30,8 @@
 ## 升級回 Feature 軌
 
 **升級條件**（任一成立）：
-1. 需修改 `src/domain/interfaces.py` 的 Protocol 或 DTO 欄位。
-2. 需修改資料模型或 Redis 索引結構。
+1. 需修改 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）的 Protocol 或 DTO 欄位。
+2. 需修改資料模型或 Redis 索引結構。<!-- 專案專屬 -->
 3. 需新增 `AppConfig` 環境變數或 CLI 參數。
 4. 「正確行為」在現有規格中未定義或定義矛盾。
 5. 修正範圍跨越 3 個以上 DDD 層。
