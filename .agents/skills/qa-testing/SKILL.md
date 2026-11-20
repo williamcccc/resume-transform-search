@@ -26,10 +26,12 @@ description: >-
 
 ### 2. 邊界與異常情境對抗挖掘 (Edge Case Discovery & Adversarial Scenarios)
 發掘人類工程師容易忽略的極限盲區，自動補充以下對抗式測試案例：
-* **併發競態危害 (Concurrency & Race Conditions)**：多 Worker 或多執行緒同時轉檔/更新同位候選人時的狀態衝突防護。
-* **重複請求與操作冪等性 (Idempotency)**：重複執行批次轉檔或重覆寫入 Redis 時，切片不會重複堆疊或污染。<!-- 專案專屬 -->
-* **網路抖動與服務斷線 (Network Glitches & Reconnection)**：模擬 Redis 離線、Gemini API 429 配額用罄或連線超時的平滑降級與熔斷重連。
-* **惡意與畸形輸入注入 (Adversarial Injections)**：傳入 0-byte 空檔案、損毀 ZIP、超大 PDF 頁數、特殊字元路徑與提示詞注入攻擊（Resume Jailbreak）。
+* **併發競態危害 (Concurrency & Race Conditions)**：多 Worker 或多執行緒同時處理、更新同一筆資料時的狀態衝突防護。
+* **重複請求與操作冪等性 (Idempotency)**：重複執行批次處理或重覆寫入資料庫、索引時，資料不會重複堆疊或污染。
+* **網路抖動與服務斷線 (Network Glitches & Reconnection)**：模擬相依服務（資料庫、外部 API）離線、限流（429）、配額用罄或連線超時時的平滑降級與熔斷重連。
+* **惡意與畸形輸入注入 (Adversarial Injections)**：傳入 0-byte 空檔案、損毀壓縮檔、超出上限的大型輸入、特殊字元路徑；`uses_llm` 者加測提示詞注入攻擊。
+
+本專案的具體情境舉例見 Gate 2 專案實例檔 [review_criteria.md](../../project/review_criteria.md) 第 3、4 類。
 
 ### 3. 測試腳本自動生成與防 Flaky 審查 (Script Generation & Anti-Flaky Review)
 * **自動轉化執行腳本**：將自然語言的測試情境自動轉化為標準 Python 測試代碼（存於 `tests/e2e/`）。
@@ -54,7 +56,7 @@ flowchart TD
     
     Phase1 --> Phase2["階段 2: 產生實測腳本與防 Flaky 審核 (Script & Review)<br>• 產生/更新 tests/e2e/ 腳本<br>• 審查隔離性，消除不穩定測試 (Flaky tests)"]
     
-    Phase2 --> Phase3["階段 3: 實測執行 (Live Execution)<br>• 執行端到端實測腳本 (真實 CLI、真實 Sample、真實 Redis)<br>• 驗證 Windows 檔案釋放與向下相容性"]
+    Phase2 --> Phase3["階段 3: 實測執行 (Live Execution)<br>• 執行端到端實測腳本 (真實 CLI、真實樣本、真實相依服務)<br>• 驗證檔案釋放與向下相容性"]
     
     Phase3 --> Check{"實測是否 100% 通過?<br>(零功能瑕疵、零未預期例外)"}
     Check -->|"失敗 (Failures)"| RCA["階段 4A: 失敗分析與根因定位 (RCA)<br>• 解析 Traceback 與系統日誌<br>• 定位具體破壞點，產出修復建言<br>• 打回 Step 6 (Auto-Fix) 修正"]

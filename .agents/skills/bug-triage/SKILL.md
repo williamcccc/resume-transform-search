@@ -70,7 +70,7 @@ flowchart TD
 * 逐條檢查升級條件（[bug.md](../../workflows/bug.md)「升級回 Feature 軌」）：
   1. 需修改 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）的 Protocol 或 DTO 欄位；
   2. 需修改資料模型或 Redis 索引結構；<!-- 專案專屬 -->
-  3. 需新增 `AppConfig` 環境變數或 CLI 參數；
+  3. 需在設定模組（`config.module`）新增環境變數，或新增 CLI 參數；
   4. 「正確行為」在現有規格中未定義或定義矛盾；
   5. 修正範圍跨越 3 個以上 DDD 層。
 * 任一成立：停下並向使用者說明符合哪一條、理由為何，**經使用者確認**後才轉 Feature 軌。缺陷報告標為「已升級 → Spec-XXXX」。

@@ -1,6 +1,6 @@
 # 提案與規格書：Gate 2 檢核清單通用化與 .agents 專案相依清理
 
-> **狀態**：提案（G1，待核准；尚未實作）｜**類型**：規範變更（大改：搬移與重組章節、新增專案實例檔）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：[review_checklist.md](../../.agents/skills/code-review/references/review_checklist.md)、bug 流程、qa-testing、doc-sync、[PORTING.md](../../.agents/PORTING.md) 與相關範本，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，待決事項全數採建議；QA 見 [QA-0036](../qa_reports/0036-portable-review-checklist-qa.md)）｜**類型**：規範變更（大改：搬移與重組章節、新增專案實例檔）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：[review_checklist.md](../../.agents/skills/code-review/references/review_checklist.md)、bug 流程、qa-testing、doc-sync、[PORTING.md](../../.agents/PORTING.md) 與相關範本，不涉及 `src/`
 
 ## 一、動機
 
@@ -98,7 +98,7 @@
 | 5 | PORTING 第 6 步漏列的 5 個檔案 | 補列入清單，維持「選擇性」 | 本案一併中性化 |
 | 6 | 是否以腳本檢查核心檔無專屬標記、實例檔存在 | 本次不改腳本；併入 [Spec-0034](./0034-asvs-chapter-coverage-check-spec.md) | 本次一併修改 `verify_doc_sync.py` |
 
-## 七、驗收標準（草案，G2 核准後定稿）
+## 七、驗收標準
 
 * **AC-1**：`review_checklist.md` 不含 `<!-- 專案專屬` 標記，且不含本專案元件名稱（Redis、Gemini、履歷、PDF、Docx、切片、`resume_content`、`convert_to_md`）。
 * **AC-2**：原清單中屬本專案的內容（項目、數值、標籤、舉例），逐項可在 Gate 2 實例檔找到，零遺失。
