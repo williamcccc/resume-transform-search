@@ -50,6 +50,7 @@ flowchart LR
 | **0027** | 規範體系一致性清理 | — | [Spec-0027](./specs/0027-governance-consistency-cleanup-spec.md) | `tests/unit/test_quality_ac_gate.py` | [QA-0027](./qa_reports/0027-governance-consistency-cleanup-qa.md) |
 | **0028** | 閉環可移植化（專案專屬內容抽離為設定與標記） | [ADR-0028](./adr/0028-portable-closed-loop-project-config.md) | [Spec-0028](./specs/0028-portable-closed-loop-spec.md) | `tests/unit/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0028](./qa_reports/0028-portable-closed-loop-qa.md) |
 | **0030** | 安全與非功能需求評估通用化（閉環核心層） | — | [Spec-0030](./specs/0030-portable-security-nfr-framework-spec.md) | `tests/unit/test_security_scan.py`、`tests/unit/test_security_ac_gate.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0030](./qa_reports/0030-portable-security-nfr-framework-qa.md) |
+| **0034** | ASVS 章節歸屬自動檢查（提案，待核准） | — | [Spec-0034](./specs/0034-asvs-chapter-coverage-check-spec.md) | — | — |
 
 ### 缺陷修正追溯清單
 
