@@ -1,6 +1,6 @@
 # 提案與規格書：閉環殘留專案相依清理（敏感副檔名設定化、基準檔歸位、業務技能清單）
 
-> **狀態**：提案（G1，待核准；尚未實作）｜**類型**：規範變更（大改：修改驗證腳本與設定綱要）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`audit_guardrails.py`、`project_config.py`、`project.toml`、`.agents/project/`、[PORTING.md](../../.agents/PORTING.md) 與相關測試，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，待決事項全數採建議；QA 見 [QA-0038](../qa_reports/0038-closed-loop-residual-project-coupling-qa.md)）｜**類型**：規範變更（大改：修改驗證腳本與設定綱要）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`audit_guardrails.py`、`project_config.py`、`project.toml`、`.agents/project/`、[PORTING.md](../../.agents/PORTING.md) 與相關測試，不涉及 `src/`
 
 ## 一、動機
 
@@ -71,7 +71,7 @@
 | 3 | quality-evaluation 技能 | 不修改（2.4） | 列入 `business_skills` 或新增 `optional_skills` 清單 |
 | 4 | 是否與 Bug-0031～0033、Spec-0034 合併 | 分開處理，本案先行；四者皆改腳本但函式不重疊 | 合併為一份閘門腳本修正規格 |
 
-## 七、驗收標準（草案，G2 核准後定稿）
+## 七、驗收標準
 
 * **AC-1**：`privacy.sensitive_extensions` 設為 `["csv"]` 時，敏感目錄下的 `<人名>.csv` 被判為 `personal_filename`，`<人名>.pdf` 不被判定；設為空清單時此項不啟用；缺鍵或型別錯誤時結束碼 2。
 * **AC-2**：本專案執行 `audit_guardrails.py` 與上庫衛生測試，結果與修改前一致（零新增、零遺漏）。

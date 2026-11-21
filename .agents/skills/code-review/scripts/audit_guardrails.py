@@ -405,18 +405,26 @@ MASKED_CJK_PATTERN = re.compile(
 _SAFE_STEM_LOOKAHEAD = (
     r"(?!(?:" + _alternation(sorted(SAFE_FILENAME_STEMS)) + r")[_-])" if SAFE_FILENAME_STEMS else ""
 )
-PERSONAL_RESUME_FILENAME_PATTERN = _compile_or_never(
+PERSONAL_FILENAME_PATTERN = _compile_or_never(
     r"(?<![\w\u4e00-\u9fff])" + _SAFE_STEM_LOOKAHEAD
     + r"(?:[\u4e00-\u9fff]{2,4}|[A-Z][a-z]{1,30})[-_]"
     + r"(?:" + _alternation(_PRIVACY["personal_filename_keywords"]) + r")"
     + r"(?:\.[A-Za-z0-9]{1,6})?(?![\w\u4e00-\u9fff])",
     _PRIVACY["personal_filename_keywords"],
 )
-RESUME_DIRECTORY_FILENAME_PATTERN = _compile_or_never(
-    r"(?<![\w])(?:" + _alternation(_PRIVACY["sensitive_dirs"]) + r")[/\\]"
-    r"(?:[^\s/\\`<>()\[\]\"']+[/\\])*([^\s/\\`<>()\[\]\"']+)\.(?:pdf|docx|doc|md)\b",
-    _PRIVACY["sensitive_dirs"],
-    re.IGNORECASE,
+def sensitive_directory_filename_pattern(dirs, extensions):
+    """敏感目錄下引用指定副檔名之實際檔名；任一清單為空時永不命中（Spec-0038）。"""
+    if not dirs or not extensions:
+        return _NeverMatch()
+    return re.compile(
+        r"(?<![\w])(?:" + _alternation(dirs) + r")[/\\]"
+        r"(?:[^\s/\\`<>()\[\]\"']+[/\\])*([^\s/\\`<>()\[\]\"']+)\.(?:" + _alternation(extensions) + r")\b",
+        re.IGNORECASE,
+    )
+
+
+SENSITIVE_DIRECTORY_FILENAME_PATTERN = sensitive_directory_filename_pattern(
+    _PRIVACY["sensitive_dirs"], _PRIVACY["sensitive_extensions"]
 )
 EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b")
 CJK_SEQUENCE_PATTERN = re.compile(r"[\u4e00-\u9fff]{3,4}")
@@ -445,7 +453,7 @@ def find_privacy_markers(text: str) -> List[str]:
     if MASKED_CJK_PATTERN.search(text):
         markers.add("masked_cjk_identifier")
     safe_filename_stems = SAFE_FILENAME_STEMS
-    for match in PERSONAL_RESUME_FILENAME_PATTERN.finditer(text):
+    for match in PERSONAL_FILENAME_PATTERN.finditer(text):
         token = match.group(0)
         before = text[match.start() - 1] if match.start() else ""
         after = text[match.end()] if match.end() < len(text) else ""
@@ -453,11 +461,11 @@ def find_privacy_markers(text: str) -> List[str]:
         has_extension = bool(re.search(r"\.[A-Za-z0-9]{1,6}$", token))
         stem = re.split(r"[-_]", token, maxsplit=1)[0].lower()
         if (is_quoted or has_extension) and stem not in safe_filename_stems:
-            markers.add("personal_resume_filename")
-    for match in RESUME_DIRECTORY_FILENAME_PATTERN.finditer(text):
+            markers.add("personal_filename")
+    for match in SENSITIVE_DIRECTORY_FILENAME_PATTERN.finditer(text):
         stem = Path(match.group(1)).stem.lower()
         if stem not in safe_filename_stems:
-            markers.add("personal_resume_filename")
+            markers.add("personal_filename")
     for match in EMAIL_PATTERN.finditer(text):
         domain = match.group(1).lower()
         if domain not in SAFE_EMAIL_DOMAINS and not any(

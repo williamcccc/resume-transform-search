@@ -54,7 +54,7 @@ flowchart LR
 | **0035** | 架構前審 8 大維度通用化（問題放核心，答案放專案） | — | [Spec-0035](./specs/0035-portable-arch-review-checklist-spec.md) | `.agents/tests/test_arch_review_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0035](./qa_reports/0035-portable-arch-review-checklist-qa.md) |
 | **0036** | Gate 2 檢核清單通用化與 .agents 專案相依清理 | — | [Spec-0036](./specs/0036-portable-review-checklist-spec.md) | `.agents/tests/test_review_checklist_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0036](./qa_reports/0036-portable-review-checklist-qa.md) |
 | **0037** | 專案概況檔、閉環自我測試隨核心移植、AGENTS.md 紅線分區 | [ADR-0037](./adr/0037-agents-red-lines-generic-and-project-groups.md) | [Spec-0037](./specs/0037-project-profile-tests-and-red-lines-spec.md) | `tests/unit/test_project_instance_files.py`、`.agents/tests/`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0037](./qa_reports/0037-project-profile-tests-and-red-lines-qa.md) |
-| **0038** | 閉環殘留專案相依清理：敏感副檔名設定化、基準檔歸位、業務技能清單（提案，待核准） | — | [Spec-0038](./specs/0038-closed-loop-residual-project-coupling-spec.md) | — | — |
+| **0038** | 閉環殘留專案相依清理：敏感副檔名設定化、基準檔歸位、業務技能清單 | — | [Spec-0038](./specs/0038-closed-loop-residual-project-coupling-spec.md) | `.agents/tests/test_project_config.py`、`tests/unit/test_github_pre_publish_hygiene.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0038](./qa_reports/0038-closed-loop-residual-project-coupling-qa.md) |
 
 ### 缺陷修正追溯清單
 

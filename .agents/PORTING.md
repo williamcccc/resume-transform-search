@@ -11,16 +11,17 @@
 ## 步驟
 
 1. **複製檔案**：`AGENTS.md`、`CLAUDE.md`（使用 Antigravity 時另加 `GEMINI.md`）、`.agents/`（含閉環自我測試 `.agents/tests/`）、`.claude/`。略過所有 `__pycache__/`。
-2. **刪除業務技能**：`.agents/skills/resume-vector-indexing/`、`.agents/skills/resume-vector-search/`，以及 `.claude/skills/` 下同名資料夾。
+2. **刪除業務技能**：刪除 `project.toml` 的 `project.business_skills` 所列技能（`.agents/skills/` 與 `.claude/skills/` 下同名資料夾），再將清單改為新專案的業務技能（無則清空）。
 3. **改寫 `project.toml`**，逐鍵確認：
    * `[layers]`：填入新專案的分層路徑；非 DDD 專案設 `enabled = false`，但 `src` 仍須指向原始碼根目錄。
    * `[config]`：唯一可讀環境變數的模組與環境變數範本檔。
    * `[guardrails]`：連線 scheme、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。
-   * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
+   * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
    * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
    * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`；第四節適用條件為「技術」的章節（如 V9、V10、V17），新專案未使用該技術者須逐章登錄。
-   * `[security.tools]`：`scan_paths` 改為新專案的原始碼與入口檔，`dependency_files` 改為新專案的需求檔；`baseline` 指向的基準檔**不要複製**（那是原專案的發現）。`diff_base` 改為新專案的主分支名稱；`full_scan_max_age_days` 依需要調整（預設 7 天）。
+   * `[security.tools]`：`scan_paths` 改為新專案的原始碼與入口檔，`dependency_files` 改為新專案的需求檔；`baseline` 指向 `project/` 下的基準檔（見第 4 步）。`diff_base` 改為新專案的主分支名稱；`full_scan_max_age_days` 依需要調整（預設 7 天）。
 4. **替換專案實例檔**：[project/](project/) 下的檔案是原專案的具體標準，整份替換為新專案內容；新專案尚無程式碼時可先留空表或只留類別標題，隨首份規格與首次審查補齊。核心檢核清單不必改寫。
+   * [security_baseline.json](project/security_baseline.json)：原專案的安全掃描既有發現，**直接刪除**，於第 6 步首次掃描後重建。
    * [profile.md](project/profile.md)：專案概況（入口與介面、主要流程、持久化結構、敏感資料類型、測試環境），核心檔寫「見專案概況」之處即指本檔。
    * [arch_review_criteria.md](project/arch_review_criteria.md)：Gate 1 架構前審 8 大維度的通過標準（核心為 `arch_review_checklist.md`）。
    * [review_criteria.md](project/review_criteria.md)：Gate 2 代碼審查的本專案檢核項與數值（核心為 `review_checklist.md`）。

@@ -123,9 +123,9 @@ class TestGitHubPrePublishHygiene(unittest.TestCase):
 
         # 3. Assert
         self.assertIn("masked_cjk_identifier", masked_markers)
-        self.assertIn("personal_resume_filename", filename_markers)
-        self.assertIn("personal_resume_filename", quoted_filename_markers)
-        self.assertIn("personal_resume_filename", resume_path_markers)
+        self.assertIn("personal_filename", filename_markers)
+        self.assertIn("personal_filename", quoted_filename_markers)
+        self.assertIn("personal_filename", resume_path_markers)
         self.assertEqual(scanner.safe_path_for_report(sensitive_file_path, sensitive_path_markers), "[redacted-path]")
         self.assertEqual(safe_sample_markers, [])
         self.assertEqual(safe_resume_path_markers, [])

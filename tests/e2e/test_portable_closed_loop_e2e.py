@@ -34,7 +34,10 @@ CORS_SOURCE = (
     "    allow_credentials=True,\n"
     ")\n"
 )
-BUSINESS_SKILLS = ("resume-vector-indexing", "resume-vector-search")
+# Spec-0038：業務技能清單讀自原專案 project.toml 的 [project].business_skills
+BUSINESS_SKILLS = tuple(
+    tomllib.loads((PROJECT_ROOT / ".agents" / "project.toml").read_text(encoding="utf-8"))["project"]["business_skills"]
+)
 TEMPLATE_SOURCES = (
     ".agents/skills/feature-design/references/prd_template.md",
     ".agents/skills/feature-design/references/tech_spec_template.md",
@@ -57,6 +60,8 @@ def _rewrite_project_toml(text: str) -> str:
     text = re.sub(r"scan_paths = \[[^\]]*\]", 'scan_paths = ["app"]', text)
     text = re.sub(r"dependency_files = \[[^\]]*\]", 'dependency_files = ["requirements.txt"]', text)
     text = re.sub(r'tools_venv = "[^"]*"', f'tools_venv = "{TOOLS_VENV.as_posix()}"', text)
+    # Spec-0038：業務技能刪除後清空清單
+    text = re.sub(r"business_skills = \[[^\]]*\]", "business_skills = []", text)
     return text
 
 
@@ -80,7 +85,7 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
             shutil.rmtree(self.root / ".claude" / "skills" / skill)
 
         # PORTING.md：基準檔是原專案的發現，不得帶走
-        (self.root / ".agents" / "security_baseline.json").unlink()
+        (self.root / ".agents" / "project" / "security_baseline.json").unlink()
         config = self.root / ".agents" / "project.toml"
         config.write_text(_rewrite_project_toml(config.read_text(encoding="utf-8")), encoding="utf-8")
         self.config = tomllib.loads(config.read_text(encoding="utf-8"))
@@ -144,6 +149,17 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
     # ---- AC-6：移植演練 ----
+    def test_a4_business_skills_removed_by_config_list(self):
+        """Spec-0038 AC-5：依 [project].business_skills 刪除業務技能並清空清單，基準檔位於 project/ 且已移除"""
+        self.assertTrue(BUSINESS_SKILLS)
+        for skill in BUSINESS_SKILLS:
+            with self.subTest(skill=skill):
+                self.assertFalse((self.root / ".agents" / "skills" / skill).exists())
+                self.assertFalse((self.root / ".claude" / "skills" / skill).exists())
+        self.assertEqual(self.config["project"]["business_skills"], [])
+        self.assertFalse((self.root / ".agents" / "project" / "security_baseline.json").exists())
+        self.assertFalse((self.root / ".agents" / "security_baseline.json").exists())
+
     def test_p1_ported_project_passes_both_gates(self):
         code, out = self.run_script(VERIFY_REL)
         self.assertEqual(code, 0, out)

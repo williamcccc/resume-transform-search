@@ -48,8 +48,12 @@ forbidden_hash_prefixes = []
 safe_email_domains = ["example.com"]
 safe_filename_stems = ["sample"]
 sensitive_dirs = []
+sensitive_extensions = ["md"]
 personal_filename_keywords = []
 locale_patterns = []
+
+[project]
+business_skills = []
 
 [docs]
 quality_ac_enforced_from = 1
@@ -137,10 +141,23 @@ class TestLoadProjectConfig(unittest.TestCase):
             ('url_schemes = ["https"]', 'url_schemes = "https"', "[guardrails].url_schemes"),
             ('src = "app"', 'src = ""', "[layers].src"),
             ('locale_patterns = []', 'locale_patterns = [1]', "[privacy].locale_patterns"),
+            ('sensitive_extensions = ["md"]', 'sensitive_extensions = "md"', "[privacy].sensitive_extensions"),
+            ('business_skills = []', 'business_skills = [""]', "[project].business_skills"),
         ]
         for old, new, fragment in cases:
             with self.subTest(fragment=fragment):
                 self.write(VALID_TOML.replace(old, new, 1))
+                self.assert_config_error(fragment)
+
+    def test_missing_spec0038_keys_raise(self):
+        """Spec-0038 AC-1、AC-5：sensitive_extensions、business_skills 缺鍵時指出區段與鍵"""
+        cases = [
+            ('sensitive_extensions = ["md"]\n', "[privacy].sensitive_extensions"),
+            ("business_skills = []\n", "[project].business_skills"),
+        ]
+        for old, fragment in cases:
+            with self.subTest(fragment=fragment):
+                self.write(VALID_TOML.replace(old, "", 1))
                 self.assert_config_error(fragment)
 
     def test_url_exception_without_reason_raises(self):
@@ -264,6 +281,19 @@ class TestGuardrailHelpers(unittest.TestCase):
         self.assertTrue(self.guard._is_outer_layer(infra + ".stores"))
         self.assertFalse(self.guard._is_outer_layer(infra + "_extra"))
         self.assertFalse(self.guard._is_outer_layer(self.guard.DOMAIN_PACKAGE))
+
+    def test_sensitive_directory_pattern_follows_configured_extensions(self):
+        """Spec-0038 AC-1：副檔名清單決定敏感目錄檔名偵測；任一清單為空時不啟用"""
+        build = self.guard.sensitive_directory_filename_pattern
+        csv_only = build(["records"], ["csv"])
+        self.assertTrue(csv_only.search("見 records/Chen-Data.csv"))
+        self.assertIsNone(csv_only.search("見 records/Chen-Data.pdf"))
+        self.assertIsNone(build(["records"], []).search("見 records/Chen-Data.csv"))
+        self.assertIsNone(build([], ["csv"]).search("見 records/Chen-Data.csv"))
+
+    def test_privacy_marker_category_is_neutral(self):
+        """Spec-0038 AC-3：命中類別與常數名稱不帶專案業務字樣"""
+        self.assertFalse([name for name in vars(self.guard) if "RESUME" in name.upper()])
 
     def test_url_exceptions_come_from_config(self):
         data = project_config.load_project_config(PROJECT_ROOT, ("guardrails",))
