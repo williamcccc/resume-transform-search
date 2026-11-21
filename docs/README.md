@@ -55,6 +55,7 @@ flowchart LR
 | **0036** | Gate 2 檢核清單通用化與 .agents 專案相依清理 | — | [Spec-0036](./specs/0036-portable-review-checklist-spec.md) | `.agents/tests/test_review_checklist_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0036](./qa_reports/0036-portable-review-checklist-qa.md) |
 | **0037** | 專案概況檔、閉環自我測試隨核心移植、AGENTS.md 紅線分區 | [ADR-0037](./adr/0037-agents-red-lines-generic-and-project-groups.md) | [Spec-0037](./specs/0037-project-profile-tests-and-red-lines-spec.md) | `tests/unit/test_project_instance_files.py`、`.agents/tests/`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0037](./qa_reports/0037-project-profile-tests-and-red-lines-qa.md) |
 | **0038** | 閉環殘留專案相依清理：敏感副檔名設定化、基準檔歸位、業務技能清單 | — | [Spec-0038](./specs/0038-closed-loop-residual-project-coupling-spec.md) | `.agents/tests/test_project_config.py`、`tests/unit/test_github_pre_publish_hygiene.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0038](./qa_reports/0038-closed-loop-residual-project-coupling-qa.md) |
+| **0039** | audit_guardrails.py 守門缺口修正（Bug-0031～0033；提案，待核准） | — | [Spec-0039](./specs/0039-audit-guardrails-gap-fixes-spec.md) | — | — |
 
 ### 缺陷修正追溯清單
 
