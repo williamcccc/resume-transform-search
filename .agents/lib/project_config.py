@@ -69,6 +69,8 @@ SCHEMA: Dict[str, Dict[str, str]] = {
         "processes_untrusted_files": "bool",
         "multi_user": "bool",
         "not_applicable": "item_reason_list",
+        # 有使用之技術條件章節（如 "V9"；Spec-0034）；技術章節須列於此或 not_applicable
+        "tech_chapters_in_use": "str_list",
     },
     # Gate 2 安全掃描工具設定（Spec-0030）
     "security.tools": {

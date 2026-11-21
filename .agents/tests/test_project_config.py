@@ -69,6 +69,7 @@ uses_llm = false
 handles_pii = false
 processes_untrusted_files = false
 multi_user = true
+tech_chapters_in_use = []
 
 [[security.not_applicable]]
 item = "ASVS V17 WebRTC"
@@ -159,6 +160,13 @@ class TestLoadProjectConfig(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.write(VALID_TOML.replace(old, "", 1))
                 self.assert_config_error(fragment)
+
+    def test_missing_tech_chapters_in_use_raises(self):
+        """Spec-0034：tech_chapters_in_use 缺鍵或型別錯誤時指出區段與鍵"""
+        self.write(VALID_TOML.replace("tech_chapters_in_use = []" + chr(10), "", 1))
+        self.assert_config_error("[security].tech_chapters_in_use")
+        self.write(VALID_TOML.replace("tech_chapters_in_use = []", 'tech_chapters_in_use = "V9"', 1))
+        self.assert_config_error("[security].tech_chapters_in_use")
 
     def test_url_exception_without_reason_raises(self):
         self.write(VALID_TOML.replace('reason = "本機開發預設值"\n', ""))

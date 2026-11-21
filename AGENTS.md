@@ -110,7 +110,7 @@ src/
 本節為閉環通用核心，移植時不得刪除；方法、標準對照與判定細節見 [security_nfr_framework.md](.agents/skills/feature-design/references/security_nfr_framework.md)。
 
 1. **Step 1 宣告並轉為可驗證條件**：每份規格宣告 `安全評估範圍：是／否`；為「是」者須有 STRIDE 威脅表與 `NFR-*` 驗收條件，敘述性的品質或安全要求一律改寫為 `NFR-*`（`verify_doc_sync.py` 自 `docs.security_ac_enforced_from` 編號起強制）。
-2. **專案只宣告特徵**：適用標準由 `project.toml` 的 `[security]` 特徵對照決定，不適用者須附理由。
+2. **專案只宣告特徵與技術使用**：適用標準由 `project.toml` 的 `[security]` 特徵與 `tech_chapters_in_use` 對照決定；技術條件章節未使用者、或特徵判定適用而另有理由排除者，登錄於 `not_applicable` 並附理由（`verify_doc_sync.py` 檢查每章皆有歸屬）。
 3. **Step 5 執行安全工具掃描**：`security_scan.py` 零新增 P0；P1 逐項處置或登錄基準檔（附理由與到期日）。
 4. **安全風險不得無條件延後**：殘餘風險先依缺陷嚴重度表判定，S1 不得延後；逃逸分析須判定教訓歸屬，通用者回寫核心層。
 

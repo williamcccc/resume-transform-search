@@ -37,7 +37,8 @@ from project_config import ProjectConfigError, load_project_config  # noqa: E402
 
 try:
     # [security]、[project] 一併驗證：缺鍵、型別錯誤或 not_applicable 缺理由時以結束碼 2 中止（Spec-0030 AC-2、Spec-0038）
-    DOCS_CONFIG = load_project_config(ROOT_DIR, ("docs", "security", "security.tools", "project"))["docs"]
+    PROJECT_CONFIG = load_project_config(ROOT_DIR, ("docs", "security", "security.tools", "project"))
+    DOCS_CONFIG = PROJECT_CONFIG["docs"]
 except ProjectConfigError as _config_err:
     print(f"[FAIL] 專案設定錯誤: {_config_err}")
     sys.exit(2)
@@ -378,10 +379,12 @@ def check_security_ac_directory(dir_path: Path) -> bool:
     return check_security_ac_specs(_read_specs(dir_path))
 
 
-# 閉環通用核心檔：不帶專案專屬標記，移植時不得刪除（Spec-0030 AC-1）
+# 閉環通用核心檔：不帶專案專屬標記，移植時不得刪除（Spec-0030 AC-1；Spec-0034 C6 擴充）
 CORE_FILES = (
     Path(".agents/skills/feature-design/references/security_nfr_framework.md"),
     Path(".agents/skills/code-review/scripts/security_scan.py"),
+    Path(".agents/skills/feature-design/references/arch_review_checklist.md"),
+    Path(".agents/skills/code-review/references/review_checklist.md"),
 )
 
 
@@ -392,6 +395,139 @@ def check_core_files(root: Path = ROOT_DIR, core_files: tuple = CORE_FILES) -> b
     if not missing:
         print(f"[PASS] 閉環通用核心檔齊備 ({len(core_files)} 個)")
     return not missing
+
+
+# ---------------------------------------------------------------- 閉環結構檢查（Spec-0034）
+
+FRAMEWORK_FILE = Path(".agents/skills/feature-design/references/security_nfr_framework.md")
+ASVS_CHAPTER_COUNT = 17  # OWASP ASVS 5.0：V1–V17；新版發布時以規範變更更新
+ASVS_ROW_PATTERN = re.compile(r"^\|\s*V(\d+)\s*\|[^|]*\|([^|]*)\|", re.MULTILINE)
+ASVS_CONDITION_KINDS = ("一律", "特徵", "技術")
+CHAPTER_REF_PATTERN = re.compile(r"\bV(\d+)\b")
+
+# 核心與實例之間的契約：核心檔以「見專案概況」「本專案標準見實例檔」引用之檔案（C5）
+REQUIRED_INSTANCE_FILES = (
+    Path(".agents/project/profile.md"),
+    Path(".agents/project/arch_review_criteria.md"),
+    Path(".agents/project/review_criteria.md"),
+)
+
+PROJECT_MARKER = "<!-- 專案專屬"
+# C7：唯一允許之專屬標記位置（AGENTS.md「本專案紅線」小節標題）
+ALLOWED_MARKER_LINE_PREFIX = "#### 本專案紅線"
+FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
+INLINE_CODE_PATTERN = re.compile(r"`[^`]*`")
+
+
+def check_asvs_chapter_coverage(framework_text: str, security: dict) -> bool:
+    """C1–C4：ASVS 對照表 V1–V17 各一列、適用條件屬三類之一、技術章節皆已宣告、not_applicable 編號在範圍內。"""
+    ok = True
+    section = framework_text.split("## 四、", 1)[1].split("\n## ", 1)[0] if "## 四、" in framework_text else ""
+    rows = [(int(num), cond.strip()) for num, cond in ASVS_ROW_PATTERN.findall(section)]
+    numbers = [num for num, _ in rows]
+    expected = list(range(1, ASVS_CHAPTER_COUNT + 1))
+    missing = sorted(set(expected) - set(numbers))
+    duplicated = sorted({n for n in numbers if numbers.count(n) > 1})
+    extra = sorted(set(numbers) - set(expected))
+    if missing or duplicated or extra:
+        ok = False
+        print(f"[FAIL] ASVS 對照表章節不符 V1–V{ASVS_CHAPTER_COUNT}：缺 {missing}、重複 {duplicated}、超出範圍 {extra}")
+    for num, cond in rows:
+        if not cond.startswith(ASVS_CONDITION_KINDS):
+            ok = False
+            print(f"[FAIL] ASVS V{num} 適用條件未歸屬「一律／特徵／技術」：{cond}")
+
+    declared_na = set()
+    for entry in security.get("not_applicable", []):
+        refs = [int(n) for n in CHAPTER_REF_PATTERN.findall(entry.get("item", ""))]
+        out_of_range = [n for n in refs if n not in expected]
+        if out_of_range:
+            ok = False
+            print(f"[FAIL] not_applicable 提及 ASVS 範圍外章節 {['V%d' % n for n in out_of_range]}：{entry.get('item')}")
+        declared_na.update(refs)
+    in_use = set()
+    for ref in security.get("tech_chapters_in_use", []):
+        match = re.fullmatch(r"V(\d+)", ref.strip())
+        if not match or int(match.group(1)) not in expected:
+            ok = False
+            print(f"[FAIL] tech_chapters_in_use 含無效章節：{ref}")
+            continue
+        in_use.add(int(match.group(1)))
+    tech = [num for num, cond in rows if cond.startswith("技術")]
+    for num in tech:
+        if num not in in_use and num not in declared_na:
+            ok = False
+            print(f"[FAIL] ASVS V{num} 為技術條件章節，未於 tech_chapters_in_use 或 not_applicable 宣告")
+        elif num in in_use and num in declared_na:
+            ok = False
+            print(f"[FAIL] ASVS V{num} 同時列於 tech_chapters_in_use 與 not_applicable")
+    if ok:
+        print(f"[PASS] ASVS 章節歸屬完整（{len(rows)} 章；技術條件章節 {len(tech)} 章皆已宣告）")
+    return ok
+
+
+def check_required_instance_files(root: Path = ROOT_DIR, files: tuple = REQUIRED_INSTANCE_FILES) -> bool:
+    """C5：核心引用之專案實例檔必須存在。"""
+    missing = [p.as_posix() for p in files if not (root / p).is_file()]
+    for path in missing:
+        print(f"[FAIL] 專案實例檔缺失（移植時整份替換，不得刪除）: {path}")
+    if not missing:
+        print(f"[PASS] 專案實例檔齊備 ({len(files)} 個)")
+    return not missing
+
+
+def find_project_markers(text: str) -> list:
+    """回傳專屬標記所在之 (行號, 行)；排除程式碼區塊與行內程式碼（說明文字）。"""
+    hits, fence = [], None
+    for number, line in enumerate(text.splitlines(), 1):
+        match = FENCE_PATTERN.match(line)
+        if match:
+            marker = match.group(1)[0]
+            fence = None if fence == marker else (fence or marker)
+            continue
+        if fence:
+            continue
+        if PROJECT_MARKER in INLINE_CODE_PATTERN.sub("", line):
+            hits.append((number, line))
+    return hits
+
+
+def check_project_markers(root: Path = ROOT_DIR) -> bool:
+    """C7：AGENTS.md 與 .agents/**/*.md（不含 project/）只允許「本專案紅線」小節標題 1 處專屬標記。"""
+    agents_dir = root / ".agents"
+    files = [root / "AGENTS.md"]
+    if agents_dir.is_dir():
+        files += sorted(p for p in agents_dir.rglob("*.md") if p.relative_to(agents_dir).parts[0] != "project")
+    ok, allowed = True, 0
+    for path in files:
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        for number, line in find_project_markers(path.read_text(encoding="utf-8")):
+            if rel == "AGENTS.md" and line.startswith(ALLOWED_MARKER_LINE_PREFIX):
+                allowed += 1
+                continue
+            ok = False
+            print(f"[FAIL] 通用核心出現專案專屬標記（應移至 .agents/project/ 或 AGENTS.md 本專案紅線）: {rel}:{number}")
+    if allowed != 1:
+        ok = False
+        print(f"[FAIL] AGENTS.md「本專案紅線」小節標題之專屬標記應恰好 1 處，實際 {allowed} 處")
+    if ok:
+        print("[PASS] 專屬標記只位於 AGENTS.md「本專案紅線」小節（1 處）")
+    return ok
+
+
+def check_business_skills(skills: list, root: Path = ROOT_DIR) -> bool:
+    """C8：project.business_skills 每項於 .agents/skills/ 與 .claude/skills/ 皆有同名資料夾。"""
+    ok = True
+    for skill in skills:
+        for base in (".agents/skills", ".claude/skills"):
+            if not (root / base / skill).is_dir():
+                ok = False
+                print(f"[FAIL] business_skills 列出之技能不存在: {base}/{skill}")
+    if ok:
+        print(f"[PASS] 業務技能清單與技能資料夾一致 ({len(skills)} 個)")
+    return ok
 
 
 # 流程分軌檢查（AGENTS.md 第 2 節分流表 ↔ .agents/workflows/）
@@ -488,9 +624,15 @@ def main():
     ok10 = check_template_mirrors()
     ok11 = check_security_ac_directory(DOCS_SPECS_DIR)
     ok12 = check_core_files()
+    framework = ROOT_DIR / FRAMEWORK_FILE
+    framework_text = framework.read_text(encoding="utf-8") if framework.is_file() else ""
+    ok13 = check_asvs_chapter_coverage(framework_text, PROJECT_CONFIG["security"])
+    ok14 = check_required_instance_files()
+    ok15 = check_project_markers()
+    ok16 = check_business_skills(PROJECT_CONFIG["project"]["business_skills"])
     check_agents_size(agents_text)
 
-    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10, ok11, ok12)):
+    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10, ok11, ok12, ok13, ok14, ok15, ok16)):
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")
         sys.exit(0)
     else:
