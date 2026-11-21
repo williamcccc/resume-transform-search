@@ -86,17 +86,23 @@ def _is_outer_layer(module: str) -> bool:
     )
 
 
+def _layer_python_files(layer_dir: Path) -> List[Path]:
+    """分層目錄下所有 .py 檔（含任意深度子資料夾，排除 __pycache__；Bug-0031）。"""
+    return sorted(p for p in layer_dir.rglob("*.py") if "__pycache__" not in p.parts)
+
+
 def check_domain_purity() -> List[str]:
     """檢查 Domain 層所有模組，確認零外部套件依賴與零外層模組依賴。"""
     violations = []
     if not LAYERS_ENABLED or not DOMAIN_DIR.exists():
         return violations
 
-    for py_file in DOMAIN_DIR.glob("*.py"):
+    for py_file in _layer_python_files(DOMAIN_DIR):
+        rel_name = py_file.relative_to(ROOT_DIR).as_posix()
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception as e:
-            violations.append(f"[Syntax Error] {py_file.name}: 無法解析語法樹 - {e}")
+            violations.append(f"[Syntax Error] {rel_name}: 無法解析語法樹 - {e}")
             continue
 
         for node in ast.walk(tree):
@@ -106,12 +112,12 @@ def check_domain_purity() -> List[str]:
                     root_mod = alias.name.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Domain 引入外部第三方套件] {py_file.name}:{line_no} -> 'import {alias.name}'"
+                            f"[P0 違規 - Domain 引入外部第三方套件] {rel_name}:{line_no} -> 'import {alias.name}'"
                         )
                     elif root_mod == SRC_PACKAGE:
                         if not alias.name.startswith(DOMAIN_PACKAGE):
                             violations.append(
-                                f"[P0 違規 - Domain 逆向依賴外層模組] {py_file.name}:{line_no} -> 'import {alias.name}'"
+                                f"[P0 違規 - Domain 逆向依賴外層模組] {rel_name}:{line_no} -> 'import {alias.name}'"
                             )
             elif isinstance(node, ast.ImportFrom):
                 if node.level > 0:
@@ -121,12 +127,12 @@ def check_domain_purity() -> List[str]:
                     root_mod = node.module.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Domain 引入外部第三方套件] {py_file.name}:{line_no} -> 'from {node.module} import ...'"
+                            f"[P0 違規 - Domain 引入外部第三方套件] {rel_name}:{line_no} -> 'from {node.module} import ...'"
                         )
                     elif root_mod == SRC_PACKAGE:
                         if not node.module.startswith(DOMAIN_PACKAGE):
                             violations.append(
-                                f"[P0 違規 - Domain 逆向依賴外層模組] {py_file.name}:{line_no} -> 'from {node.module} import ...'"
+                                f"[P0 違規 - Domain 逆向依賴外層模組] {rel_name}:{line_no} -> 'from {node.module} import ...'"
                             )
 
     return violations
@@ -138,11 +144,12 @@ def check_application_dip() -> List[str]:
     if not LAYERS_ENABLED or not APPLICATION_DIR.exists():
         return violations
 
-    for py_file in APPLICATION_DIR.glob("*.py"):
+    for py_file in _layer_python_files(APPLICATION_DIR):
+        rel_name = py_file.relative_to(ROOT_DIR).as_posix()
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception as e:
-            violations.append(f"[Syntax Error] {py_file.name}: 無法解析語法樹 - {e}")
+            violations.append(f"[Syntax Error] {rel_name}: 無法解析語法樹 - {e}")
             continue
 
         for node in ast.walk(tree):
@@ -152,11 +159,11 @@ def check_application_dip() -> List[str]:
                     root_mod = alias.name.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Application 引入外部第三方套件] {py_file.name}:{line_no} -> 'import {alias.name}' (應用層僅能依賴 Domain 與標準庫)"
+                            f"[P0 違規 - Application 引入外部第三方套件] {rel_name}:{line_no} -> 'import {alias.name}' (應用層僅能依賴 Domain 與標準庫)"
                         )
                     elif _is_outer_layer(alias.name):
                         violations.append(
-                            f"[P0 違規 - Application 違反依賴反轉] {py_file.name}:{line_no} 直接引用外層模組: '{alias.name}'"
+                            f"[P0 違規 - Application 違反依賴反轉] {rel_name}:{line_no} 直接引用外層模組: '{alias.name}'"
                         )
             elif isinstance(node, ast.ImportFrom):
                 if node.level > 0:
@@ -165,11 +172,11 @@ def check_application_dip() -> List[str]:
                     root_mod = node.module.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Application 引入外部第三方套件] {py_file.name}:{line_no} -> 'from {node.module} import ...' (應用層僅能依賴 Domain 與標準庫)"
+                            f"[P0 違規 - Application 引入外部第三方套件] {rel_name}:{line_no} -> 'from {node.module} import ...' (應用層僅能依賴 Domain 與標準庫)"
                         )
                     elif _is_outer_layer(node.module):
                         violations.append(
-                            f"[P0 違規 - Application 違反依賴反轉] {py_file.name}:{line_no} 直接引用外層模組: 'from {node.module}'"
+                            f"[P0 違規 - Application 違反依賴反轉] {rel_name}:{line_no} 直接引用外層模組: 'from {node.module}'"
                         )
 
     return violations
