@@ -30,7 +30,7 @@
 
 * 求職者姓名、聯絡資訊（電話、Email、地址）、身分證字號。
 * 履歷全文與真實履歷檔名、源自真實履歷案例之特定企業名稱。
-* 敏感目錄：見 `project.toml` 的 `privacy.sensitive_dirs`。
+* 敏感目錄：本機 `data/` 與 `resume/` 存放真實履歷及其產出，不納入版控（`.gitignore`），單元測試不得讀取（AGENTS.md 紅線 7 本專案補充）。隱私掃描偵測檔名引用的目錄清單為 `project.toml` 的 `privacy.sensitive_dirs`，只列直接存放檔案的子目錄（`resume/`、`markdown_out/`、`quarantine/` 等），不列根目錄 `data/`，以免誤報 `tests/eval/data/` 合成評測資料。
 * 虛構範例一律使用 `王小明`、`sample_resume.md` 等通用名稱。
 
 ## 5. 測試環境
