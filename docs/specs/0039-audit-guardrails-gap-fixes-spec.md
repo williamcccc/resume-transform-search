@@ -1,6 +1,6 @@
 # 提案與規格書：audit_guardrails.py 守門缺口修正（Bug-0031、Bug-0032、Bug-0033）
 
-> **狀態**：提案（G1，待核准；尚未實作）｜**類型**：規範變更（大改：修改驗證腳本），內含三項缺陷修正｜**流程**：[governance.md](../../.agents/workflows/governance.md)，缺陷部分依 [bug.md](../../.agents/workflows/bug.md) 的先紅後綠規則｜**影響範圍**：[audit_guardrails.py](../../.agents/skills/code-review/scripts/audit_guardrails.py)、上庫衛生測試、`.agents/tests/`、相關說明文字，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，5 項待決事項全數採建議；QA 見 [QA-0039](../qa_reports/0039-audit-guardrails-gap-fixes-qa.md)；三份缺陷報告已結案）｜**類型**：規範變更（大改：修改驗證腳本），內含三項缺陷修正｜**流程**：[governance.md](../../.agents/workflows/governance.md)，缺陷部分依 [bug.md](../../.agents/workflows/bug.md) 的先紅後綠規則｜**影響範圍**：[audit_guardrails.py](../../.agents/skills/code-review/scripts/audit_guardrails.py)、上庫衛生測試、`.agents/tests/`、相關說明文字，不涉及 `src/`
 
 ## 一、動機
 
@@ -80,7 +80,7 @@
 | 4 | Bug-0033 同類疑點（`layers.src`／`domain`／`application` 目錄不存在） | 一併納入 | 只修 `config.module`／`env_example`，其餘另開缺陷 |
 | 5 | 交付方式 | 一份規格、一個 PR，依序 `test 0031 → fix 0031 → test 0032 → fix 0032 → test 0033 → fix 0033` | 三個 PR |
 
-## 八、驗收標準（草案，G2 核准後定稿）
+## 八、驗收標準
 
 * **AC-1（Bug-0031）**：Domain、Application 任意深度子資料夾內的違規模組回報 P0，訊息含專案相對路徑。
 * **AC-2（Bug-0032）**：任一 `src/` 檔案以 `os.environ.get`、`os.getenv`、`os.environ[...]` 讀取而未列於 `.env.example` 的變數回報 P0；上庫衛生測試與腳本共用偵測函式。

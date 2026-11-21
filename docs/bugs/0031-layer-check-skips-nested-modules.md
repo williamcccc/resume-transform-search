@@ -1,6 +1,6 @@
 # 缺陷報告：DDD 分層檢查只掃 Domain／Application 第一層檔案，子資料夾模組漏檢
 
-> **編號**：0031｜**嚴重度**：S3｜**狀態**：已登錄，待處理（尚未進入 Step 1B 第 3 階段）
+> **編號**：0031｜**嚴重度**：S3｜**狀態**：已結案
 
 ## 1. 受理資訊
 * **現象**：[audit_guardrails.py](../../.agents/skills/code-review/scripts/audit_guardrails.py) 的 `check_domain_purity()` 與 `check_application_dip()` 以 `glob("*.py")` 列舉檔案，只檢查 `layers.domain`、`layers.application` 目錄的第一層。放在子資料夾的模組（例如 `src/application/<子套件>/<模組>.py`）即使 import 第三方套件或外層模組，也不會產生 P0。
@@ -24,7 +24,7 @@ domain violations: 1 ['top.py']
 application violations: 1 ['top.py']
 ```
 
-**紅燈回歸測試**：待修正時於 Step 1B 第 3 階段撰寫（建議位置：`tests/unit/test_project_config.py` 的 `TestGuardrailHelpers`，或新增 `tests/unit/test_layer_checks_nested.py`）。測試須在暫存目錄動態建構違規檔，不得讀取本機 `data/`、`resume/`。
+**紅燈回歸測試**：[test_guardrail_gaps.py](../../.agents/tests/test_guardrail_gaps.py) `TestBug0031NestedLayerModules`（於暫存目錄建立最小假專案，以真實 CLI 執行 `audit_guardrails.py`）。`test:` commit `6952d12` 失敗 2 項、`fix:` commit `fc8571f` 通過。
 
 ## 3. 根因分析（初判，修正時於 Step 1B 第 4 階段確認）
 * **真因**：兩個分層檢查函式使用 `Path.glob("*.py")`（不遞迴）；同檔其他檢查（硬編碼、資源釋放、例外處理、提示詞）對 `SRC_DIR` 使用 `rglob("*.py")`，做法不一致。
@@ -54,9 +54,9 @@ application violations: 1 ['top.py']
 | 5 | 修正範圍跨越 3 個以上 DDD 層 | 否 |
 
 **簡化 Gate 1 簽核**（architect）：待修正時簽核
-- [ ] 修正只恢復既有規格行為，不新增行為
-- [ ] 影響面已列出：遞迴後若既有子資料夾含違規模組，會新增 P0（目前無子資料夾，預期零新增）
-- [ ] 無介面破壞，`audit_guardrails.py` 指令與結束碼不變
+- [x] 修正只恢復既有規格行為，不新增行為
+- [x] 影響面已列出：遞迴後若既有子資料夾含違規模組，會新增 P0（目前無子資料夾，預期零新增）
+- [x] 無介面破壞，`audit_guardrails.py` 指令與結束碼不變
 
 ## 5. 缺陷驗收條件 (BC)
 * **BC-1**：紅燈回歸測試在 `test:` commit 失敗，在 `fix:` commit 通過。
@@ -66,10 +66,10 @@ application violations: 1 ['top.py']
 品質評測範圍：否
 
 ## 6. 結案
-* **修正流程與編號**：
-* **`test:` commit**：
-* **`fix:` commit**：
+* **修正流程與編號**：[Spec-0039](../specs/0039-audit-guardrails-gap-fixes-spec.md)（規範變更大改，governance.md）
+* **`test:` commit**：`6952d12`
+* **`fix:` commit**：`fc8571f`
 * **PR**：
-* **QA 報告**：
-* **結案日期**：
+* **QA 報告**：[QA-0039](../qa_reports/0039-audit-guardrails-gap-fixes-qa.md)
+* **結案日期**：2026-11-21
 * **升級紀錄**（若有）：
