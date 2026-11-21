@@ -90,5 +90,33 @@ class TestBug0031NestedLayerModules(GuardrailGapTestCase):
         self.assert_p0("app/application/flows/runner.py")
 
 
+class TestBug0032EnvVarDetection(GuardrailGapTestCase):
+    """Bug-0032：原始碼任一檔案以字串常值讀取、未列於 .env.example 之環境變數須被檢出"""
+
+    def test_getenv_in_config_module_is_p0(self):
+        self.project.write("app/infrastructure/config.py", 'import os\n\nTOKEN = os.environ.get("DEMO_TOKEN")\nB = os.getenv("NEW_B")\n')
+        self.assert_p0("NEW_B")
+
+    def test_environ_subscript_in_config_module_is_p0(self):
+        self.project.write("app/infrastructure/config.py", 'import os\n\nTOKEN = os.environ.get("DEMO_TOKEN")\nC = os.environ["NEW_C"]\n')
+        self.assert_p0("NEW_C")
+
+    def test_read_outside_config_module_is_p0(self):
+        self.project.write("app/infrastructure/other.py", 'import os\n\nD = os.environ.get("NEW_D")\n')
+        self.assert_p0("NEW_D")
+
+    def test_from_os_import_getenv_is_p0(self):
+        self.project.write("app/infrastructure/other.py", 'from os import getenv\n\nE = getenv("NEW_E")\n')
+        self.assert_p0("NEW_E")
+
+    def test_listed_or_dynamic_reads_outside_config_module_pass(self):
+        self.project.write(
+            "app/infrastructure/other.py",
+            'import os\n\nNAMES = ("ANY_FLAG",)\nT = os.environ.get("DEMO_TOKEN")\nF = [os.environ.get(n) for n in NAMES]\n',
+        )
+        code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+
+
 if __name__ == "__main__":
     unittest.main()
