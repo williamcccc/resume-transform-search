@@ -39,7 +39,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 ROOT_DIR = Path(__file__).resolve().parents[4]
@@ -310,7 +310,7 @@ def run_pip_audit(tools: dict, root: Path, runner: Runner, requirement_files: Op
         if not (root / req).is_file():
             outcome.errors.append(f"dependency_files 不存在: {req}")
             continue
-        code, stdout, stderr = runner([exe, "-r", req, "--format", "json", "--progress-spinner", "off"], root)
+        code, stdout, stderr = runner([exe, *pip_audit_target(req), "--format", "json", "--progress-spinner", "off"], root)
         payload = _parse_json(stdout)
         if payload is None:
             if is_network_error(stderr):
@@ -320,6 +320,14 @@ def run_pip_audit(tools: dict, root: Path, runner: Runner, requirement_files: Op
             continue
         outcome.findings.extend(parse_pip_audit(payload, req))
     return outcome
+
+
+def pip_audit_target(req: str) -> List[str]:
+    """pip-audit 掃描目標：pyproject.toml 以其所在目錄為專案路徑，其餘視為 requirements 格式（Spec-0047）。"""
+    path = PurePosixPath(Path(req).as_posix())
+    if path.name == "pyproject.toml":
+        return [str(path.parent)]
+    return ["-r", req]
 
 
 # ----------------------------------------------------------------------------- 觸發方式（決議 10）

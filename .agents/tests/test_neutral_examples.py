@@ -33,8 +33,8 @@ HISTORY_REFERENCE = re.compile(r"\]\([^)]*docs/(?:specs|qa_reports|adr|bugs)/\d|
 
 
 def _project_section() -> dict:
-    with (AGENTS_DIR / "project.toml").open("rb") as handle:
-        return tomllib.load(handle)["project"]
+    # utf-8-sig：實例設定可能帶 BOM（Spec-0047）
+    return tomllib.loads((AGENTS_DIR / "project.toml").read_text(encoding="utf-8-sig"))["project"]
 
 
 def _business_skills() -> set:

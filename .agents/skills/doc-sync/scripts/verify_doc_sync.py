@@ -331,8 +331,8 @@ def check_quality_ac_directory(dir_path: Path) -> bool:
 
 # 安全與非功能需求 Gate 1 檢查（Spec-0030；框架見 feature-design/references/security_nfr_framework.md）
 SECURITY_SCOPE_PATTERN = re.compile(r"安全評估範圍[\s*]*[:：][\s*]*(是|否)")
-# 威脅表列：某一儲存格只含單一 STRIDE 字母（可加粗）
-STRIDE_ROW_PATTERN = re.compile(r"^\s*\|.*\|\s*\**\s*[STRIDE]\s*\**\s*\|", re.MULTILINE)
+# 威脅表列：任一儲存格（含第一欄；Spec-0047）只含單一 STRIDE 字母（可加粗）
+STRIDE_ROW_PATTERN = re.compile(r"^\s*\|(?:.*\|)?\s*\**\s*[STRIDE]\s*\**\s*\|", re.MULTILINE)
 NFR_ID_PATTERN = re.compile(r"(?<![A-Za-z0-9])NFR-\d+")
 SECURITY_AC_ENFORCED_FROM = DOCS_CONFIG["security_ac_enforced_from"]
 

@@ -33,6 +33,8 @@ def _rewrite_config(text: str) -> str:
     # Spec-0046：假專案一律啟用分層檢查，不沿用實例之開關；需停用之測試自行改寫
     text, count = re.subn(r"^enabled = (true|false)$", "enabled = true", text, count=1, flags=re.MULTILINE)
     assert count == 1, "project.toml 缺少鍵 enabled"
+    # Spec-0047：假專案之 import 根名由 src 推導，不沿用實例之 layers.package
+    text = re.sub(r"^package = .*\n", "", text, flags=re.MULTILINE)
     text = re.sub(r"forbidden_hash_prefixes = \[[^\]]*\]", "forbidden_hash_prefixes = []", text)
     text = re.sub(r"\[\[guardrails\.url_exceptions\]\]\n(?:[^\[\n].*\n)*", "", text)
     if not re.search(r"^url_exceptions\s*=", text, re.MULTILINE):  # 已移植之專案設定可能已有此鍵
@@ -50,7 +52,7 @@ class MiniProject:
         shutil.copy2(AGENTS_DIR / "skills" / "code-review" / "scripts" / "audit_guardrails.py", script_dir)
         shutil.copytree(AGENTS_DIR / "lib", root / ".agents" / "lib", ignore=shutil.ignore_patterns("__pycache__"))
         if source_config is None:
-            source_config = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8")
+            source_config = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8-sig")
         config = _rewrite_config(source_config)
         (root / ".agents" / "project.toml").write_text(config, encoding="utf-8")
         self.config = tomllib.loads(config)
@@ -107,7 +109,7 @@ class TestNonDefaultInstanceLayout(unittest.TestCase):
     """Spec-0045：實例設定之層名與範本檔名非預設時，假專案仍自洽（不假設原專案之字面路徑）"""
 
     def test_mini_project_ignores_instance_layout(self):
-        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8")
+        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8-sig")
         for key, value in (
             ("src", "service"), ("domain", "service/domain"), ("application", "service/usecases"),
             ("infrastructure", "service/adapters"), ("interfaces", "service/api"),
@@ -124,7 +126,7 @@ class TestInstanceLayersDisabled(unittest.TestCase):
     """Spec-0046 AC-2：實例設定停用分層時，假專案仍啟用分層，分層違規照常檢出"""
 
     def test_mini_project_enables_layers_regardless_of_instance(self):
-        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8")
+        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8-sig")
         source = re.sub(r"^enabled = true$", "enabled = false", source, count=1, flags=re.MULTILINE)
         with tempfile.TemporaryDirectory() as tmp:
             project = MiniProject(Path(tmp) / "demo_proj", source)
@@ -134,6 +136,103 @@ class TestInstanceLayersDisabled(unittest.TestCase):
             code, out = project.run()
         self.assertEqual(code, 1, out)
         self.assertIn("app/domain/leak.py", out)
+
+
+class TestInstancePackageIgnored(unittest.TestCase):
+    """Spec-0047：實例設定宣告 layers.package 時，假專案仍以自身 src 推導，基準零 P0"""
+
+    def test_mini_project_ignores_instance_package(self):
+        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8-sig")
+        source = re.sub(r"^src = .*$", lambda m: m.group(0) + '\npackage = "widgetkit"', source, count=1,
+                        flags=re.MULTILINE)
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = MiniProject(Path(tmp) / "demo_proj", source).run()
+        self.assertEqual(code, 0, out)
+
+
+class ImportRootLayoutCase:
+    """Spec-0047：原始碼根目錄名與 import 根名不同之佈局（src-layout、扁平根目錄），以 layers.package 宣告。
+    混入類別（不單獨收集），由子類別設定 SRC 與 PACKAGE。"""
+
+    SRC = PACKAGE = None
+    TOOLS_DIR = "vendor_env"  # 假專案自訂之略過目錄，不假設實例 ignore_scan_dirs 之內容
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.project = MiniProject(Path(tmp.name) / "demo_proj")
+        shutil.rmtree(self.project.root / "app")
+        self.j = (lambda n: n) if self.SRC == "." else (lambda n: f"{self.SRC}/{n}")
+        j = self.j
+        path = self.project.root / ".agents" / "project.toml"
+        text = path.read_text(encoding="utf-8")
+        for key, value in (("src", self.SRC), ("domain", j("domain")), ("application", j("application")),
+                           ("infrastructure", j("infrastructure")), ("interfaces", j("interfaces")),
+                           ("domain_interfaces", j("domain/interfaces.py")), ("module", j("infrastructure/config.py"))):
+            text, count = re.subn(rf"^{key} = .*$", lambda _: f'{key} = "{value}"', text, count=1, flags=re.MULTILINE)
+            assert count == 1, key
+        text = re.sub(r"^src = .*$", lambda m: m.group(0) + f'\npackage = "{self.PACKAGE}"', text, count=1,
+                      flags=re.MULTILINE)
+        text, count = re.subn(r"^ignore_scan_dirs = \[[^\]]*\]", f'ignore_scan_dirs = ["{self.TOOLS_DIR}"]', text,
+                              count=1, flags=re.MULTILINE)
+        assert count == 1, "project.toml 缺少鍵 ignore_scan_dirs"
+        path.write_text(text, encoding="utf-8")
+        for layer in ("domain", "application", "infrastructure", "interfaces"):
+            self.project.write(j(f"{layer}/__init__.py"), "")
+        self.project.write(j("domain/models.py"),
+                           "from dataclasses import dataclass\n\n\n@dataclass\nclass Item:\n    name: str\n")
+        self.project.write(j("domain/interfaces.py"),
+                           f"from typing import Protocol\n\nfrom {self.pkg('domain.models')} import Item\n\n\n"
+                           "class IRepo(Protocol):\n    def get(self, key: str) -> Item: ...\n")
+        self.project.write(j("application/use_case.py"), f"from {self.pkg('domain.interfaces')} import IRepo\n")
+        self.project.write(j("infrastructure/config.py"), 'import os\n\nTOKEN = os.environ.get("DEMO_TOKEN")\n')
+
+    def pkg(self, module: str) -> str:
+        return ".".join(part for part in (self.PACKAGE, module) if part)
+
+    def assert_p0(self, *fragments):
+        code, out = self.project.run()
+        self.assertEqual(code, 1, out)
+        for fragment in fragments:
+            self.assertIn(fragment, out)
+
+    def test_legal_layered_imports_have_no_p0(self):
+        code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+
+    def test_domain_third_party_import_is_p0(self):
+        self.project.write(self.j("domain/leak.py"), "import requests\n")
+        self.assert_p0("Domain 引入外部第三方套件", "domain/leak.py")
+
+    def test_domain_importing_outer_layer_is_reverse_dependency(self):
+        self.project.write(self.j("domain/back.py"), f"from {self.pkg('infrastructure.config')} import TOKEN\n")
+        self.assert_p0("Domain 逆向依賴外層模組")
+
+    def test_application_importing_outer_layer_is_dip_violation(self):
+        self.project.write(self.j("application/bad.py"), f"from {self.pkg('infrastructure')} import config\n")
+        self.assert_p0("Application 違反依賴反轉")
+        code, out = self.project.run()
+        self.assertNotIn("Application 引入外部第三方套件", out)
+
+
+class TestSrcLayoutPackage(ImportRootLayoutCase, unittest.TestCase):
+    SRC, PACKAGE = "pkgroot/widgetkit", "widgetkit"
+
+
+class TestFlatRootPackage(ImportRootLayoutCase, unittest.TestCase):
+    SRC, PACKAGE = ".", ""
+
+    def test_ignored_and_core_dirs_are_not_source(self):
+        """src 為倉庫根時，略過目錄與閉環核心（含閘門腳本本身）不受原始碼檢查"""
+        self.project.write(f"{self.TOOLS_DIR}/Lib/site.py",
+                           'import os\n\nf = open("x")\nV = os.environ.get("TOOL_ONLY_VAR")\n')
+        self.project.write(".agents/tests/test_x.py", 'f = open("y")\n')
+        code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+
+    def test_project_code_outside_layers_still_checked(self):
+        self.project.write("tools/job.py", 'f = open("x")\n')
+        self.assert_p0("資源未受 Context Manager 管理", "job.py:1")
 
 
 class TestBug0031NestedLayerModules(GuardrailGapTestCase):

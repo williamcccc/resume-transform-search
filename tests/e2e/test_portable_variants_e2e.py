@@ -106,6 +106,22 @@ def _ddd_files(src, names, config_module, env_file):
     return files
 
 
+def _layered_files(src, package, config_module, env_file, extra=None):
+    """import 根名與原始碼目錄名不同之佈局（Spec-0047）：各層以 package 為前綴引用。"""
+    j = (lambda n: n) if src == "." else (lambda n: f"{src}/{n}")
+    pkg = (lambda n: f"{package}.{n}" if package else n)
+    files = {config_module: 'import os\n\nTOKEN = os.environ.get("DEMO_TOKEN", "")\n', env_file: "DEMO_TOKEN=\n",
+             ".gitignore": ".env\n"}
+    for n in ("domain", "application", "infrastructure", "interfaces"):
+        files[j(f"{n}/__init__.py")] = ""
+    files[j("domain/entity.py")] = "from dataclasses import dataclass\n\n\n@dataclass\nclass Thing:\n    key: str\n"
+    files[j("domain/interfaces.py")] = (f"from typing import Protocol\n\nfrom {pkg('domain.entity')} import Thing\n\n\n"
+                                        "class IThingRepo(Protocol):\n    def get(self, key: str) -> Thing: ...\n")
+    files[j("application/use_case.py")] = f"from {pkg('domain.interfaces')} import IThingRepo\n"
+    files.update(extra or {})
+    return files
+
+
 def _common(config):
     """各變體共用：清除原專案指紋與例外、門檻自 1 起、掃描範圍改為假專案。"""
     config.setdefault("privacy", {})["forbidden_hash_prefixes"] = []
@@ -157,6 +173,54 @@ VARIANTS = {
             "security.tools": {"scan_paths": ["service", "settings.py"], "dependency_files": ["requirements.txt"]},
         }),
     },
+    # Spec-0047：src-layout 與扁平根目錄以 layers.package 宣告 import 根名
+    "src-layout": {
+        "files": _layered_files("pkgroot/widgetkit", "widgetkit", "pkgroot/widgetkit/infrastructure/config.py",
+                                ".env.example", {"pkgroot/widgetkit/__init__.py": "",
+                                                 "pyproject.toml": '[project]\nname = "widgetkit"\nversion = "0.1.0"\n'}),
+        "package": "widgetkit",
+        "config": _common({
+            "layers": {"enabled": True, "src": "pkgroot/widgetkit", "domain": "pkgroot/widgetkit/domain",
+                       "application": "pkgroot/widgetkit/application",
+                       "infrastructure": "pkgroot/widgetkit/infrastructure",
+                       "interfaces": "pkgroot/widgetkit/interfaces",
+                       "domain_interfaces": "pkgroot/widgetkit/domain/interfaces.py"},
+            "config": {"module": "pkgroot/widgetkit/infrastructure/config.py", "env_example": ".env.example"},
+            "project": {"identifiers": ["widgetkit"], "stack_terms": []},
+            "security.tools": {"scan_paths": ["pkgroot"], "dependency_files": ["pyproject.toml"]},
+        }),
+    },
+    "扁平根目錄": {
+        # 倉庫根另有工具虛擬環境之假套件檔，驗證原始碼檢查略過 ignore_scan_dirs 與閉環核心
+        "files": _layered_files(".", "", "infrastructure/config.py", ".env.example", {
+            "requirements.txt": "", ".venv-tools/Lib/site-packages/tool.py":
+                'import os\n\nf = open("x")\nV = os.environ.get("TOOL_ONLY_VAR")\n'}),
+        "package": "",
+        "config": _common({
+            "layers": {"enabled": True, "src": ".", "domain": "domain", "application": "application",
+                       "infrastructure": "infrastructure", "interfaces": "interfaces",
+                       "domain_interfaces": "domain/interfaces.py"},
+            "config": {"module": "infrastructure/config.py", "env_example": ".env.example"},
+            "guardrails": {"ignore_scan_dirs": [".git", ".venv-tools", "__pycache__"]},
+            "project": {"identifiers": ["FlatCalc"], "stack_terms": []},
+            "security.tools": {"scan_paths": ["domain", "application", "infrastructure", "interfaces"],
+                               "dependency_files": ["requirements.txt"]},
+        }),
+    },
+    # Spec-0047：Windows 編輯器另存之設定檔（UTF-8 BOM + CRLF）
+    "設定檔BOM": {
+        "files": _ddd_files("app", ("domain", "application", "infrastructure", "interfaces"),
+                            "app/infrastructure/config.py", ".env.example"),
+        "bom": True,
+        "config": _common({
+            "layers": {"enabled": True, "src": "app", "domain": "app/domain", "application": "app/application",
+                       "infrastructure": "app/infrastructure", "interfaces": "app/interfaces",
+                       "domain_interfaces": "app/domain/interfaces.py"},
+            "config": {"module": "app/infrastructure/config.py", "env_example": ".env.example"},
+            "project": {"identifiers": ["NoteHub"], "stack_terms": []},
+            "security.tools": {"scan_paths": ["app"], "dependency_files": ["requirements.txt"]},
+        }),
+    },
 }
 
 
@@ -178,10 +242,16 @@ def port(root: Path, variant: dict) -> None:
     for section, values in variant["config"].items():
         for key, value in values.items():
             text = set_key(text, section, key, value)
+    if "package" in variant:  # 選填鍵：插入 [layers] 之 src 之後（Spec-0047）
+        text = re.sub(r"^src = .*$", lambda m: m.group(0) + "\npackage = " + json.dumps(variant["package"]), text,
+                      count=1, flags=re.M)
     text = clear_table_array(text, "guardrails", "url_exceptions")
     if variant.get("clear_not_applicable"):
         text = clear_table_array(text, "security", "not_applicable")
-    config_path.write_text(text, encoding="utf-8")
+    if variant.get("bom"):
+        config_path.write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
+    else:
+        config_path.write_text(text, encoding="utf-8")
     project = root / ".agents" / "project"
     (project / "security_baseline.json").write_text('{"findings": []}\n', encoding="utf-8")
     for name in ("profile.md", "arch_review_criteria.md", "review_criteria.md"):

@@ -91,6 +91,12 @@ class TestSecurityScopeDeclaration(unittest.TestCase):
         self.assertTrue(vds.security_scope(text))
         self.assertFalse(vds.quality_scope(text))
 
+    def test_stride_letter_in_first_column_counts(self):
+        """Spec-0047 AC-6：STRIDE 欄位於第一欄亦認得"""
+        table = "| STRIDE | 威脅 | 對策 |\n| :---: | :--- | :--- |\n| **S** | 偽造身分 | 驗證簽章 |\n"
+        ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", table + "NFR-1：權杖 30 分鐘到期。"))])
+        self.assertTrue(ok, out)
+
     def test_stride_letter_in_prose_is_not_a_threat_table(self):
         prose = "| 名稱 | 說明 |\n| :--- | :--- |\n| Redis | Stores Index |\n- NFR-1：x"
         ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", prose))])

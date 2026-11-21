@@ -12,8 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AGENTS_DIR = PROJECT_ROOT / ".agents"
 CHECKLIST = AGENTS_DIR / "skills" / "code-review" / "references" / "review_checklist.md"
 PORTING = AGENTS_DIR / "PORTING.md"
-with (AGENTS_DIR / "project.toml").open("rb") as _handle:
-    _PROJECT = tomllib.load(_handle)["project"]
+# utf-8-sig：實例設定可能帶 BOM（Spec-0047）
+_PROJECT = tomllib.loads((AGENTS_DIR / "project.toml").read_text(encoding="utf-8-sig"))["project"]
 
 
 def terms_pattern(identifiers, stack_terms) -> re.Pattern:

@@ -1,6 +1,6 @@
 # 提案與規格書：第三輪移植實測卡點修正（套件根名推導、原始碼掃描範圍、設定檔 BOM、pyproject 依賴掃描）
 
-> **狀態**：G1 提案（待使用者 G2 核准）｜**類型**：規範變更（大改：修改驗證腳本 `audit_guardrails.py`、`security_scan.py` 與設定載入器）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/lib/project_config.py`、`.agents/skills/code-review/scripts/audit_guardrails.py`、`.agents/skills/code-review/scripts/security_scan.py`、`.agents/skills/doc-sync/scripts/verify_doc_sync.py`、`.agents/project.toml`、`.agents/tests/`、`tests/e2e/test_portable_variants_e2e.py`、`.agents/PORTING.md`，不涉及 `src/`、不修改紅線
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，4 項待決事項全數採建議；QA 見 [QA-0047](../qa_reports/0047-porting-trial-3-fixes-qa.md)）｜**類型**：規範變更（大改：修改驗證腳本 `audit_guardrails.py`、`security_scan.py` 與設定載入器）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/lib/project_config.py`、`.agents/skills/code-review/scripts/audit_guardrails.py`、`.agents/skills/code-review/scripts/security_scan.py`、`.agents/skills/doc-sync/scripts/verify_doc_sync.py`、`.agents/project.toml`、`.agents/tests/`、`tests/e2e/test_portable_variants_e2e.py`、`.agents/PORTING.md`，不涉及 `src/`、不修改紅線
 
 ## 一、動機
 

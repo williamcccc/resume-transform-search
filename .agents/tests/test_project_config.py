@@ -113,6 +113,29 @@ class TestLoadProjectConfig(unittest.TestCase):
             project_config.load_project_config(self.root, sections)
         self.assertIn(fragment, str(ctx.exception))
 
+    def test_bom_and_crlf_config_loads(self):
+        """Spec-0047 AC-4：Windows 編輯器寫入之 UTF-8 BOM 與 CRLF 可正常載入"""
+        self.config_path.write_bytes(b"\xef\xbb\xbf" + VALID_TOML.replace("\n", "\r\n").encode("utf-8"))
+        data = project_config.load_project_config(self.root)
+        self.assertEqual(data["layers"]["src"], "app")
+
+    def test_non_utf8_config_raises_config_error(self):
+        self.config_path.write_bytes(VALID_TOML.encode("utf-16"))
+        self.assert_config_error("不是 UTF-8 編碼")
+
+    def test_layers_package_is_optional_and_validated(self):
+        """Spec-0047：layers.package 缺鍵不報錯；空字串與模組路徑合法；非法名稱報錯"""
+        self.write(VALID_TOML)
+        self.assertNotIn("package", project_config.load_project_config(self.root)["layers"])
+        for value in ("", "widgetkit", "acme.widgetkit"):
+            with self.subTest(value=value):
+                self.write(VALID_TOML.replace('src = "app"', f'src = "app"\npackage = "{value}"', 1))
+                self.assertEqual(project_config.load_project_config(self.root)["layers"]["package"], value)
+        for value in ('"bad-name"', '"pkg."', '"1pkg"', "true"):
+            with self.subTest(value=value):
+                self.write(VALID_TOML.replace('src = "app"', f'src = "app"\npackage = {value}', 1))
+                self.assert_config_error("[layers].package")
+
     def test_valid_config_loads_all_sections(self):
         self.write(VALID_TOML)
         data = project_config.load_project_config(self.root)
@@ -307,6 +330,38 @@ class TestGuardrailHelpers(unittest.TestCase):
         self.assertIsNone(never.match("任何文字"))
         self.assertEqual(list(never.finditer("任何文字")), [])
         self.assertIsInstance(self.guard._compile_or_never("abc", ["x"]), re.Pattern)
+
+    def test_layer_module_follows_package(self):
+        """Spec-0047 AC-1：分層模組名 = package + 該層相對 src 之路徑"""
+        lm = self.guard.layer_module
+        self.assertEqual(lm("app/domain", "app", "app"), "app.domain")
+        self.assertEqual(lm("pkgroot/kit/domain", "pkgroot/kit", "kit"), "kit.domain")
+        self.assertEqual(lm("domain", ".", ""), "domain")
+        self.assertEqual(lm("lib/core/model", "lib", "lib"), "lib.core.model")
+        self.assertEqual(lm("other/domain", "app", "app"), "other.domain")  # 不在 src 之下時以路徑直譯
+        self.assertEqual(self.guard._default_package("."), "")
+        self.assertEqual(self.guard._default_package("pkgroot/kit"), "pkgroot.kit")
+
+    def test_internal_roots(self):
+        roots = self.guard.internal_roots
+        self.assertEqual(roots("kit.sub", ["kit.domain"]), {"kit"})
+        self.assertEqual(roots("", ["domain", "application", "infra.db", ""]), {"domain", "application", "infra"})
+
+    def test_in_package_requires_dot_boundary(self):
+        self.assertTrue(self.guard._in_package("app.domain.x", "app.domain"))
+        self.assertFalse(self.guard._in_package("app.domain_extra", "app.domain"))
+
+    def test_src_python_files_skips_ignored_and_core_dirs(self):
+        """Spec-0047 AC-3：ignore_scan_dirs、閉環核心、__pycache__ 不進入原始碼檢查"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rels = ["domain/a.py", ".agents/tests/t.py", "pkg/__pycache__/c.py", "deep/x/b.py"]
+            rels += [f"{name}/Lib/v.py" for name in sorted(self.guard.IGNORE_SCAN_DIRS)[:1]]
+            for rel in rels:
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text("", encoding="utf-8")
+            found = {p.relative_to(root).as_posix() for p in self.guard.src_python_files(root)}
+        self.assertEqual(found, {"domain/a.py", "deep/x/b.py"})
 
     def test_outer_layer_detection_uses_configured_packages(self):
         infra = self.guard.INFRASTRUCTURE_PACKAGE
