@@ -1,6 +1,6 @@
 # 提案與規格書：核心文件去除本專案歷史連結、範本與核心 Python 殘留清理
 
-> **狀態**：G1 提案（待 G2 使用者核准）｜**類型**：規範變更（大改：修改驗證腳本 `audit_guardrails.py` 之說明文字）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/PORTING.md`、`security_nfr_framework.md`、技術規格範本（含鏡像）、`.agents/tests/` 說明文字與守護測試、`audit_guardrails.py` 說明文字、`project.toml`，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，3 項待決事項全數採建議；QA 見 [QA-0042](../qa_reports/0042-core-history-links-and-py-residue-qa.md)）｜**類型**：規範變更（大改：修改驗證腳本 `audit_guardrails.py` 之說明文字）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/PORTING.md`、`security_nfr_framework.md`、技術規格範本（含鏡像）、`.agents/tests/` 說明文字與守護測試、`audit_guardrails.py` 說明文字、`project.toml`，不涉及 `src/`
 
 ## 一、動機
 
@@ -16,7 +16,7 @@
 
 ### 2.1 去除核心文件之歷史連結與編號（問題 1）
 
-* PORTING 第 3、7 行：刪除「（[Spec-0028](…)）」等括號連結，句意不變。第 51 行「（Spec-0034）」刪除。
+* PORTING 第 3、7 行：刪除「（Spec-0028 連結）」等括號連結，句意不變。第 51 行「（Spec-0034）」刪除。
 * security_nfr_framework 第 5 行「**來源**」整行刪除；第 125 行「（Spec-0034）」刪除。
 * [test_neutral_examples.py](../../.agents/tests/test_neutral_examples.py) 新增守護：核心 Markdown 不得連結 `docs/(specs|qa_reports|adr|bugs)/` 下之編號檔，亦不得出現 `Spec-`、`ADR-`、`QA-`、`Bug-` 加四位數編號（見待決 1）。此為通用規則，固定於測試程式。
 

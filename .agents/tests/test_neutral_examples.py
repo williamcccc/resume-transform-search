@@ -1,7 +1,10 @@
 """通用核心文件中性化守護測試。
 
 掃描全部核心 Markdown（AGENTS.md、CLAUDE.md、GEMINI.md、.agents/**、.claude/**），確認（專屬標記所在行以外）
-不出現本專案識別字或「本專案為」附註。通用技術名稱（如 Redis、LLM、429）可作舉例。
+不出現本專案識別字或「本專案為」附註，亦不連結或引用本專案規格歷史（Spec-0042；移植只複製核心，歷史不隨行）。
+通用技術名稱（如 Redis、LLM、429）可作舉例。
+核心 Python（Spec-0042）：`.agents/lib/` 與核心技能 `scripts/` 全文、`.agents/tests/` 模組 docstring 不得出現本專案識別字
+（測試夾具需操作路徑字串，不納入）。
 
 守護字詞由專案實例宣告（Spec-0041）：`project.toml` 的 `[project].identifiers`（正規式清單），
 移植後改為新專案的字詞，本測試即守護新專案；「本專案為」附註屬通用規則，固定於本檔。
@@ -13,6 +16,7 @@
 
 只讀取版控中的規範文件，不讀取本機敏感目錄。屬閉環核心自我測試，移植後仍須通過。
 """
+import ast
 import re
 import tomllib
 import unittest
@@ -24,6 +28,8 @@ TOP_LEVEL_DOCS = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
 PROJECT_RED_LINE_SECTION = re.compile(r"^#### 本專案紅線.*?(?=^---$)", re.MULTILINE | re.DOTALL)
 # 通用規則：核心文件不得寫「本專案為」附註（任何專案皆同）
 GENERIC_PATTERNS = ("本專案為",)
+# 通用規則：核心文件不得連結本專案規格歷史或引用其編號（Spec-0042）
+HISTORY_REFERENCE = re.compile(r"\]\([^)]*docs/(?:specs|qa_reports|adr|bugs)/\d|\b(?:Spec|ADR|QA|Bug)-\d{4}\b")
 
 
 def _project_section() -> dict:
@@ -41,6 +47,7 @@ def build_pattern(terms) -> re.Pattern:
 
 
 PROJECT_IDENTIFIERS = build_pattern(_project_section()["identifiers"])
+IDENTIFIERS_ONLY = re.compile("|".join(f"(?:{t})" for t in _project_section()["identifiers"]) or r"(?!)")
 
 
 def core_markdown_files() -> list:
@@ -57,6 +64,18 @@ def core_markdown_files() -> list:
                 continue
             files.append(path)
     return files
+
+
+def core_python_texts() -> list:
+    """回傳 (相對路徑, 待檢文字)：程式庫與核心技能腳本為全文，閉環自我測試只取模組 docstring。"""
+    skills = _business_skills()
+    items = [(p, p.read_text(encoding="utf-8")) for p in sorted((AGENTS_DIR / "lib").rglob("*.py"))]
+    for path in sorted((AGENTS_DIR / "skills").glob("*/scripts/**/*.py")):
+        if path.relative_to(AGENTS_DIR / "skills").parts[0] not in skills:
+            items.append((path, path.read_text(encoding="utf-8")))
+    for path in sorted((AGENTS_DIR / "tests").rglob("*.py")):
+        items.append((path, ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))) or ""))
+    return [(p.relative_to(PROJECT_ROOT).as_posix(), text) for p, text in items if "__pycache__" not in p.parts]
 
 
 def strip_project_red_lines(text: str) -> str:
@@ -91,6 +110,33 @@ class TestNeutralExamples(unittest.TestCase):
                 text = strip_project_red_lines(text)
             rel = path.relative_to(PROJECT_ROOT).as_posix()
             violations.extend(f"{rel}:{number}: {word}" for number, word in find_identifiers(text))
+        self.assertEqual(violations, [])
+
+    def test_core_markdown_has_no_history_references(self):
+        """Spec-0042 AC-1：核心 Markdown 不連結本專案規格歷史、不引用其編號"""
+        violations = []
+        for path in core_markdown_files():
+            rel = path.relative_to(PROJECT_ROOT).as_posix()
+            violations.extend(f"{rel}:{n}: {w}" for n, w in find_identifiers(path.read_text(encoding="utf-8"), HISTORY_REFERENCE))
+        self.assertEqual(violations, [])
+
+    def test_history_reference_pattern(self):
+        self.assertTrue(find_identifiers("（[Spec-0028](../docs/specs/0028-x.md)）", HISTORY_REFERENCE))
+        self.assertTrue(find_identifiers("見 [報告](../../docs/qa_reports/0030-x.md)", HISTORY_REFERENCE))
+        self.assertTrue(find_identifiers("自動檢查（ADR-0037）", HISTORY_REFERENCE))
+        self.assertEqual(find_identifiers("寫入 `docs/specs/XXXX-*.md`", HISTORY_REFERENCE), [])
+        self.assertEqual(find_identifiers("索引 [docs/README.md](docs/README.md)", HISTORY_REFERENCE), [])
+
+    def test_core_python_has_no_project_identifiers(self):
+        """Spec-0042 AC-3：核心腳本、程式庫全文與自我測試 docstring 不含本專案識別字"""
+        files = {rel for rel, _ in core_python_texts()}
+        self.assertIn(".agents/skills/code-review/scripts/audit_guardrails.py", files)
+        self.assertIn(".agents/lib/project_config.py", files)
+        for skill in _business_skills():
+            self.assertFalse([f for f in files if f"/skills/{skill}/" in f])
+        violations = []
+        for rel, text in core_python_texts():
+            violations.extend(f"{rel}:{n}: {w}" for n, w in find_identifiers(text, IDENTIFIERS_ONLY))
         self.assertEqual(violations, [])
 
     def test_pattern_comes_from_instance_terms(self):

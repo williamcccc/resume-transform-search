@@ -1,7 +1,7 @@
 """
 流程分軌文件檢查白箱單元測試（Spec-0025 / verify_doc_sync.py）
 涵蓋：分流表 ↔ 流程檔一致性、docs/bugs/ 檔名與索引、缺陷報告品質範圍宣告、範本鏡像一致性。
-檢查邏輯一律以暫存目錄或記憶體建構虛構內容驗證；僅兩項守門測試讀取專案內的範本（缺陷報告範本、docs/templates/ 檔名清單），零網路、零讀取 data/ 與 resume/。
+檢查邏輯一律以暫存目錄或記憶體建構虛構內容驗證；僅兩項守門測試讀取專案內的範本（缺陷報告範本、docs/templates/ 檔名清單），零網路、零讀取本機敏感目錄（`privacy.sensitive_dirs`）。
 """
 import contextlib
 import importlib.util

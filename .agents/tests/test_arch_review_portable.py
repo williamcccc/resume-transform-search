@@ -1,6 +1,6 @@
 """架構前審 8 大維度通用化之文件結構測試（Spec-0035）；閉環核心自我測試（Spec-0037），移植後仍須通過。
 
-只讀取版控中的規範文件，不讀取本機 data/ 或 resume/。
+只讀取版控中的規範文件，不讀取本機敏感目錄（`privacy.sensitive_dirs`）。
 """
 import re
 import unittest

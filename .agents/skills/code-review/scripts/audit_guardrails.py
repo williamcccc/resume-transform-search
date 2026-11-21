@@ -58,7 +58,7 @@ _PRIVACY = CONFIG["privacy"]
 
 
 def _module_name(rel_dir: str) -> str:
-    """將專案相對目錄轉為 Python 模組路徑，如 'src/domain' → 'src.domain'。"""
+    """將專案相對目錄轉為 Python 模組路徑，如 'pkg/domain' → 'pkg.domain'。"""
     return Path(rel_dir).as_posix().strip("/").replace("/", ".")
 
 
