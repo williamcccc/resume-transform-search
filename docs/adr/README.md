@@ -32,6 +32,7 @@
 | **[ADR-0021](./0021-recruitment-adaptive-candidate-search-loop.md)** | 招募助手候選人不足時自動擴大檢索（LangGraph 子步驟循環） | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Cycle`, `Adaptive Retrieval`, `Deterministic Policy` |
 | **[ADR-0022](./0022-recruitment-relaxation-human-in-the-loop.md)** | 招募助手放寬條件之人工決策（LangGraph interrupt） | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Human-in-the-Loop`, `Interrupt`, `Audit` |
 | **[ADR-0028](./0028-portable-closed-loop-project-config.md)** | 閉環專案專屬值集中於 project.toml，規範文字以標記區分專屬規則 | 已採納 (Accepted) | 2026-11 | `Governance`, `Portability`, `Config`, `Guardrails` |
+| **[ADR-0037](./0037-agents-red-lines-generic-and-project-groups.md)** | AGENTS.md 紅線分為通用與本專案兩組，專案事實集中於實例檔 | 已採納 (Accepted) | 2026-11 | `Governance`, `Portability`, `Red Lines` |
 
 ---
 

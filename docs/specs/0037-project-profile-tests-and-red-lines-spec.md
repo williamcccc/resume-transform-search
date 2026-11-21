@@ -1,6 +1,6 @@
 # 提案與規格書：專案概況檔、閉環自我測試隨核心移植、AGENTS.md 紅線分區
 
-> **狀態**：提案（G1，待核准；尚未實作）｜**類型**：規範變更（大改：新增專案實例檔、搬移測試、修改 AGENTS.md 第 1 節架構紅線之編排）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`AGENTS.md`、`.agents/**`、閉環自我測試、`.github/workflows/ci.yml`，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，待決事項全數採建議；QA 見 [QA-0037](../qa_reports/0037-project-profile-tests-and-red-lines-qa.md)，決策見 [ADR-0037](../adr/0037-agents-red-lines-generic-and-project-groups.md)）｜**類型**：規範變更（大改：新增專案實例檔、搬移測試、修改 AGENTS.md 第 1 節架構紅線之編排）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`AGENTS.md`、`.agents/**`、閉環自我測試、`.github/workflows/ci.yml`，不涉及 `src/`
 
 ## 一、動機
 
@@ -113,7 +113,7 @@
 | 5 | 同一測試檔內的本專案實例斷言 | 拆出留在 `tests/unit/` | 整檔搬移，移植後由使用者刪改 |
 | 6 | 交付方式 | 一份規格、一個 PR，分三個 commit（概況檔、測試搬移、紅線分區） | 三份規格、三個 PR |
 
-## 七、驗收標準（草案，G2 核准後定稿）
+## 七、驗收標準
 
 * **AC-1**：概況檔涵蓋第一節表列 6 類資訊；被引用之核心檔不再含這些事實與對應專屬標記。
 * **AC-2**：AGENTS.md 與 `.agents/`（不含 `project/`）之專屬標記只剩 AGENTS.md「本專案紅線」區塊之整節標記；PORTING 第 5 步據此改寫。
