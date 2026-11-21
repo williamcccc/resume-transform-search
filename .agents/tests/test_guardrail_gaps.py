@@ -22,7 +22,8 @@ def _rewrite_config(text: str) -> str:
     text = re.sub(r'= "src"', '= "app"', text)
     text = re.sub(r"forbidden_hash_prefixes = \[[^\]]*\]", "forbidden_hash_prefixes = []", text)
     text = re.sub(r"\[\[guardrails\.url_exceptions\]\]\n(?:[^\[\n].*\n)*", "", text)
-    text = text.replace("ignore_scan_dirs = [", "url_exceptions = []\nignore_scan_dirs = [", 1)
+    if not re.search(r"^url_exceptions\s*=", text, re.MULTILINE):  # 已移植之專案設定可能已有此鍵
+        text = text.replace("ignore_scan_dirs = [", "url_exceptions = []\nignore_scan_dirs = [", 1)
     text = re.sub(r'module = "[^"]*"', 'module = "app/infrastructure/config.py"', text, count=1)
     return text
 

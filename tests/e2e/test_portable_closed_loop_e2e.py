@@ -125,6 +125,7 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         (core / "models.py").write_text("from dataclasses import dataclass\n\n\n@dataclass\nclass Item:\n    name: str\n", encoding="utf-8")
         infra = self.root / "app" / "infrastructure"
         infra.mkdir(parents=True)
+        (self.root / "app" / "application").mkdir(parents=True)  # Spec-0039：啟用分層時各層目錄須存在
         (infra / "config.py").write_text("import os\n\nTOKEN = os.environ.get(\"DEMO_TOKEN\")\n", encoding="utf-8")
         (self.root / ".env.example").write_text("DEMO_TOKEN=\n", encoding="utf-8")
         (self.root / "requirements.txt").write_text("# 示範專案相依\n", encoding="utf-8")

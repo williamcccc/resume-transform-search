@@ -678,6 +678,27 @@ def check_eval_only_imports(src_dir: Path = SRC_DIR) -> List[str]:
     return violations
 
 
+def check_configured_paths() -> List[str]:
+    """設定指向的檔案與目錄必須存在；不存在時回報 P0，避免後續檢查靜默跳過（Bug-0033）。"""
+    errors = []
+    expected = [
+        ("layers.src", SRC_DIR, "dir"),
+        ("config.module", ROOT_DIR / CONFIG_MODULE_PATH, "file"),
+        ("config.env_example", ROOT_DIR / ENV_EXAMPLE_PATH, "file"),
+    ]
+    if LAYERS_ENABLED:
+        expected += [("layers.domain", DOMAIN_DIR, "dir"), ("layers.application", APPLICATION_DIR, "dir")]
+    for key, path, kind in expected:
+        exists = path.is_dir() if kind == "dir" else path.is_file()
+        if not exists:
+            rel = path.relative_to(ROOT_DIR).as_posix() if path.is_relative_to(ROOT_DIR) else path.as_posix()
+            label = "目錄" if kind == "dir" else "檔案"
+            errors.append(
+                f"[P0 違規 - 設定路徑不存在] project.toml 的 {key} 指向之{label}不存在: {rel}（相關檢查無法執行）"
+            )
+    return errors
+
+
 def main() -> int:
     print("=" * 70)
     print("🔍 啟動 Clean Architecture & DDD 防線靜態代碼稽核 (Code Review)")
@@ -686,6 +707,15 @@ def main() -> int:
 
     all_p0_errors = []
     all_p1_warnings = []
+
+    # 0. 設定路徑存在性（Bug-0033：缺檔或缺目錄不得讓其他檢查靜默跳過）
+    path_errs = check_configured_paths()
+    all_p0_errors.extend(path_errs)
+    if not path_errs:
+        print("✅ [Pass] 設定路徑驗證：layers 與 config 指向之目錄、檔案皆存在。")
+    else:
+        for err in path_errs:
+            print(f"❌ {err}")
 
     if LAYERS_ENABLED:
         # 1. Domain 純潔性檢查
