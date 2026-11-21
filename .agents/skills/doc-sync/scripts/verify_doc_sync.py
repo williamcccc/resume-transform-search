@@ -72,8 +72,9 @@ def check_basic_docs_exist() -> bool:
 
 def check_directory_docs(dir_path: Path, doc_type_name: str, index_file: Path) -> bool:
     if not dir_path.exists():
-        print(f"[FAIL] {doc_type_name} 目錄不存在: {dir_path.relative_to(ROOT_DIR)}")
-        return False
+        # 新專案尚無此類文件時目錄為空、不進版控（git 不追蹤空目錄），乾淨 checkout 下不存在屬正常（Spec-0045）
+        print(f"[WARN] 尚無{doc_type_name}，目錄不存在: {dir_path.relative_to(ROOT_DIR)}")
+        return True
 
     files = sorted([f for f in dir_path.glob("*.md") if f.name != "README.md"])
     if not files:

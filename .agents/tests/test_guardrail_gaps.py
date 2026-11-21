@@ -17,27 +17,38 @@ AGENTS_DIR = Path(__file__).resolve().parents[1]
 SCRIPT_REL = Path(".agents/skills/code-review/scripts/audit_guardrails.py")
 
 
+# 假專案自身之分層與設定路徑；逐鍵覆寫，不依賴實例設定之字面內容（Spec-0045）
+MINI_LAYOUT = (
+    ("src", "app"), ("domain", "app/domain"), ("application", "app/application"),
+    ("infrastructure", "app/infrastructure"), ("interfaces", "app/interfaces"),
+    ("domain_interfaces", "app/domain/interfaces.py"),
+    ("module", "app/infrastructure/config.py"), ("env_example", ".env.example"),
+)
+
+
 def _rewrite_config(text: str) -> str:
-    text = re.sub(r'"src/', '"app/', text)
-    text = re.sub(r'= "src"', '= "app"', text)
+    for key, value in MINI_LAYOUT:
+        text, count = re.subn(rf"^{key} = .*$", f'{key} = "{value}"', text, count=1, flags=re.MULTILINE)
+        assert count == 1, f"project.toml 缺少鍵 {key}"
     text = re.sub(r"forbidden_hash_prefixes = \[[^\]]*\]", "forbidden_hash_prefixes = []", text)
     text = re.sub(r"\[\[guardrails\.url_exceptions\]\]\n(?:[^\[\n].*\n)*", "", text)
     if not re.search(r"^url_exceptions\s*=", text, re.MULTILINE):  # 已移植之專案設定可能已有此鍵
         text = text.replace("ignore_scan_dirs = [", "url_exceptions = []\nignore_scan_dirs = [", 1)
-    text = re.sub(r'module = "[^"]*"', 'module = "app/infrastructure/config.py"', text, count=1)
     return text
 
 
 class MiniProject:
     """最小假專案：分層目錄、設定模組、.env.example、.gitignore 皆齊備時應零 P0。"""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, source_config: str = None):
         self.root = root
         script_dir = root / SCRIPT_REL.parent
         script_dir.mkdir(parents=True)
         shutil.copy2(AGENTS_DIR / "skills" / "code-review" / "scripts" / "audit_guardrails.py", script_dir)
         shutil.copytree(AGENTS_DIR / "lib", root / ".agents" / "lib", ignore=shutil.ignore_patterns("__pycache__"))
-        config = _rewrite_config((AGENTS_DIR / "project.toml").read_text(encoding="utf-8"))
+        if source_config is None:
+            source_config = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8")
+        config = _rewrite_config(source_config)
         (root / ".agents" / "project.toml").write_text(config, encoding="utf-8")
         self.config = tomllib.loads(config)
         for layer in ("domain", "application", "infrastructure", "interfaces"):
@@ -66,6 +77,16 @@ class GuardrailGapTestCase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.project = MiniProject(Path(self._tmp.name) / "demo_proj")
 
+    def remove(self, rel: str) -> None:
+        path = self.project.root / rel
+        shutil.rmtree(path) if path.is_dir() else path.unlink()
+
+    def set_config(self, old: str, new: str) -> None:
+        path = self.project.root / ".agents" / "project.toml"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
     def assert_p0(self, *fragments):
         code, out = self.project.run()
         self.assertEqual(code, 1, out)
@@ -76,6 +97,23 @@ class GuardrailGapTestCase(unittest.TestCase):
 class TestBaseline(GuardrailGapTestCase):
     def test_complete_mini_project_has_no_p0(self):
         code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+
+
+class TestNonDefaultInstanceLayout(unittest.TestCase):
+    """Spec-0045：實例設定之層名與範本檔名非預設時，假專案仍自洽（不假設原專案之字面路徑）"""
+
+    def test_mini_project_ignores_instance_layout(self):
+        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8")
+        for key, value in (
+            ("src", "service"), ("domain", "service/domain"), ("application", "service/usecases"),
+            ("infrastructure", "service/adapters"), ("interfaces", "service/api"),
+            ("domain_interfaces", "service/domain/ports.py"), ("module", "settings.py"),
+            ("env_example", ".env.sample"),
+        ):
+            source = re.sub(rf"^{key} = .*$", f'{key} = "{value}"', source, count=1, flags=re.MULTILINE)
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = MiniProject(Path(tmp) / "demo_proj", source).run()
         self.assertEqual(code, 0, out)
 
 
@@ -122,16 +160,6 @@ class TestBug0032EnvVarDetection(GuardrailGapTestCase):
 class TestBug0033MissingConfiguredPaths(GuardrailGapTestCase):
     """Bug-0033：設定指向的檔案或目錄不存在時須回報 P0（指出鍵名與路徑），不得靜默跳過"""
 
-    def remove(self, rel: str) -> None:
-        path = self.project.root / rel
-        shutil.rmtree(path) if path.is_dir() else path.unlink()
-
-    def set_config(self, old: str, new: str) -> None:
-        path = self.project.root / ".agents" / "project.toml"
-        text = path.read_text(encoding="utf-8")
-        self.assertIn(old, text)
-        path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
     def test_missing_config_module_is_p0(self):
         self.remove("app/infrastructure/config.py")
         self.assert_p0("config.module", "app/infrastructure/config.py")
@@ -155,6 +183,23 @@ class TestBug0033MissingConfiguredPaths(GuardrailGapTestCase):
         self.remove("app/application")
         code, out = self.project.run()
         self.assertEqual(code, 0, out)
+
+
+class TestMessagesFollowConfig(GuardrailGapTestCase):
+    """Spec-0045 AC-4：訊息使用設定之範本檔名；分層停用時結語不宣稱分層符合規格"""
+
+    def test_env_sync_message_uses_configured_template_name(self):
+        self.set_config('env_example = ".env.example"', 'env_example = ".env.sample"')
+        self.project.write(".env.sample", "DEMO_TOKEN=\n")
+        self.project.write("app/infrastructure/other.py", 'import os\n\nZ = os.getenv("NEW_Z")\n')
+        self.assert_p0("未列於 .env.sample", "NEW_Z")
+
+    def test_disabled_layers_summary_mentions_skip(self):
+        self.set_config("enabled = true", "enabled = false")
+        code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+        self.assertIn("DDD 分層檢查已停用", out.strip().splitlines()[-1])
+        self.assertNotIn("架構分層、邊界防護", out)
 
 
 class TestHardcodedUrlMessageIsNeutral(GuardrailGapTestCase):
