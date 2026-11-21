@@ -373,7 +373,7 @@ def check_hardcoded_configuration() -> Tuple[List[str], List[str]]:
                 if not is_config_module and URL_PATTERN.match(val):
                     if rel_path not in URL_EXCEPTION_PATHS:
                         p0_errors.append(
-                            f"[P0 違規 - 寫死外部連線 URL] {rel_path}:{line_no} -> '{val[:40]}...' 禁止硬編碼連線位址，必須透過 AppConfig 注入"
+                            f"[P0 違規 - 寫死外部連線 URL] {rel_path}:{line_no} -> '{val[:40]}...' 禁止硬編碼連線位址，必須透過設定模組（config.module）注入"
                         )
 
                 # 檢查 C: 本機絕對路徑硬編碼 (P1 跨平台警告)
@@ -595,7 +595,7 @@ def check_git_hygiene_and_pii_guardrails() -> List[str]:
             if req not in lines:
                 p0_errors.append(f"[P0 違規 - .gitignore 漏列敏感路徑] .gitignore 缺少必備保護規則: '{req}'")
 
-    # 2. 檢查 .env.example 與 AppConfig 100% 同步且無真實金鑰
+    # 2. 檢查 .env.example 與原始碼讀取之環境變數 100% 同步且無真實金鑰
     config_path = ROOT_DIR / CONFIG_MODULE_PATH
     env_example_path = ROOT_DIR / ENV_EXAMPLE_PATH
     if config_path.exists() and env_example_path.exists():

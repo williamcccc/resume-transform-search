@@ -56,6 +56,7 @@ flowchart LR
 | **0037** | 專案概況檔、閉環自我測試隨核心移植、AGENTS.md 紅線分區 | [ADR-0037](./adr/0037-agents-red-lines-generic-and-project-groups.md) | [Spec-0037](./specs/0037-project-profile-tests-and-red-lines-spec.md) | `tests/unit/test_project_instance_files.py`、`.agents/tests/`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0037](./qa_reports/0037-project-profile-tests-and-red-lines-qa.md) |
 | **0038** | 閉環殘留專案相依清理：敏感副檔名設定化、基準檔歸位、業務技能清單 | — | [Spec-0038](./specs/0038-closed-loop-residual-project-coupling-spec.md) | `.agents/tests/test_project_config.py`、`tests/unit/test_github_pre_publish_hygiene.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0038](./qa_reports/0038-closed-loop-residual-project-coupling-qa.md) |
 | **0039** | audit_guardrails.py 守門缺口修正（Bug-0031～0033） | — | [Spec-0039](./specs/0039-audit-guardrails-gap-fixes-spec.md) | `.agents/tests/test_guardrail_gaps.py`、`tests/unit/test_github_pre_publish_hygiene.py` | [QA-0039](./qa_reports/0039-audit-guardrails-gap-fixes-qa.md) |
+| **0040** | 紅線 1、6 本專案附註移入本專案紅線小節，通用紅線納入中性化守護 | [ADR-0040](./adr/0040-red-lines-1-6-project-values-moved.md) | [Spec-0040](./specs/0040-red-lines-1-6-project-annotations-spec.md) | `.agents/tests/test_neutral_examples.py`、`.agents/tests/test_guardrail_gaps.py` | [QA-0040](./qa_reports/0040-red-lines-1-6-project-annotations-qa.md) |
 
 ### 缺陷修正追溯清單
 

@@ -6,7 +6,7 @@
 排除範圍（屬專案實例或另有治理程序）：
 * `.agents/project/`：專案實例檔。
 * `project.business_skills` 所列業務技能（`.agents/skills/` 與 `.claude/skills/` 下同名資料夾）。
-* AGENTS.md「核心不可變紅線」小節：紅線文字之修改屬大改並須 ADR，不由本測試約束。
+* AGENTS.md「本專案紅線」小節：專案專屬整節，移植時整節改寫（Spec-0040 起通用紅線 1、6、7 納入守護）。
 
 只讀取版控中的規範文件，不讀取本機 data/ 或 resume/。屬閉環核心自我測試，移植後仍須通過。
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AGENTS_DIR = PROJECT_ROOT / ".agents"
 TOP_LEVEL_DOCS = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
-RED_LINE_SECTION = re.compile(r"^### 核心不可變紅線\n.*?(?=^---$)", re.MULTILINE | re.DOTALL)
+PROJECT_RED_LINE_SECTION = re.compile(r"^#### 本專案紅線.*?(?=^---$)", re.MULTILINE | re.DOTALL)
 # 原專案識別字：業務名詞、本專案檔名／類別名／索引名與規格值，以及「本專案為」附註
 PROJECT_IDENTIFIERS = re.compile(
     r"履歷|候選人|求職|招募|resume|Resume|convert_to_md|index_to_redis|search_resumes|"
@@ -48,6 +48,11 @@ def core_markdown_files() -> list:
     return files
 
 
+def strip_project_red_lines(text: str) -> str:
+    """以等量換行取代 AGENTS.md「本專案紅線」小節，保留行號。"""
+    return PROJECT_RED_LINE_SECTION.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+
+
 def find_identifiers(text: str) -> list:
     """回傳 (行號, 命中字) 清單；略過專屬標記所在行。"""
     return [
@@ -72,8 +77,7 @@ class TestNeutralExamples(unittest.TestCase):
         for path in core_markdown_files():
             text = path.read_text(encoding="utf-8")
             if path.name == "AGENTS.md" and path.parent == PROJECT_ROOT:
-                # 保留行號：以等量換行取代紅線小節
-                text = RED_LINE_SECTION.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+                text = strip_project_red_lines(text)
             rel = path.relative_to(PROJECT_ROOT).as_posix()
             violations.extend(f"{rel}:{number}: {word}" for number, word in find_identifiers(text))
         self.assertEqual(violations, [])
@@ -85,6 +89,27 @@ class TestNeutralExamples(unittest.TestCase):
                 self.assertTrue(find_identifiers(sample))
         self.assertEqual(find_identifiers("規則<!-- 專案專屬 --> 履歷"), [])
         self.assertEqual(find_identifiers("模擬資料庫客戶端（如 Redis）"), [])
+
+    def test_generic_red_lines_are_guarded(self):
+        """Spec-0040：只排除本專案紅線小節，通用紅線寫回本專案附註須被抓到。"""
+        doc = (
+            "#### 通用紅線（任何專案適用）\n"
+            "* **紅線 1**：Domain 契約檔（`layers.domain_interfaces`，本專案為 `x.py`）\n"
+            "\n#### 本專案紅線（移植時整節改寫）\n"
+            "* **紅線 2**：履歷轉檔\n"
+            "\n---\n"
+        )
+        stripped = strip_project_red_lines(doc)
+        self.assertEqual(stripped.count("\n"), doc.count("\n"))
+        self.assertEqual([word for _, word in find_identifiers(stripped)], ["本專案為"])
+
+    def test_agents_md_project_section_keeps_red_line_values(self):
+        """Spec-0040：紅線 1、6 本專案值移入本專案紅線小節，通用紅線不含附註。"""
+        text = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        section = PROJECT_RED_LINE_SECTION.search(text)
+        self.assertIsNotNone(section)
+        self.assertIn("紅線 1、6 本專案對應", section.group(0))
+        self.assertNotIn("本專案為", strip_project_red_lines(text))
 
 
 if __name__ == "__main__":

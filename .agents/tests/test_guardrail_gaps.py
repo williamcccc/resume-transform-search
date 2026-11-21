@@ -157,5 +157,17 @@ class TestBug0033MissingConfiguredPaths(GuardrailGapTestCase):
         self.assertEqual(code, 0, out)
 
 
+class TestHardcodedUrlMessageIsNeutral(GuardrailGapTestCase):
+    """Spec-0040：寫死連線 URL 之違規訊息以通用名稱「設定模組」指引，不含原專案類別名"""
+
+    def test_hardcoded_url_message_points_to_config_module(self):
+        self.project.write("app/infrastructure/client.py", 'ENDPOINT = "redis://db.example.invalid:6379/0"\n')
+        code, out = self.project.run()
+        self.assertEqual(code, 1, out)
+        self.assertIn("寫死外部連線 URL", out)
+        self.assertIn("設定模組（config.module）", out)
+        self.assertNotIn("AppConfig", out)
+
+
 if __name__ == "__main__":
     unittest.main()
