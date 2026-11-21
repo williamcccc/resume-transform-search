@@ -57,6 +57,7 @@ flowchart LR
 | **0038** | 閉環殘留專案相依清理：敏感副檔名設定化、基準檔歸位、業務技能清單 | — | [Spec-0038](./specs/0038-closed-loop-residual-project-coupling-spec.md) | `.agents/tests/test_project_config.py`、`tests/unit/test_github_pre_publish_hygiene.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0038](./qa_reports/0038-closed-loop-residual-project-coupling-qa.md) |
 | **0039** | audit_guardrails.py 守門缺口修正（Bug-0031～0033） | — | [Spec-0039](./specs/0039-audit-guardrails-gap-fixes-spec.md) | `.agents/tests/test_guardrail_gaps.py`、`tests/unit/test_github_pre_publish_hygiene.py` | [QA-0039](./qa_reports/0039-audit-guardrails-gap-fixes-qa.md) |
 | **0040** | 紅線 1、6 本專案附註移入本專案紅線小節，通用紅線納入中性化守護 | [ADR-0040](./adr/0040-red-lines-1-6-project-values-moved.md) | [Spec-0040](./specs/0040-red-lines-1-6-project-annotations-spec.md) | `.agents/tests/test_neutral_examples.py`、`.agents/tests/test_guardrail_gaps.py` | [QA-0040](./qa_reports/0040-red-lines-1-6-project-annotations-qa.md) |
+| **0041** | 守護字詞移入專案實例、核心規範去除寫死的 src/ | — | [Spec-0041](./specs/0041-instance-guard-terms-and-src-neutral-spec.md) | `.agents/tests/test_neutral_examples.py`、`.agents/tests/test_review_checklist_portable.py`、`.agents/tests/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0041](./qa_reports/0041-instance-guard-terms-and-src-neutral-qa.md) |
 
 ### 缺陷修正追溯清單
 

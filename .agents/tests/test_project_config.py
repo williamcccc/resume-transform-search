@@ -54,6 +54,8 @@ locale_patterns = []
 
 [project]
 business_skills = []
+identifiers = ['demo_widget', '\\bv9\\b']
+stack_terms = []
 
 [docs]
 quality_ac_enforced_from = 1
@@ -159,6 +161,19 @@ class TestLoadProjectConfig(unittest.TestCase):
         for old, fragment in cases:
             with self.subTest(fragment=fragment):
                 self.write(VALID_TOML.replace(old, "", 1))
+                self.assert_config_error(fragment)
+
+    def test_guard_terms_keys_required_and_must_be_valid_regex(self):
+        """Spec-0041 AC-2：identifiers、stack_terms 缺鍵、型別錯誤或非合法正規式時指出鍵名"""
+        cases = [
+            (VALID_TOML.replace("stack_terms = []\n", "", 1), "[project].stack_terms"),
+            (VALID_TOML.replace("identifiers = ['demo_widget', '\\bv9\\b']\n", "", 1), "[project].identifiers"),
+            (VALID_TOML.replace("stack_terms = []", 'stack_terms = "Redis"', 1), "[project].stack_terms"),
+            (VALID_TOML.replace("stack_terms = []", "stack_terms = ['ok', '(unclosed']", 1), "[project].stack_terms[1]"),
+        ]
+        for text, fragment in cases:
+            with self.subTest(fragment=fragment):
+                self.write(text)
                 self.assert_config_error(fragment)
 
     def test_missing_tech_chapters_in_use_raises(self):

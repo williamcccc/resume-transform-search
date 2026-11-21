@@ -1,6 +1,6 @@
 # 提案與規格書：守護字詞移入專案實例、核心規範去除寫死的 src/
 
-> **狀態**：G1 提案（待 G2 使用者核准）｜**類型**：規範變更（大改：修改驗證用程式庫與設定 schema）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/lib/project_config.py`、`.agents/project.toml`、`.agents/tests/`、核心規範與範本文字、PORTING，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，4 項待決事項全數採建議；QA 見 [QA-0041](../qa_reports/0041-instance-guard-terms-and-src-neutral-qa.md)）｜**類型**：規範變更（大改：修改驗證用程式庫與設定 schema）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/lib/project_config.py`、`.agents/project.toml`、`.agents/tests/`、核心規範與範本文字、PORTING，不涉及 `src/`
 
 ## 一、動機
 

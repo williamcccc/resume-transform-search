@@ -45,7 +45,7 @@ flowchart TD
 * **無法重現即停止**：記錄已嘗試的方法，向使用者索取缺少的資訊。嚴禁在未重現的情況下猜測式修正。
 
 ### 階段 3：紅燈回歸測試（developer）
-* 將重現步驟寫成**永久測試**：優先放 `tests/unit/`（遵循 [unit-testing](../unit-testing/SKILL.md) 的 Mock 隔離規範）；只有需要真實 CLI 或 Redis 才能重現時，才放 `tests/e2e/`。
+* 將重現步驟寫成**永久測試**：優先放 `tests/unit/`（遵循 [unit-testing](../unit-testing/SKILL.md) 的 Mock 隔離規範）；只有需要真實 CLI 或外部服務才能重現時，才放 `tests/e2e/`。
 * 在**未修正**的代碼上執行，確認：
   1. 測試失敗；
   2. 失敗原因正是該缺陷（檢查斷言訊息或 Traceback），而不是匯入錯誤、夾具錯誤等無關原因。

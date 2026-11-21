@@ -9,6 +9,7 @@ project_config.py
 避免移植到新專案時在不知情下沿用原專案的值。
 """
 
+import re
 import tomllib
 from pathlib import Path
 from typing import Dict, Iterable, Optional
@@ -52,6 +53,9 @@ SCHEMA: Dict[str, Dict[str, str]] = {
     # 專案組成（Spec-0038）：移植時依此清單刪除業務技能
     "project": {
         "business_skills": "str_list",
+        # 中性化守護字詞（Spec-0041）：正規式清單；identifiers 全核心禁用，stack_terms 限技術中立檢核清單
+        "identifiers": "regex_list",
+        "stack_terms": "regex_list",
     },
     "docs": {
         "quality_ac_enforced_from": "int",
@@ -101,6 +105,15 @@ def _check_type(section: str, key: str, value, kind: str) -> None:
         ok = isinstance(value, str) and value.strip() != ""
     elif kind == "str_list":
         ok = isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
+    elif kind == "regex_list":
+        if not (isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)):
+            raise ProjectConfigError(f"{where} 型別不符，應為正規式字串清單")
+        for index, pattern in enumerate(value):
+            try:
+                re.compile(pattern)
+            except re.error as err:
+                raise ProjectConfigError(f"{where}[{index}] 不是合法正規式: {pattern!r}（{err}）") from err
+        return
     elif kind in ("exception_list", "item_reason_list"):
         fields = ("path", "reason") if kind == "exception_list" else ("item", "reason")
         if not isinstance(value, list):

@@ -114,6 +114,16 @@ locale_patterns = ["tw_mobile", "tw_landline", "tw_id"]
 [project]
 # 本專案業務技能（.agents/skills/ 與 .claude/skills/ 下同名資料夾）；移植時依此清單刪除後清空
 business_skills = ["resume-vector-indexing", "resume-vector-search"]
+# 中性化守護字詞（Spec-0041；正規式，單引號字面字串）。移植時改為新專案的字詞，無則清空。
+# identifiers：本專案業務名詞、檔名、類別名、規格值與原始碼路徑；核心 Markdown（實例檔、業務技能、本專案紅線小節除外）不得出現
+identifiers = [
+    '履歷', '候選人', '求職', '招募', 'resume', 'Resume', 'AppConfig',
+    'convert_to_md', 'index_to_redis', 'search_resumes', 'idx:resumes', '_escape_redis_tag',
+    'GeminiJudgeService', 'RedisVectorStore', 'IVectorStore', 'IQualityValidator', 'IEmbeddingService', 'ResumeChunk',
+    'PyMuPDF', 'pymupdf', '\b768\b', '(?<!功能)切片', 'src\.domain', '\bsrc/',
+]
+# stack_terms：本專案技術元件名；須技術中立之核心檢核清單不得出現，其他核心文件可作通用舉例
+stack_terms = ['Redis', 'Gemini', 'PDF', 'Docx', 'DOCX']
 
 [docs]
 # 規格編號達此值起，須宣告「品質評測範圍」且缺漏即 FAIL

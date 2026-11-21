@@ -58,7 +58,7 @@
 | 請求類型 | 判斷條件 | 流程檔 |
 | :--- | :--- | :--- |
 | 簡單文件任務、問答 | 錯字、說明文字，不改變任何規則或行為 | 不啟動閉環 |
-| 規範變更 | 修改 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.agents/**`（角色、技能、流程檔、範本、檢核清單），且不改 `src/`；**只有使用者能核准** | [governance.md](.agents/workflows/governance.md) |
+| 規範變更 | 修改 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.agents/**`（角色、技能、流程檔、範本、檢核清單），且不改原始碼（`layers.src`）；**只有使用者能核准** | [governance.md](.agents/workflows/governance.md) |
 | 功能開發 | 新增或變更行為；或「正確行為」需重新定義 | [feature.md](.agents/workflows/feature.md) |
 | 缺陷修正 | 既有行為違反規格、文件或合理預期，嚴重度 S2／S3 | [bug.md](.agents/workflows/bug.md) |
 | 緊急止血 | 缺陷且嚴重度為 S1（資料損壞或遺失、個資外洩、安全漏洞、主要流程全面失敗） | [hotfix.md](.agents/workflows/hotfix.md) |
