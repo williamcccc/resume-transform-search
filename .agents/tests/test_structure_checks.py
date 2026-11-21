@@ -31,6 +31,20 @@ def security(not_applicable=("V9、V10、V17",), in_use=()):
     }
 
 
+class TestMissingEmptyDocsDirectory(unittest.TestCase):
+    """Spec-0045 AC-3：新專案尚無報告時目錄不進版控；不存在屬正常，回報 WARN 且不失敗"""
+
+    def test_missing_directory_warns_without_failing(self):
+        missing = vds.ROOT_DIR / "docs" / "no_such_dir_for_spec_0045"
+        self.assertFalse(missing.exists())
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            ok = vds.check_directory_docs(missing, "示範文件", vds.DOCS_README)
+        self.assertTrue(ok, buffer.getvalue())
+        self.assertIn("[WARN]", buffer.getvalue())
+        self.assertNotIn("[FAIL]", buffer.getvalue())
+
+
 def run(func, *args, **kwargs):
     buffer = io.StringIO()
     with contextlib.redirect_stdout(buffer):

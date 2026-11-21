@@ -16,7 +16,7 @@
 3. **改寫 `project.toml`**，逐鍵確認：
    * `[layers]`：填入新專案的分層路徑；`enabled = false` 只關閉自動分層檢查（如逐步導入 DDD 之專案），紅線 1 與技能之分層規範仍適用；`src` 仍須指向原始碼根目錄。
    * `[config]`：設定模組（集中讀取環境變數）與環境變數範本檔；原始碼以字串常值讀取的環境變數都須列於範本檔。
-   * `[guardrails]`：連線 scheme、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。清空時刪除 `[[guardrails.url_exceptions]]` 表格，並於 `[guardrails]` 區段內（下一個區段標題之前）寫 `url_exceptions = []`。
+   * `[guardrails]`：連線 scheme（`url_schemes` 為空即停用寫死連線 URL 檢查，僅於確無外部連線時清空）、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。清空時刪除 `[[guardrails.url_exceptions]]` 表格，並於 `[guardrails]` 區段內（下一個區段標題之前）寫 `url_exceptions = []`。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
    * `[project]`：`identifiers` 改為新專案的業務名詞、檔名、類別名與原始碼路徑（如 `'\bapp/'`），`stack_terms` 改為新專案的技術元件名；兩者皆為正規式清單（單引號字面字串），供閉環自我測試守護核心文件中性化。無則清空。
    * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
@@ -37,7 +37,7 @@
    ```
 
    POSIX 系統改用 `.venv-tools/bin/python`。複製 `requirements-dev.txt`，並將 `.venv-tools/` 加入 `.gitignore`。首次掃描的既有發現逐項評估：該修的修，誤報或延後者以 `--write-baseline --reason "…" --expires YYYY-MM-DD` 登錄後，再逐筆改寫具體理由。
-7. **建立文件骨架**：`docs/specs/`、`docs/qa_reports/`、`docs/adr/`（含 `README.md` 索引）、`docs/bugs/`、`docs/README.md`（中樞索引）、`REQUIREMENTS.md`、`ARCHITECTURE.md`；並將 5 份範本自 `.agents/` 正本複製到 `docs/templates/`（清單見 `verify_doc_sync.py` 的 `TEMPLATE_MIRRORS`）。
+7. **建立文件骨架**：`docs/specs/`、`docs/qa_reports/`、`docs/adr/`（含 `README.md` 索引）、`docs/bugs/`、`docs/README.md`（中樞索引）、`REQUIREMENTS.md`、`ARCHITECTURE.md`；並將 5 份範本自 `.agents/` 正本複製到 `docs/templates/`（清單見 `verify_doc_sync.py` 的 `TEMPLATE_MIRRORS`）。`docs/specs/`、`docs/qa_reports/`、`docs/bugs/` 在首份文件建立前為空目錄、不進版控，乾淨 checkout 下不存在屬正常（`verify_doc_sync.py` 回報 WARN）。
 8. **驗證**：
 
    ```bash

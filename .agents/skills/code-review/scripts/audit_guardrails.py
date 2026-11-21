@@ -606,10 +606,10 @@ def check_git_hygiene_and_pii_guardrails() -> List[str]:
         if missing:
             detail = "、".join(f"{name}（{env_reads[name][0]}）" for name in missing)
             p0_errors.append(
-                f"[P0 違規 - .env.example 未同步環境變數] 原始碼讀取之環境變數未列於 .env.example: {detail}"
+                f"[P0 違規 - {ENV_EXAMPLE_PATH.name} 未同步環境變數] 原始碼讀取之環境變數未列於 {ENV_EXAMPLE_PATH.name}: {detail}"
             )
         if API_KEY_PATTERN.search(ex_text):
-            p0_errors.append("[P0 違規 - .env.example 含真實金鑰] .env.example 嚴禁包含真實 API Key")
+            p0_errors.append(f"[P0 違規 - {ENV_EXAMPLE_PATH.name} 含真實金鑰] {ENV_EXAMPLE_PATH.name} 嚴禁包含真實 API Key")
 
     # 3. 檢查全專案 Git 候選檔案是否殘留本機路徑、金鑰或已知隱私識別樣式
     ws_pat = workspace_path_pattern(ROOT_DIR)
@@ -804,7 +804,7 @@ def main() -> int:
     all_p0_errors.extend(hygiene_p0)
 
     if not hygiene_p0:
-        print("✅ [Pass] Git 版控衛生與隱私防線驗證：已知隱私規則零命中、零工作區路徑，.gitignore 與 .env.example 對齊。")
+        print(f"✅ [Pass] Git 版控衛生與隱私防線驗證：已知隱私規則零命中、零工作區路徑，.gitignore 與 {ENV_EXAMPLE_PATH.name} 對齊。")
     else:
         for err in hygiene_p0:
             print(f"❌ {err}")
@@ -817,7 +817,10 @@ def main() -> int:
         print(f"⚠️  審查通過但有警告 (PASSED with warnings)：發現 {len(all_p1_warnings)} 項建議優化項目。")
         return 0
     else:
-        print("🎉 審查完全合格 (100% PASSED)：架構分層、邊界防護與例外處理完全符合規格！")
+        if LAYERS_ENABLED:
+            print("🎉 審查完全合格 (100% PASSED)：架構分層、邊界防護與例外處理完全符合規格！")
+        else:  # Spec-0045：分層檢查停用時不宣稱分層符合規格
+            print("🎉 審查完全合格 (100% PASSED)：邊界防護與例外處理完全符合規格（DDD 分層檢查已停用）。")
         return 0
 
 

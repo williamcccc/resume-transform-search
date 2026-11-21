@@ -14,8 +14,16 @@ CHECKLIST = AGENTS_DIR / "skills" / "code-review" / "references" / "review_check
 PORTING = AGENTS_DIR / "PORTING.md"
 with (AGENTS_DIR / "project.toml").open("rb") as _handle:
     _PROJECT = tomllib.load(_handle)["project"]
+
+
+def terms_pattern(identifiers, stack_terms) -> re.Pattern:
+    """實例字詞組成之樣式；清單皆空時永不命中（Spec-0045，與 test_neutral_examples 一致）。"""
+    terms = (*identifiers, *stack_terms)
+    return re.compile("|".join(f"(?:{t})" for t in terms) if terms else r"(?!)")
+
+
 # 本專案識別字與技術元件名（技術中立之核心檢核清單皆不得出現）
-PROJECT_TERMS = re.compile("|".join(f"(?:{t})" for t in (*_PROJECT["identifiers"], *_PROJECT["stack_terms"])))
+PROJECT_TERMS = terms_pattern(_PROJECT["identifiers"], _PROJECT["stack_terms"])
 CATEGORY = re.compile(r"^### (\d)\. ", re.MULTILINE)
 UPGRADE_RULE_FILES = (
     AGENTS_DIR / "workflows" / "bug.md",
@@ -34,6 +42,12 @@ class TestReviewChecklistPortable(unittest.TestCase):
         """AC-1：核心清單無專屬標記，亦無本專案元件名稱"""
         self.assertNotIn("<!-- 專案專屬", self.core)
         self.assertEqual(PROJECT_TERMS.findall(self.core), [])
+
+    def test_terms_pattern_never_matches_when_lists_empty(self):
+        """Spec-0045 AC-2：實例字詞清單皆空時永不命中；有字詞時正常命中"""
+        self.assertEqual(terms_pattern([], []).findall("任何文字 Redis"), [])
+        self.assertEqual(terms_pattern(["DemoDB"], []).findall("使用 DemoDB 與 Redis"), ["DemoDB"])
+        self.assertEqual(terms_pattern([], [r"\bv9\b"]).findall("v9 與 v95"), ["v9"])
 
     def test_core_keeps_nine_categories_and_severity_definitions(self):
         """AC-1：核心清單保留 9 類結構與嚴重等級定義"""
