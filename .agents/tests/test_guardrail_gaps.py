@@ -118,5 +118,43 @@ class TestBug0032EnvVarDetection(GuardrailGapTestCase):
         self.assertEqual(code, 0, out)
 
 
+class TestBug0033MissingConfiguredPaths(GuardrailGapTestCase):
+    """Bug-0033：設定指向的檔案或目錄不存在時須回報 P0（指出鍵名與路徑），不得靜默跳過"""
+
+    def remove(self, rel: str) -> None:
+        path = self.project.root / rel
+        shutil.rmtree(path) if path.is_dir() else path.unlink()
+
+    def set_config(self, old: str, new: str) -> None:
+        path = self.project.root / ".agents" / "project.toml"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+    def test_missing_config_module_is_p0(self):
+        self.remove("app/infrastructure/config.py")
+        self.assert_p0("config.module", "app/infrastructure/config.py")
+
+    def test_missing_env_example_is_p0(self):
+        self.remove(".env.example")
+        self.assert_p0("config.env_example", ".env.example")
+
+    def test_missing_src_directory_is_p0(self):
+        self.set_config('src = "app"', 'src = "no_such_src"')
+        self.assert_p0("layers.src", "no_such_src")
+
+    def test_missing_domain_or_application_directory_is_p0_when_layers_enabled(self):
+        self.remove("app/domain")
+        self.remove("app/application")
+        self.assert_p0("layers.domain", "app/domain", "layers.application", "app/application")
+
+    def test_missing_layer_directories_ignored_when_layers_disabled(self):
+        self.set_config("enabled = true", "enabled = false")
+        self.remove("app/domain")
+        self.remove("app/application")
+        code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+
+
 if __name__ == "__main__":
     unittest.main()
