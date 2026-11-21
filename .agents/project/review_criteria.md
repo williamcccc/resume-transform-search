@@ -13,7 +13,7 @@
 ### 2. 安全性與惡意輸入防護
 - [ ] **[P0] 資源配額硬上限（數值正本）**：解析檔案前必須驗證檔案體積（預設上限 25MB）、PDF 頁數上限（預設 30 頁）與 DOCX 解壓縮膨脹比（預設 10x），杜絕 Zip Bomb 或巨型檔案造成記憶體耗盡（OOM）。*（本處為上限數值的文件正本；括號內為預設值，實際值以 `.env.example` 與 `AppConfig` 為準。）*
 - [ ] **[P0] 提示詞注入隔離（本專案圍欄標籤）**：傳送給 LLM（Gemini）之未受信任履歷內容（含履歷原文、PDF 提取文字），必須使用 `<resume_content>...</resume_content>` 標籤進行上下文圍欄隔離，並在 System Prompt 強調不得遵從履歷內之指示。同名標籤亦列於 `project.toml` 的 `guardrails.prompt_indicators`。
-- [ ] **[P0] 日誌零洩漏（本專案敏感資料）**：日誌嚴禁明文輸出未經脫敏的原始履歷全文、身分證字號、手機號碼或 API Authorization Header。
+- [ ] **[P0] 日誌零洩漏（本專案敏感資料）**：日誌嚴禁明文輸出未經脫敏的敏感資料（類型見 [profile.md](./profile.md) 第 4 節）或 API Authorization Header。
 
 ### 3. 防禦性程式設計與邊界容錯
 - [ ] **[P0] 原始檔案保護原則**：轉檔或修復時，絕不可直接覆寫或篡改磁碟上的原始輸入檔案（如 Docx 破圖需採用記憶體串流修復）。對應 AGENTS.md 紅線 3。

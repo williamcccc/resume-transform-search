@@ -34,3 +34,6 @@ jobs:
 
       - name: Step 3 - White-box Unit Tests (100% Offline Mock)
         run: python -m unittest discover -s tests/unit -p "test_*.py" -v
+
+      - name: Step 4 - Closed-loop Core Self-tests (.agents/tests)
+        run: python -m unittest discover -s .agents/tests -p "test_*.py" -v

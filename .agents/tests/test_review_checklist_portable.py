@@ -1,4 +1,4 @@
-"""Gate 2 檢核清單通用化與 .agents 專案相依清理之文件結構測試（Spec-0036）。
+"""Gate 2 檢核清單通用化與 .agents 專案相依清理之文件結構測試（Spec-0036）；閉環核心自我測試（Spec-0037），移植後仍須通過。
 
 只讀取版控中的規範文件，不讀取本機 data/ 或 resume/。
 """
@@ -9,7 +9,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AGENTS_DIR = PROJECT_ROOT / ".agents"
 CHECKLIST = AGENTS_DIR / "skills" / "code-review" / "references" / "review_checklist.md"
-CRITERIA = AGENTS_DIR / "project" / "review_criteria.md"
 PORTING = AGENTS_DIR / "PORTING.md"
 PROJECT_TERMS = re.compile(r"Redis|Gemini|履歷|候選人|PDF|Docx|DOCX|切片|resume_content|convert_to_md|AppConfig")
 CATEGORY = re.compile(r"^### (\d)\. ", re.MULTILINE)
@@ -25,7 +24,6 @@ class TestReviewChecklistPortable(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.core = CHECKLIST.read_text(encoding="utf-8")
-        cls.criteria = CRITERIA.read_text(encoding="utf-8")
 
     def test_core_checklist_free_of_markers_and_project_terms(self):
         """AC-1：核心清單無專屬標記，亦無本專案元件名稱"""
@@ -37,13 +35,6 @@ class TestReviewChecklistPortable(unittest.TestCase):
         self.assertEqual([int(n) for n in CATEGORY.findall(self.core)], list(range(1, 10)))
         for level in ("[P0 阻斷型缺陷", "[P1 重大防護缺陷", "[P2 品質與風格缺陷"):
             self.assertIn(level, self.core)
-
-    def test_criteria_categories_align_with_core_and_hold_quota_values(self):
-        """AC-2：實例檔類別編號與核心一致，並持有配額數值正本與圍欄標籤"""
-        self.assertEqual([int(n) for n in CATEGORY.findall(self.criteria)], list(range(1, 10)))
-        for fragment in ("25MB", "30 頁", "10x", "上限數值的文件正本", "<resume_content>", "Text-First", "80 字元"):
-            with self.subTest(fragment=fragment):
-                self.assertIn(fragment, self.criteria)
 
     def test_upgrade_rule_uses_config_module_everywhere(self):
         """AC-3：升級條件 3 在 4 個檔案一致改為 config.module"""

@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT_REL = Path(".agents/skills/doc-sync/scripts/verify_doc_sync.py")
 COPY_DIRS = (".agents", ".claude", "docs")
 COPY_FILES = ("AGENTS.md", "REQUIREMENTS.md", "ARCHITECTURE.md")

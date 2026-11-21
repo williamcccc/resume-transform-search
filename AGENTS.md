@@ -15,29 +15,36 @@
 ## 1. 專案核心定位與架構紅線 (Architecture Guardrails)
 
 本專案採用 **領域驅動設計 (Domain-Driven Design, DDD)** 與 **整潔架構 (Clean Architecture)**。
-系統四層結構有嚴格的單向依賴關係，內層抽象絕不可依賴外層技術細節（各層路徑之正本為 [`.agents/project.toml`](.agents/project.toml) 的 `[layers]`；專案專屬內容以 `<!-- 專案專屬` 開頭之註解標記，移植見 [PORTING.md](.agents/PORTING.md)）：
+系統四層結構有嚴格的單向依賴關係，內層抽象絕不可依賴外層技術細節（各層路徑之正本為 [`.agents/project.toml`](.agents/project.toml) 的 `[layers]`；本專案專屬之紅線集中於下方「本專案紅線」，其餘專案事實位於 [`.agents/project/`](.agents/project/profile.md)，移植見 [PORTING.md](.agents/PORTING.md)）：
 
 ```
 src/
-├── domain/            # 【領域層】：純業務模型與契約介面。嚴禁 import 任何第三方外部 SDK (如 google-genai, redis, fitz 等)
+├── domain/            # 【領域層】：純業務模型與契約介面。嚴禁 import 任何第三方外部 SDK
 ├── application/       # 【應用層】：Use Cases 與流程調度。依賴 Domain 介面，以 DTO 進行輸入/輸出，協調核心業務
-├── infrastructure/    # 【基礎設施層】：外部技術實作。負責實作 Domain 介面 (如 Gemini API, RediSearch, PyMuPDF, python-docx 等)
-└── interfaces/        # 【表現層】：對外進入點。CLI 呼叫轉接器與 Web API 路由，不含任何核心轉檔邏輯
+├── infrastructure/    # 【基礎設施層】：外部技術實作。負責實作 Domain 介面（外部服務、資料庫、檔案解析等）
+└── interfaces/        # 【表現層】：對外進入點。CLI 呼叫轉接器與 Web API 路由，不含任何核心業務邏輯
 ```
 
 ### 核心不可變紅線
-1. **依賴反轉 (DIP)**：Use Case 只能呼叫 Domain 契約檔（`layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）定義的 Protocol 契約，外部實體工具必須透過依賴注入（Dependency Injection）組裝傳入。
-2. **向下相容性 (Backward Compatibility)**：根目錄的 [`convert_to_md.py`](convert_to_md.py) 作為 CLI 主要入口點，必須 100% 維持既有指令與引數相容。<!-- 專案專屬 -->
-3. **無損與容錯性 (Fail-Safe & Idempotency)**：
-   - 轉檔過程中絕不篡改磁碟上的原始檔案（Word 破圖採用記憶體自動補樁）。<!-- 專案專屬 -->
-   - 向量索引寫入具備冪等性（入庫前清除同候選人舊切片）。<!-- 專案專屬 -->
-4. **四層品管防線不可繞過**：所有檔案轉換產出必須經過確定性品管閥（`MarkdownQualityValidator`）檢核，低於 65 分必須自動隔離（Quarantine）。<!-- 專案專屬 -->
-5. **Token 能效與無效重複呼叫防禦 (Token Economics & Zero-Waste)**：批次向量化或轉檔必須具備內容 Hash 增量比對，未變更檔案重複執行時嚴禁調用外部 API（達成 0 Token 消耗）；健康文字文件優先採 Text-First 策略，嚴禁無條件渲染圖片浪費多模態 Token。<!-- 專案專屬：Text-First 一句 -->
-6. **Twelve-Factor 配置治理與零硬編碼防線 (No Hardcoding & Config Decoupling)**：所有外部服務連線、機密憑證、安全配額、重試策略與演算法閥值，嚴禁在業務程式碼中硬編碼；金鑰嚴禁納入 Git 版控；連線字串統一由設定模組（`config.module`，本專案為 `AppConfig`）與 `.env` 注入；代碼嚴禁寫死本機絕對路徑；Gate 2 代碼審查時強制執行 AST 掃描阻斷。
-7. **Git 版控衛生、零個資 (Zero-PII) 與跨平台路徑防線 (Git Hygiene & Privacy Guardrails)**：
-   - **零真實個資與真實企業名殘留**：程式碼、API 參數說明（如 Swagger `description`）、單元測試、CLI `--help` 範例、Prompt 模板（`prompts/*.md`）與工程文檔（`docs/`）中，**嚴禁出現任何真實求職者姓名、聯絡資訊、真實履歷檔名或源自真實履歷案例之特定企業名稱**（一律使用通用虛構名稱如 `王小明`、`sample_resume.md` 或通用工程術語）。單元測試嚴禁讀取本機 `data/` 或 `resume/` 實體檔案，必須 100% 於記憶體動態建構（如 `BytesIO`）。<!-- 專案專屬：敏感資料類型（求職者、履歷）與目錄名稱 -->
-   - **零本機絕對路徑與文檔相對路徑化**：代碼、測試與專案內文檔（`docs/`、`.agents/`、根目錄 `.md`）嚴禁寫死本機磁碟絕對路徑，代碼一律使用 `Path(__file__).resolve()` 動態定位，版控文檔一律使用專案相對路徑鏈接。
-   - **`.gitignore` 與 `.env.example` 強制同步**：任何新增之輸入/輸出資料夾或資料庫檔案必須列入 `.gitignore`（必備項目清單之正本為 `guardrails.required_gitignore`）；設定模組新增任何環境變數必須 100% 同步記載於 `.env.example`（`config.env_example`）。
+紅線編號 1–7 為固定識別碼（歷史文件以編號引用），依適用範圍分為兩組。
+
+#### 通用紅線（任何專案適用）
+* **紅線 1｜依賴反轉 (DIP)**：Use Case 只能呼叫 Domain 契約檔（`layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）定義的 Protocol 契約，外部實體工具必須透過依賴注入（Dependency Injection）組裝傳入。
+* **紅線 6｜Twelve-Factor 配置治理與零硬編碼防線 (No Hardcoding & Config Decoupling)**：所有外部服務連線、機密憑證、安全配額、重試策略與演算法閥值，嚴禁在業務程式碼中硬編碼；金鑰嚴禁納入 Git 版控；連線字串統一由設定模組（`config.module`，本專案為 `AppConfig`）與 `.env` 注入；代碼嚴禁寫死本機絕對路徑；Gate 2 代碼審查時強制執行 AST 掃描阻斷。
+* **紅線 7｜Git 版控衛生、零個資 (Zero-PII) 與跨平台路徑防線 (Git Hygiene & Privacy Guardrails)**：
+  - **零真實個資與真實企業名殘留**：程式碼、API 參數說明（如 Swagger `description`）、單元測試、CLI `--help` 範例、Prompt 模板與工程文檔（`docs/`）中，**嚴禁出現任何真實個資、真實檔名或源自真實案例之特定企業名稱**（一律使用通用虛構名稱或通用工程術語）。單元測試嚴禁讀取本機敏感目錄（`privacy.sensitive_dirs`）實體檔案，必須 100% 於記憶體動態建構（如 `BytesIO`）。本專案之敏感資料類型見下方「紅線 7 本專案補充」。
+  - **零本機絕對路徑與文檔相對路徑化**：代碼、測試與專案內文檔（`docs/`、`.agents/`、根目錄 `.md`）嚴禁寫死本機磁碟絕對路徑，代碼一律使用 `Path(__file__).resolve()` 動態定位，版控文檔一律使用專案相對路徑鏈接。
+  - **`.gitignore` 與 `.env.example` 強制同步**：任何新增之輸入/輸出資料夾或資料庫檔案必須列入 `.gitignore`（必備項目清單之正本為 `guardrails.required_gitignore`）；設定模組新增任何環境變數必須 100% 同步記載於 `.env.example`（`config.env_example`）。
+
+#### 本專案紅線（移植時整節改寫）<!-- 專案專屬：整節 -->
+* **紅線 2｜向下相容性 (Backward Compatibility)**：根目錄的 [`convert_to_md.py`](convert_to_md.py) 作為 CLI 主要入口點，必須 100% 維持既有指令與引數相容。
+* **紅線 3｜無損與容錯性 (Fail-Safe & Idempotency)**：
+  - 轉檔過程中絕不篡改磁碟上的原始檔案（Word 破圖採用記憶體自動補樁）。
+  - 向量索引寫入具備冪等性（入庫前清除同候選人舊切片）。
+* **紅線 4｜四層品管防線不可繞過**：所有檔案轉換產出必須經過確定性品管閥（`MarkdownQualityValidator`）檢核，低於 65 分必須自動隔離（Quarantine）。
+* **紅線 5｜Token 能效與無效重複呼叫防禦 (Token Economics & Zero-Waste)**：批次向量化或轉檔必須具備內容 Hash 增量比對，未變更檔案重複執行時嚴禁調用外部 API（達成 0 Token 消耗）；健康文字文件優先採 Text-First 策略，嚴禁無條件渲染圖片浪費多模態 Token。
+* **紅線 7 本專案補充（敏感資料類型與目錄）**：程式碼、API 參數說明（如 Swagger `description`）、單元測試、CLI `--help` 範例、Prompt 模板（`prompts/*.md`）與工程文檔（`docs/`）中，**嚴禁出現任何真實求職者姓名、聯絡資訊、真實履歷檔名或源自真實履歷案例之特定企業名稱**（一律使用通用虛構名稱如 `王小明`、`sample_resume.md` 或通用工程術語）。單元測試嚴禁讀取本機 `data/` 或 `resume/` 實體檔案，必須 100% 於記憶體動態建構（如 `BytesIO`）。
+* **本專案執行環境**：Python 3.13 on Windows。
 
 ---
 
@@ -87,7 +94,7 @@ src/
 
 ### 品質評測規則（檢索、抽取與 LLM 生成）
 
-本節補充閉環中「品質」面的驗收，適用於涉及檢索排序、結構化抽取或 LLM 生成的功能，以及 `prompts/` 與模型設定的變更。<!-- 專案專屬：無檢索或 LLM 功能之專案可整節刪除 -->
+本節補充閉環中「品質」面的驗收，適用於涉及檢索排序、結構化抽取或 LLM 生成的功能，以及 `prompts/` 與模型設定的變更；無檢索、抽取或 LLM 生成功能之專案可整節刪除。
 
 1. **Step 1 驗收條件必須含品質指標**：PRD 的 AC 除功能行為外，凡影響檢索、排序、抽取或生成結果者，必須定義可量化的品質目標（例如 Recall@K 下限、欄位 F1、評審分數門檻），並說明標註資料來源。每份規格須於驗收標準段落宣告 `品質評測範圍：是` 或 `品質評測範圍：否`；宣告為「是」而未見品質 AC 者，Gate 1 不得通過（`verify_doc_sync.py` 自 `docs.quality_ac_enforced_from` 所設編號起強制檢查，本專案為 0023）。
 2. **標註資料須為合成資料**：評測資料集一律使用虛構內容（例如 `王小明`），不得含真實履歷或真實個資，存放於 `tests/eval/data/`。
@@ -161,7 +168,7 @@ src/
 
 ## 4. 編程風格與交付規範
 
-1. **環境標準**：Python 3.13 on Windows。路徑處理一律使用 `pathlib.Path` 物件，檔案編碼一律為 UTF-8。<!-- 專案專屬：執行環境 -->
+1. **環境標準**：路徑處理一律使用 `pathlib.Path` 物件，檔案編碼一律為 UTF-8；執行環境見第 1 節「本專案紅線」。
 2. **對話溝通**：回覆一律採用**繁體中文（正體中文）**。
 3. **鏈接格式**：所有引用的檔案路徑或代碼符號，必須使用 Markdown 可點擊鏈接格式（如 `[runner.py](src/interfaces/cli/runner.py)`）。
 4. **交付報告**：交付時必須附帶標準的 **QA 實測摘要** 與 **Code Review 雙門禁審查結果摘要**。

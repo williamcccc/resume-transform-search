@@ -49,10 +49,10 @@
    - 所有檔案 I/O、文件解析物件與串流強制使用 with Context Manager（防 Windows 檔案鎖死）。
    - 重新拋出領域自定義例外時，強制使用 raise ... from err 保留原始呼叫堆疊。
    - 外部 API 妥善處理 429 配額用罄與 RECITATION 平滑降級。
-   - 日誌與版控零洩漏：嚴禁印出或寫入未脫敏之原始履歷明文、真實求職者個資 (PII)、真實企業案例、API 憑證與本機工作區絕對路徑；若新增環境變數或衍生目錄，必須同步更新 .env.example 與 .gitignore。<!-- 專案專屬：敏感資料類型 -->
+   - 日誌與版控零洩漏：嚴禁印出或寫入未脫敏之敏感資料（類型見 .agents/project/profile.md 第 4 節）、API 憑證與本機工作區絕對路徑；若新增環境變數或衍生目錄，必須同步更新 .env.example 與 .gitignore。
 3. Step 3 白箱單元測試 (Unit Testing)：
    - 調度 .agents/skills/unit-testing/ 技能，依其規範與檢核清單撰寫並執行（結構、負面情境數量、執行指令皆以該技能為準）。
-   - 紅線：100% 離線 Mock，嚴禁真實網路、付費 API、真實 Redis 或讀取本機 data/、resume/ 實體檔案。<!-- 專案專屬 -->
+   - 紅線：100% 離線 Mock，嚴禁真實網路、付費 API、真實資料庫或讀取敏感目錄（privacy.sensitive_dirs）實體檔案；本專案測試環境見 .agents/project/profile.md 第 5 節。
 4. Step 6 自主修復 (Auto-Fix)：
    - 調度 .agents/skills/auto-fix/ 技能。
    - 當單元測試失敗或被 Gatekeeper 打回時，遵循五步法根因定位 (RCA)。
