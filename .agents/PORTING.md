@@ -19,7 +19,7 @@
    * `[guardrails]`：連線 scheme（`url_schemes` 為空即停用寫死連線 URL 檢查，僅於確無外部連線時清空）、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。清空時刪除 `[[guardrails.url_exceptions]]` 表格，並於 `[guardrails]` 區段內（下一個區段標題之前）寫 `url_exceptions = []`。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
    * `[project]`：`identifiers` 改為新專案的業務名詞、檔名、類別名與原始碼路徑（如 `'\bapp/'`），`stack_terms` 改為新專案的技術元件名；兩者皆為正規式清單（單引號字面字串），供閉環自我測試守護核心文件中性化。無則清空。
-   * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
+   * `[docs]`：`quality_ac_enforced_from`、`security_ac_enforced_from` 與 `assumptions_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
    * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`（無項目時同 `url_exceptions`，於 `[security]` 區段內寫 `not_applicable = []`）；第四節適用條件為「技術」的章節（如 V9、V10、V17），新專案有使用者列於 `tech_chapters_in_use`，未使用者於 `not_applicable` 逐章登錄。
    * `[security.tools]`：`scan_paths` 改為新專案的原始碼與入口檔，`dependency_files` 改為新專案的需求檔（requirements 格式檔或 `pyproject.toml`）；`baseline` 指向 `project/` 下的基準檔（見第 4 步）。`diff_base` 改為新專案的主分支名稱；`full_scan_max_age_days` 依需要調整（預設 7 天）。
 4. **替換專案實例檔**：[project/](project/) 下的檔案是原專案的具體標準，整份替換為新專案內容；新專案尚無程式碼時可先留空表或只留類別標題，隨首份規格與首次審查補齊。核心檢核清單不必改寫。

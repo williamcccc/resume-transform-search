@@ -61,6 +61,8 @@ SCHEMA: Dict[str, Dict[str, str]] = {
     "docs": {
         "quality_ac_enforced_from": "int",
         "security_ac_enforced_from": "int",
+        # 自此編號起規格須含假設清單（Spec-0049）
+        "assumptions_enforced_from": "int",
         "agents_max_lines": "int",
     },
     # 專案安全特徵（Spec-0030）：移植時只回答特徵，由框架對照適用標準

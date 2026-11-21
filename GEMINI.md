@@ -14,4 +14,5 @@
    - 機械化探索、檔案清單掃描、語法檢查、測試執行：強制指定 `Model: 'flash'`。
    - Gate 1 架構前審、Gate 2 對抗式代碼審查、深度 RCA：始得調用 `Model: 'inherit'` 或 `'pro'`。
 2. **Artifact-First**：超過 30 行之報告優先寫入 Artifact Markdown 檔案（供 UI 快速展開檢視），並依 AGENTS.md 同步持久化至 `docs/specs/`、`docs/qa_reports/`。
-3. **子 Agent 路徑傳遞**：傳送目標檔案時使用專案相對路徑；若工具必須使用絕對路徑，僅於執行期動態解析，嚴禁寫入任何版控檔案。
+3. **需求澄清提問 (feature-design 階段 1.5)**：主對話於對話中以編號選擇題呈現澄清問題（含子 Agent 回報之問題），建議選項置首並標示「（建議）」。規則正本見 [requirement_clarification.md](.agents/skills/feature-design/references/requirement_clarification.md)。
+4. **子 Agent 路徑傳遞**：傳送目標檔案時使用專案相對路徑；若工具必須使用絕對路徑，僅於執行期動態解析，嚴禁寫入任何版控檔案。

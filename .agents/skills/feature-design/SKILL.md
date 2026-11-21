@@ -14,12 +14,16 @@ description: >-
 
 ## 作業流程 (Feature Design Workflow)
 
-當進入閉環流程的 **Step 1（規劃與架構前審階段 - Gate 1）** 時，必須嚴格依序執行以下階段（1、2、2.5、3、4、5）：
+當進入閉環流程的 **Step 1（規劃與架構前審階段 - Gate 1）** 時，必須嚴格依序執行以下階段（1、1.5、2、2.5、3、4、5）：
 
 ```mermaid
 flowchart TD
     Start["【輸入】使用者簡短需求 (一兩句話)"] --> Phase1["階段 1: 代碼庫主動探測 (Codebase Probe)<br>• 檢索既有 Domain 實體、Use Case 與底層 Adapter<br>• 梳理相依關係，避免重複造輪子"]
-    Phase1 --> Phase2["階段 2: 產出產品需求文件 (PRD)<br>• 參照 references/prd_template.md<br>• 明確 In/Out Scope 與驗收標準 (AC)"]
+    Phase1 --> Phase15{"階段 1.5: 需求澄清 (Clarification)<br>• 參照 references/requirement_clarification.md<br>• 命中觸發條件?"}
+    Phase15 -->|"是：選擇題提問 (≤ 5 題)"| Ask["使用者回答 / 授權"]
+    Ask --> Phase2
+    Phase15 -->|"否：略過並書面宣告"| Phase2
+    Phase2["階段 2: 產出產品需求文件 (PRD)<br>• 參照 references/prd_template.md<br>• 明確 In/Out Scope、驗收標準 (AC) 與假設清單"]
     Phase2 --> Phase25["階段 2.5: 安全與非功能需求評估 (Security & NFR)<br>• 參照 references/security_nfr_framework.md<br>• 範圍宣告、ISO 25010 宣告、STRIDE 威脅表、NFR-* 驗收條件"]
     Phase25 --> Phase3["階段 3: 8 大架構維度前審 (Arch Review)<br>• 參照 references/arch_review_checklist.md<br>• 重大變更於 docs/adr/ 產出 ADR 草案"]
     Phase3 --> Phase4["階段 4: 產出 DDD 技術實作規格書 (Tech Spec)<br>• 參照 references/tech_spec_template.md<br>• 定義 Domain Protocol、DTO、資源 with 與測試計畫"]
@@ -37,12 +41,16 @@ flowchart TD
 3. 檢索 Infrastructure 層（`layers.infrastructure`）：確認現有外部工具整合方式（如資料庫綱要或索引結構、檔案解析器、外部 API 客戶端）。
 4. 檢索 CLI 等對外入口（本專案入口見[專案概況](../../project/profile.md)）：確認現有參數命名與調用方式。
 
+### 階段 1.5：需求澄清 (Requirement Clarification)
+代碼探測只能回答「怎麼做」；「為什麼做、做到哪裡算完成」須交還使用者決定。依 [requirement_clarification.md](./references/requirement_clarification.md)（觸發判定、提問方式、途中新問題處理之唯一正本）判定是否提問；未命中觸發條件者略過，但須於 PRD 假設清單書面宣告。
+
 ### 階段 2：產出產品需求文件 (PRD)
 參照 [prd_template.md](./references/prd_template.md)，將使用者簡短需求展開為完整的 PRD：
 * **使用者情境與目標**：界定觸發時機與商業痛點。
 * **範疇界定 (Scope)**：嚴格劃分 In-Scope 與 Out-of-Scope，防止無節制膨脹。
 * **輸入與輸出合約**：定義參數型別、必填性與回傳格式。
 * **驗收標準 (Acceptance Criteria)**：以條列或 Given-When-Then 明確定義正常情境、極限邊界與錯誤處理。
+* **假設清單 (Assumptions)**：每條假設註明來源；寫不出合法來源者回階段 1.5。
 
 ### 階段 2.5：安全與非功能需求評估 (Security & NFR Assessment)
 依 [security_nfr_framework.md](./references/security_nfr_framework.md)（閉環通用核心，移植時不得刪除）執行，結果寫入 PRD 第 5 節：
@@ -74,6 +82,7 @@ flowchart TD
 ---
 
 ## 相關參考資料
+* [需求澄清規則 (Requirement Clarification)](./references/requirement_clarification.md)
 * [產品需求文件範本 (PRD Template)](./references/prd_template.md)
 * [技術實作規格書範本 (Tech Spec Template)](./references/tech_spec_template.md)
 * [8 大架構維度檢核清單 (Arch Review Checklist)](./references/arch_review_checklist.md)

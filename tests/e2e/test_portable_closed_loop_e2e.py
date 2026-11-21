@@ -58,6 +58,8 @@ def _rewrite_project_toml(text: str) -> str:
     text = re.sub(r"quality_ac_enforced_from = \d+", "quality_ac_enforced_from = 1", text)
     # Spec-0030：安全門檻從第一份規格起、掃描範圍與需求檔改為新專案、工具沿用本機 .venv-tools
     text = re.sub(r"security_ac_enforced_from = \d+", "security_ac_enforced_from = 1", text)
+    # Spec-0049：假設清單門檻從第一份規格起
+    text = re.sub(r"assumptions_enforced_from = \d+", "assumptions_enforced_from = 1", text)
     text = re.sub(r"scan_paths = \[[^\]]*\]", 'scan_paths = ["app"]', text)
     text = re.sub(r"dependency_files = \[[^\]]*\]", 'dependency_files = ["requirements.txt"]', text)
     text = re.sub(r'tools_venv = "[^"]*"', f'tools_venv = "{TOOLS_VENV.as_posix()}"', text)
