@@ -35,7 +35,7 @@ flowchart TD
 1. 檢索 Domain 層（`project.toml` 的 `layers.domain`，本專案為 `src/domain/models.py` 與 `src/domain/interfaces.py`）：確認是否有現成可復用的業務模型或契約。
 2. 檢索 Application 層（`layers.application`，本專案為 `src/application/`）：確認是否有相關的 Use Case 或 DTO。
 3. 檢索 Infrastructure 層（`layers.infrastructure`，本專案為 `src/infrastructure/`）：確認現有外部工具整合方式（如資料庫綱要或索引結構、檔案解析器、外部 API 客戶端）。
-4. 檢索 `convert_to_md.py` 或相關 CLI：確認現有參數命名與調用方式。<!-- 專案專屬 -->
+4. 檢索 CLI 等對外入口（本專案入口見[專案概況](../../project/profile.md)）：確認現有參數命名與調用方式。
 
 ### 階段 2：產出產品需求文件 (PRD)
 參照 [prd_template.md](./references/prd_template.md)，將使用者簡短需求展開為完整的 PRD：

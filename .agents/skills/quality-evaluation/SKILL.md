@@ -55,7 +55,7 @@ description: >-
 
 ### 4.2 評審 prompt 結構
 
-評審 prompt 包含四部分：角色設定、rubric、待評內容、輸出格式。待評內容要用既有的 fence 方式隔離，避免內容中的指令影響評審。輸出要求 JSON，並要求先寫理由再給分。溫度設為 0。可參考 `prompts/judge_system.md` 與 `prompts/judge_text_prompt.md`。<!-- 專案專屬 -->
+評審 prompt 包含四部分：角色設定、rubric、待評內容、輸出格式。待評內容要用既有的 fence 方式隔離，避免內容中的指令影響評審。輸出要求 JSON，並要求先寫理由再給分。溫度設為 0。可參考專案既有的評審 prompt 資產檔。
 
 ### 4.3 人工校準
 

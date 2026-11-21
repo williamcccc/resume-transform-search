@@ -5,7 +5,7 @@
 ---
 
 ### 一、REQUIREMENTS.md 同步檢核
-- [ ] **CLI 入口命令同步**：所有新增或變更的命令列參數（如 `--review`, `--index-to-redis`, `--output-dir`<!-- 專案專屬 -->）是否已登載至 `REQUIREMENTS.md`？
+- [ ] **CLI 入口命令同步**：所有新增或變更的命令列參數（本專案參數舉例見 `.agents/project/profile.md`）是否已登載至 `REQUIREMENTS.md`？
 - [ ] **參數預設值與型別標註**：每個參數的型別（String, Flag, Integer）與預設行為是否說明清晰？
 - [ ] **業務需求狀態**：PRD 中定義的本次功能是否已納入「已實作功能矩陣」？
 - [ ] **CLI 使用範例更新**：文檔中的命令列操作範例是否經測試可實際執行？

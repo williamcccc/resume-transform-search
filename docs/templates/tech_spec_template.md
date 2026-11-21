@@ -7,15 +7,15 @@
 # Tech Spec: [功能名稱 / 模組名稱]
 
 ## 1. 架構分層變更影響矩陣 (Architecture Impact Matrix)
-列出本次實作在各層需新增或調整的檔案清單（目錄路徑依 `.agents/project.toml` 的 `[layers]`，下表為本專案路徑）：<!-- 專案專屬：目錄路徑 -->
+列出本次實作在各層需新增或調整的檔案清單（目錄路徑依 `.agents/project.toml` 的 `[layers]` 填寫）：
 | 分層 | 目錄路徑 | 檔案名稱 | 變更類型 (新增/修改) | 核心職責 |
 | :--- | :--- | :--- | :---: | :--- |
-| **Domain** | `src/domain/` | `models.py` | 修改/新增 | 定義純業務實體與值物件 |
-| **Domain** | `src/domain/` | `interfaces.py` | 修改/新增 | 定義抽象 Protocol 契約介面 |
-| **Application** | `src/application/`| `dto.py` | 修改/新增 | 傳入傳出資料傳輸物件 |
-| **Application** | `src/application/`| `xxx_use_case.py` | 修改/新增 | 流程調度與業務規則執行 |
-| **Infrastructure**| `src/infrastructure/` | `xxx_adapter.py` | 修改/新增 | 實作外部技術、檔案/DB 存取 |
-| **Interfaces** | `src/interfaces/cli/` | `xxx_cli.py` | 修改/新增 | CLI 旗標解析與向後相容轉接 |
+| **Domain** | `<layers.domain>/` | `models.py` | 修改/新增 | 定義純業務實體與值物件 |
+| **Domain** | `<layers.domain>/` | `interfaces.py` | 修改/新增 | 定義抽象 Protocol 契約介面 |
+| **Application** | `<layers.application>/`| `dto.py` | 修改/新增 | 傳入傳出資料傳輸物件 |
+| **Application** | `<layers.application>/`| `xxx_use_case.py` | 修改/新增 | 流程調度與業務規則執行 |
+| **Infrastructure**| `<layers.infrastructure>/` | `xxx_adapter.py` | 修改/新增 | 實作外部技術、檔案/DB 存取 |
+| **Interfaces** | `<layers.interfaces>/cli/` | `xxx_cli.py` | 修改/新增 | CLI 旗標解析與向後相容轉接 |
 | **Tests** | `tests/unit/` | `test_xxx.py` | 新增 | 100% Mock 離線單元測試 |
 
 ---
