@@ -77,11 +77,22 @@ def layer_module(layer_rel: str, src: str, package: str) -> str:
     return ".".join(part for part in (package, rel_module) if part)
 
 
-def internal_roots(package: str, layer_modules) -> set:
-    """專案內部之頂層模組名：package 第一段；package 為空時為各層之頂層名稱（Spec-0047）。"""
+def internal_roots(package: str, layer_modules, src_dir: Path = None, skip_dirs=()) -> set:
+    """專案內部之頂層模組名：package 第一段（Spec-0047）。
+    package 為空（扁平根目錄）時為各層之頂層名稱，加上 src_dir 下實際存在之頂層套件與模組；
+    略過 skip_dirs 與隱藏目錄（含閉環核心 .agents/），與一般佈局「package 之下皆屬內部」一致（Spec-0048）。"""
     if package:
         return {package.split(".")[0]}
-    return {module.split(".")[0] for module in layer_modules if module}
+    roots = {module.split(".")[0] for module in layer_modules if module}
+    if src_dir is not None and src_dir.is_dir():
+        skip = set(skip_dirs) | {"__pycache__"}
+        for entry in src_dir.iterdir():
+            if entry.name.startswith(".") or entry.name in skip:
+                continue
+            name = entry.name if entry.is_dir() else (entry.stem if entry.suffix == ".py" else "")
+            if name.isidentifier():
+                roots.add(name)
+    return roots
 
 
 LAYERS_ENABLED = _LAYERS["enabled"]
@@ -95,7 +106,8 @@ APPLICATION_PACKAGE = layer_module(_LAYERS["application"], _LAYERS["src"], SRC_I
 INFRASTRUCTURE_PACKAGE = layer_module(_LAYERS["infrastructure"], _LAYERS["src"], SRC_IMPORT_PACKAGE)
 INTERFACES_PACKAGE = layer_module(_LAYERS["interfaces"], _LAYERS["src"], SRC_IMPORT_PACKAGE)
 INTERNAL_ROOTS = internal_roots(
-    SRC_IMPORT_PACKAGE, (DOMAIN_PACKAGE, APPLICATION_PACKAGE, INFRASTRUCTURE_PACKAGE, INTERFACES_PACKAGE)
+    SRC_IMPORT_PACKAGE, (DOMAIN_PACKAGE, APPLICATION_PACKAGE, INFRASTRUCTURE_PACKAGE, INTERFACES_PACKAGE),
+    SRC_DIR, _GUARDRAILS["ignore_scan_dirs"],
 )
 APPLICATION_PARTS = Path(_LAYERS["application"]).parts
 CONFIG_MODULE_PATH = Path(CONFIG["config"]["module"])

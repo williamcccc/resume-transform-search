@@ -347,6 +347,19 @@ class TestGuardrailHelpers(unittest.TestCase):
         self.assertEqual(roots("kit.sub", ["kit.domain"]), {"kit"})
         self.assertEqual(roots("", ["domain", "application", "infra.db", ""]), {"domain", "application", "infra"})
 
+    def test_internal_roots_flat_layout_lists_top_level_entries(self):
+        """Spec-0048 AC-3：package 為空時，src 下之頂層套件與模組皆屬內部；略過目錄、隱藏目錄與非識別字不計"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for rel in ("domain/a.py", "shared/u.py", "vendor_env/x.py", ".agents/t.py", "my-docs/r.md", "__pycache__/c.pyc"):
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text("", encoding="utf-8")
+            for rel in ("main.py", "README.md"):
+                (root / rel).write_text("", encoding="utf-8")
+            found = self.guard.internal_roots("", ["domain", "application"], root, ["vendor_env"])
+            self.assertEqual(found, {"domain", "application", "shared", "main"})
+            self.assertEqual(self.guard.internal_roots("kit", ["kit.domain"], root, []), {"kit"})
+
     def test_in_package_requires_dot_boundary(self):
         self.assertTrue(self.guard._in_package("app.domain.x", "app.domain"))
         self.assertFalse(self.guard._in_package("app.domain_extra", "app.domain"))

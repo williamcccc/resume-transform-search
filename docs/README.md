@@ -64,7 +64,7 @@ flowchart LR
 | **0045** | 第二次移植實測卡點修正：自我測試路徑假設、空清單誤判、空目錄致 CI 失敗 | — | [Spec-0045](./specs/0045-porting-trial-2-fixes-spec.md) | `.agents/tests/test_guardrail_gaps.py`、`.agents/tests/test_review_checklist_portable.py`、`.agents/tests/test_structure_checks.py` | [QA-0045](./qa_reports/0045-porting-trial-2-fixes-qa.md) |
 | **0046** | 核心自我測試去除實例值斷言、移植演練多組參數化 | — | [Spec-0046](./specs/0046-core-tests-instance-assumptions-spec.md) | `tests/e2e/test_portable_variants_e2e.py`、`tests/unit/test_project_instance_files.py`、`.agents/tests/test_guardrail_gaps.py` | [QA-0046](./qa_reports/0046-core-tests-instance-assumptions-qa.md) |
 | **0047** | 第三輪移植實測卡點修正：套件根名推導、原始碼掃描範圍、設定檔 BOM、pyproject 依賴掃描 | — | [Spec-0047](./specs/0047-porting-trial-3-fixes-spec.md) | `.agents/skills/code-review/scripts/audit_guardrails.py`、`.agents/skills/code-review/scripts/security_scan.py`、`.agents/lib/project_config.py`、`tests/e2e/test_portable_variants_e2e.py` | [QA-0047](./qa_reports/0047-porting-trial-3-fixes-qa.md) |
-| **0048** | STRIDE 威脅表以欄名判定、扁平根目錄內部模組判定 | — | [Spec-0048](./specs/0048-stride-table-and-flat-internal-modules-spec.md) | `.agents/skills/doc-sync/scripts/verify_doc_sync.py`、`.agents/skills/code-review/scripts/audit_guardrails.py` | —（G1 提案，待核准） |
+| **0048** | STRIDE 威脅表以欄名判定、扁平根目錄內部模組判定 | — | [Spec-0048](./specs/0048-stride-table-and-flat-internal-modules-spec.md) | `.agents/skills/doc-sync/scripts/verify_doc_sync.py`、`.agents/skills/code-review/scripts/audit_guardrails.py` | [QA-0048](./qa_reports/0048-stride-table-and-flat-internal-modules-qa.md) |
 
 ### 缺陷修正追溯清單
 
