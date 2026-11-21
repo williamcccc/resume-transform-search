@@ -1,4 +1,4 @@
-"""架構前審 8 大維度通用化之文件結構測試（Spec-0035）。
+"""架構前審 8 大維度通用化之文件結構測試（Spec-0035）；閉環核心自我測試（Spec-0037），移植後仍須通過。
 
 只讀取版控中的規範文件，不讀取本機 data/ 或 resume/。
 """
@@ -8,7 +8,6 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CHECKLIST = PROJECT_ROOT / ".agents" / "skills" / "feature-design" / "references" / "arch_review_checklist.md"
-CRITERIA = PROJECT_ROOT / ".agents" / "project" / "arch_review_criteria.md"
 ADR_TEMPLATE = PROJECT_ROOT / ".agents" / "skills" / "doc-sync" / "references" / "adr_template.md"
 ROW = re.compile(r"^\|\s*\**(\d)\**\s*\|(.+)\|\s*$", re.MULTILINE)
 
@@ -27,7 +26,6 @@ class TestArchReviewPortable(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.core = CHECKLIST.read_text(encoding="utf-8")
-        cls.criteria = CRITERIA.read_text(encoding="utf-8")
         cls.adr = ADR_TEMPLATE.read_text(encoding="utf-8")
 
     def test_core_checklist_has_no_project_markers(self):
@@ -42,16 +40,6 @@ class TestArchReviewPortable(unittest.TestCase):
             with self.subTest(dimension=num):
                 self.assertEqual(len(cells), 4)
                 self.assertTrue(all(cells), f"維度 {num} 有空白欄位")
-
-    def test_project_criteria_cover_all_dimensions(self):
-        """AC-2：專案實例檔逐維度皆有通過標準，維度名稱與核心一致"""
-        core_rows = _rows(self.core)
-        rows = _rows(self.criteria)
-        self.assertEqual(sorted(rows), list(range(1, 9)))
-        for num, cells in rows.items():
-            with self.subTest(dimension=num):
-                self.assertEqual(_dimension_name(cells[0]), _dimension_name(core_rows[num][0]))
-                self.assertTrue(cells[1])
 
     def test_adr_template_dimension_names_match_core(self):
         """AC-3：ADR 範本第 5 節維度名稱與核心一致，且無專屬標記"""

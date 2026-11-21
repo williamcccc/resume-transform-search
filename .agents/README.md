@@ -9,6 +9,7 @@
 | [architect/](architect/AGENT.md)、[developer/](developer/AGENT.md)、[gatekeeper/](gatekeeper/AGENT.md) | 角色手冊：負責步驟、綁定技能、交接合約 | 誰做、交給誰 |
 | [project.toml](project.toml)、[lib/](lib/project_config.py) | 專案專屬值的唯一正本與其讀取模組 | 閘門腳本檢查哪些路徑、清單與門檻 |
 | [project/](project/) | 專案實例檔：本專案對通用檢核清單的具體標準——[arch_review_criteria.md](project/arch_review_criteria.md)（Gate 1）、[review_criteria.md](project/review_criteria.md)（Gate 2） | 本專案的答案是什麼（移植時整份替換） |
+| [tests/](tests/) | 閉環核心自我測試：閘門腳本與規範結構（`tests/e2e/` 為耗時之端到端測試） | 核心本身是否正常（移植後仍須通過） |
 | [PORTING.md](PORTING.md) | 移植指南 | 搬到其他專案時要改什麼 |
 
 **使用方式**：

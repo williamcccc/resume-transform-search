@@ -40,6 +40,9 @@
    python .agents/skills/doc-sync/scripts/verify_doc_sync.py
    python .agents/skills/code-review/scripts/audit_guardrails.py
    python .agents/skills/code-review/scripts/security_scan.py
+   python -m unittest discover -s .agents/tests -p "test_*.py"
    ```
+
+   最後一行是閉環核心的自我測試（隨 `.agents/` 一併複製，驗證閘門腳本與規範結構）；新專案的 CI 建議加入同一步。
 
    結束碼 2 表示 `project.toml` 缺鍵或格式錯誤，訊息會指出缺少的鍵。

@@ -22,6 +22,7 @@ CHECKLIST_REL = Path(".agents/skills/feature-design/references/arch_review_check
 CRITERIA_REL = Path(".agents/project/arch_review_criteria.md")
 REVIEW_CHECKLIST_REL = Path(".agents/skills/code-review/references/review_checklist.md")
 REVIEW_CRITERIA_REL = Path(".agents/project/review_criteria.md")
+PROFILE_REL = Path(".agents/project/profile.md")
 TOOLS_VENV = PROJECT_ROOT / ".venv-tools"
 CORS_SOURCE = (
     "from fastapi import FastAPI\n"
@@ -89,6 +90,11 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
             "# 架構前審：本專案通過標準\n\n"
             "> 依 [arch_review_checklist.md](../skills/feature-design/references/arch_review_checklist.md) 逐維度補齊。\n\n"
             "| # | 維度 | 本專案通過標準 |\n| :---: | :--- | :--- |\n",
+            encoding="utf-8",
+        )
+        # Spec-0037：專案概況檔整份替換
+        (self.root / PROFILE_REL).write_text(
+            "# 專案概況\n\n## 1. 入口與介面\n\n* CLI 入口：`demo_cli.py`\n\n## 2. 主要流程\n\n* 資料匯入\n",
             encoding="utf-8",
         )
         # Spec-0036：Gate 2 專案實例檔整份替換，先只留類別標題
@@ -169,6 +175,20 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
             with self.subTest(script=rel.name):
                 code, out = self.run_script(rel)
                 self.assertEqual(code, 0, out)
+
+    def test_a3_core_self_tests_pass_in_ported_project(self):
+        """Spec-0037 AC-5：閉環自我測試隨 .agents/ 移植，於替換實例檔與設定後的假專案中全數通過"""
+        self.assertTrue((self.root / ".agents" / "tests").is_dir())
+        proc = subprocess.run(
+            [sys.executable, "-X", "utf8", "-m", "unittest", "discover", "-s", ".agents/tests", "-p", "test_*.py"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=300,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-3000:])
+        self.assertIn("OK", proc.stderr)
 
     def test_p2_original_fingerprints_absent_after_porting(self):
         original = tomllib.loads((PROJECT_ROOT / ".agents" / "project.toml").read_text(encoding="utf-8"))

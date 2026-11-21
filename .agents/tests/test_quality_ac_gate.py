@@ -13,6 +13,20 @@ _spec = importlib.util.spec_from_file_location("verify_doc_sync", _SCRIPT)
 vds = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vds)
 
+# 測試案例以「自 0023 起強制」撰寫；固定門檻，使結果不受各專案 docs.quality_ac_enforced_from 設定影響（Spec-0037）
+_TEST_ENFORCED_FROM = 23
+_original_enforced_from = None
+
+
+def setUpModule():
+    global _original_enforced_from
+    _original_enforced_from = vds.QUALITY_AC_ENFORCED_FROM
+    vds.QUALITY_AC_ENFORCED_FROM = _TEST_ENFORCED_FROM
+
+
+def tearDownModule():
+    vds.QUALITY_AC_ENFORCED_FROM = _original_enforced_from
+
 
 def make_spec(scope_line, ac_lines, extra=""):
     return f"""# 規格
