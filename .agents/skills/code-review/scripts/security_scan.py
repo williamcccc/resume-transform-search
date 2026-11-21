@@ -458,7 +458,7 @@ def scan(root: Path = ROOT_DIR, runner: Runner = default_runner, today: Optional
 def main(argv: Optional[Sequence[str]] = None) -> int:
     if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="Gate 2 通用安全掃描（Semgrep + pip-audit，Spec-0030）")
+    parser = argparse.ArgumentParser(description="Gate 2 通用安全掃描（Semgrep + pip-audit）")
     parser.add_argument("--full", action="store_true", help="完整掃描（忽略差異與上次完整掃描日期）")
     parser.add_argument("--write-baseline", action="store_true", help="將目前未登錄之發現寫入基準檔（隱含完整掃描）")
     parser.add_argument("--reason", help="寫入基準檔時之理由（必填）")

@@ -1,6 +1,6 @@
 # 提案與規格書：閉環核心之 DDD 前提明文化、對外介面去 CLI 預設、掃描說明去規格編號
 
-> **狀態**：G1 提案（待 G2 使用者核准）｜**類型**：規範變更（大改：修改驗證腳本 `security_scan.py` 說明文字；其餘為小改內容）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/PORTING.md`、`.agents/project.toml` 註解、角色檔與技能、技術規格範本（含 `docs/templates/` 鏡像）、`security_scan.py`，不涉及 `src/`、不修改紅線
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，3 項待決事項全數採建議；QA 見 [QA-0043](../qa_reports/0043-ddd-premise-and-interface-neutral-qa.md)）｜**類型**：規範變更（大改：修改驗證腳本 `security_scan.py` 說明文字；其餘為小改內容）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/PORTING.md`、`.agents/project.toml` 註解、角色檔與技能、技術規格範本（含 `docs/templates/` 鏡像）、`security_scan.py`，不涉及 `src/`、不修改紅線
 
 ## 一、動機
 

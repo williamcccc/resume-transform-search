@@ -77,7 +77,7 @@
 ---
 
 ## 5. 表現層與向下相容性 (Presentation & Backward Compatibility)
-* **CLI 指令設計**：
+* **對外介面設計**（CLI 指令、API 端點等擇一或並列；以下以 CLI 為例）：
   ```bash
   python <cli_entry>.py <input> --new-flag <value>
   ```
