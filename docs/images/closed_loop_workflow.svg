@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 1410" width="1340" height="1410" role="img" aria-labelledby="title desc" style="background:#0b1120; font-family:'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <title id="title">閉環工作流分軌</title>
-  <desc id="desc">AGENTS.md 分流表將請求導向簡單文件任務、規範變更、功能開發、缺陷修正與緊急止血五類；功能、缺陷、止血共用 Step 2 至 6，再經 Step 7 文檔同步後交付；規範變更走 G1 至 G6。</desc>
+  <desc id="desc">AGENTS.md 分流表將請求導向簡單文件任務、規範變更、功能開發、缺陷修正與緊急止血五類；功能開發 Step 1 於代碼探測後先判定是否向使用者澄清需求，再產出附假設清單之規格送 Gate 1；功能、缺陷、止血共用 Step 2 至 6，再經 Step 7 文檔同步後交付；規範變更走 G1 至 G6。</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
@@ -118,15 +118,19 @@
 
   <!-- 功能開發 Step 1 + Gate 1 -->
   <line x1="670" y1="418" x2="670" y2="448" class="line" marker-end="url(#arrow)"/>
-  <rect x="560" y="450" width="220" height="112" rx="10" fill="#1a1745" stroke="#818cf8" stroke-width="1.5"/>
-  <text x="670" y="476" text-anchor="middle" class="bt">Step 1 需求規格化</text>
-  <text x="670" y="497" text-anchor="middle" class="mono">feature-design</text>
-  <text x="670" y="521" text-anchor="middle" class="bs">PRD＋Tech Spec</text>
-  <text x="670" y="543" text-anchor="middle" class="bs">QA 驗收案例矩陣</text>
-  <line x1="670" y1="562" x2="670" y2="583" class="line" marker-end="url(#arrow)"/>
-  <rect x="560" y="585" width="220" height="56" rx="10" fill="#451a03" stroke="#f59e0b" stroke-width="2"/>
-  <text x="670" y="609" text-anchor="middle" class="bt">★ Gate 1 架構前審</text>
-  <text x="670" y="630" text-anchor="middle" class="bx">未達標 → 退回 Step 1</text>
+  <rect x="560" y="450" width="220" height="58" rx="10" fill="#1a1745" stroke="#818cf8" stroke-width="1.5"/>
+  <text x="670" y="474" text-anchor="middle" class="bt">Step 1 需求規格化</text>
+  <text x="670" y="496" text-anchor="middle" class="mono">feature-design：代碼探測</text>
+  <line x1="670" y1="508" x2="670" y2="519" class="line" marker-end="url(#arrow)"/>
+  <rect x="560" y="521" width="220" height="50" rx="10" fill="#451a03" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3"/>
+  <text x="670" y="542" text-anchor="middle" class="bt">★ 需求澄清（階段 1.5）</text>
+  <text x="670" y="562" text-anchor="middle" class="bx">命中觸發才問，≤ 5 題選擇題</text>
+  <line x1="670" y1="571" x2="670" y2="582" class="line" marker-end="url(#arrow)"/>
+  <rect x="560" y="584" width="220" height="57" rx="10" fill="#451a03" stroke="#f59e0b" stroke-width="2"/>
+  <text x="670" y="608" text-anchor="middle" class="bt">★ Gate 1 架構前審</text>
+  <text x="670" y="630" text-anchor="middle" class="bx">PRD＋假設清單＋Tech Spec</text>
+  <path d="M560,612 H546 V479 H556" class="retry" marker-end="url(#arrowGreen)"/>
+  <text x="539" y="546" text-anchor="middle" class="tiny" transform="rotate(-90 539 546)">未達標退回</text>
 
   <!-- 缺陷修正 Step 1B -->
   <line x1="930" y1="418" x2="930" y2="448" class="line" marker-end="url(#arrow)"/>
@@ -214,7 +218,7 @@
 
   <!-- 圖例 -->
   <rect x="300" y="1334" width="22" height="16" rx="4" fill="#451a03" stroke="#f59e0b" stroke-width="2"/>
-  <text x="330" y="1347" class="lg">人類核准或門禁</text>
+  <text x="330" y="1347" class="lg">人類決定或門禁</text>
   <line x1="470" y1="1342" x2="510" y2="1342" class="esc" marker-end="url(#arrowAmber)"/>
   <text x="518" y="1347" class="lg">升級回功能開發（需使用者確認）</text>
   <line x1="760" y1="1342" x2="800" y2="1342" class="fail" marker-end="url(#arrowPink)"/>
