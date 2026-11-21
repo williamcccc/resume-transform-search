@@ -4,6 +4,7 @@
 不修改專案本身的任何檔案；假專案內容全為合成資料。
 安全掃描案例使用本專案 .venv-tools 內之真實 Semgrep／pip-audit；未安裝時略過，無法連網時只驗證不阻斷。
 """
+import json
 import re
 import shutil
 import subprocess
@@ -67,6 +68,8 @@ def _rewrite_project_toml(text: str) -> str:
     text = re.sub(r"^identifiers = \[.*?^\]", lambda _: r"identifiers = ['demo_widget', '\bapp/']", text,
                   count=1, flags=re.MULTILINE | re.DOTALL)
     text = re.sub(r"stack_terms = \[[^\]]*\]", "stack_terms = ['DemoDB']", text)
+    # Spec-0044：連線 scheme 改為與原專案不同之組合，揭露自我測試對原專案設定值之假設
+    text = re.sub(r"^url_schemes = \[[^\]]*\]", 'url_schemes = ["postgres", "https"]', text, count=1, flags=re.MULTILINE)
     return text
 
 
@@ -83,14 +86,15 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         ignore = shutil.ignore_patterns("__pycache__")
         for name in (".agents", ".claude"):
             shutil.copytree(PROJECT_ROOT / name, self.root / name, ignore=ignore)
-        for name in ("AGENTS.md", "CLAUDE.md"):
+        # Spec-0044：工具薄層檔一律複製（核心文件有連結指向它們）
+        for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
             shutil.copy2(PROJECT_ROOT / name, self.root / name)
         for skill in BUSINESS_SKILLS:
             shutil.rmtree(self.root / ".agents" / "skills" / skill)
             shutil.rmtree(self.root / ".claude" / "skills" / skill)
 
-        # PORTING.md：基準檔是原專案的發現，不得帶走
-        (self.root / ".agents" / "project" / "security_baseline.json").unlink()
+        # PORTING.md 第 4 步（Spec-0044）：基準檔是原專案的發現，不得帶走；內容清空、保留檔案
+        (self.root / ".agents" / "project" / "security_baseline.json").write_text('{"findings": []}\n', encoding="utf-8")
         config = self.root / ".agents" / "project.toml"
         config.write_text(_rewrite_project_toml(config.read_text(encoding="utf-8")), encoding="utf-8")
         self.config = tomllib.loads(config.read_text(encoding="utf-8"))
@@ -156,14 +160,15 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
 
     # ---- AC-6：移植演練 ----
     def test_a4_business_skills_removed_by_config_list(self):
-        """Spec-0038 AC-5：依 [project].business_skills 刪除業務技能並清空清單，基準檔位於 project/ 且已移除"""
+        """Spec-0038 AC-5：依 [project].business_skills 刪除業務技能並清空清單；基準檔位於 project/ 且內容已清空（Spec-0044）"""
         self.assertTrue(BUSINESS_SKILLS)
         for skill in BUSINESS_SKILLS:
             with self.subTest(skill=skill):
                 self.assertFalse((self.root / ".agents" / "skills" / skill).exists())
                 self.assertFalse((self.root / ".claude" / "skills" / skill).exists())
         self.assertEqual(self.config["project"]["business_skills"], [])
-        self.assertFalse((self.root / ".agents" / "project" / "security_baseline.json").exists())
+        baseline = self.root / ".agents" / "project" / "security_baseline.json"
+        self.assertEqual(json.loads(baseline.read_text(encoding="utf-8")), {"findings": []})
         self.assertFalse((self.root / ".agents" / "security_baseline.json").exists())
 
     def test_a5_structure_checks_guard_ported_project(self):

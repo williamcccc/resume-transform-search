@@ -161,7 +161,11 @@ class TestHardcodedUrlMessageIsNeutral(GuardrailGapTestCase):
     """Spec-0040：寫死連線 URL 之違規訊息以通用名稱「設定模組」指引，不含原專案類別名"""
 
     def test_hardcoded_url_message_points_to_config_module(self):
-        self.project.write("app/infrastructure/client.py", 'ENDPOINT = "redis://db.example.invalid:6379/0"\n')
+        # Spec-0044：scheme 取自實例設定，不假設原專案之技術堆疊
+        schemes = self.project.config["guardrails"]["url_schemes"]
+        if not schemes:
+            self.skipTest("guardrails.url_schemes 為空，本專案不檢查寫死連線 URL")
+        self.project.write("app/infrastructure/client.py", f'ENDPOINT = "{schemes[0]}://db.example.invalid:6379/0"\n')
         code, out = self.project.run()
         self.assertEqual(code, 1, out)
         self.assertIn("寫死外部連線 URL", out)

@@ -1,6 +1,6 @@
 # 提案與規格書：移植實測卡點修正（自我測試寫死 scheme、選用檔案斷鏈、表格陣列清空說明）
 
-> **狀態**：G1 提案（待 G2 使用者核准）｜**類型**：規範變更（大改：修改驗證用程式庫 `project_config.py` 錯誤訊息與核心自我測試）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/PORTING.md`、`.agents/lib/project_config.py`、`.agents/tests/`、`tests/e2e/test_portable_closed_loop_e2e.py`，不涉及 `src/`、不修改紅線
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，3 項待決事項全數採建議；QA 見 [QA-0044](../qa_reports/0044-porting-trial-fixes-qa.md)）｜**類型**：規範變更（大改：修改驗證用程式庫 `project_config.py` 錯誤訊息與核心自我測試）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/PORTING.md`、`.agents/lib/project_config.py`、`.agents/tests/`、`tests/e2e/test_portable_closed_loop_e2e.py`，不涉及 `src/`、不修改紅線
 
 ## 一、動機
 

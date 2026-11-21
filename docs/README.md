@@ -60,6 +60,7 @@ flowchart LR
 | **0041** | 守護字詞移入專案實例、核心規範去除寫死的 src/ | — | [Spec-0041](./specs/0041-instance-guard-terms-and-src-neutral-spec.md) | `.agents/tests/test_neutral_examples.py`、`.agents/tests/test_review_checklist_portable.py`、`.agents/tests/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0041](./qa_reports/0041-instance-guard-terms-and-src-neutral-qa.md) |
 | **0042** | 核心文件去除本專案歷史連結、範本與核心 Python 殘留清理 | — | [Spec-0042](./specs/0042-core-history-links-and-py-residue-spec.md) | `.agents/tests/test_neutral_examples.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0042](./qa_reports/0042-core-history-links-and-py-residue-qa.md) |
 | **0043** | 閉環核心 DDD 前提明文化、對外介面去 CLI 預設、掃描說明去規格編號 | — | [Spec-0043](./specs/0043-ddd-premise-and-interface-neutral-spec.md) | `tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0043](./qa_reports/0043-ddd-premise-and-interface-neutral-qa.md) |
+| **0044** | 移植實測卡點修正：自我測試寫死 scheme、選用檔案斷鏈、表格陣列清空說明 | — | [Spec-0044](./specs/0044-porting-trial-fixes-spec.md) | `.agents/tests/test_core_links.py`、`.agents/tests/test_guardrail_gaps.py`、`.agents/tests/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0044](./qa_reports/0044-porting-trial-fixes-qa.md) |
 
 ### 缺陷修正追溯清單
 

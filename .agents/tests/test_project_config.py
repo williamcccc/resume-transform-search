@@ -163,6 +163,16 @@ class TestLoadProjectConfig(unittest.TestCase):
                 self.write(VALID_TOML.replace(old, "", 1))
                 self.assert_config_error(fragment)
 
+    def test_missing_table_array_key_hints_empty_array(self):
+        """Spec-0044 AC-3：表格陣列缺鍵時提示以空陣列表示；一般鍵不附提示"""
+        text = re.sub(r"\[\[guardrails\.url_exceptions\]\]\n(?:[^\[\n].*\n)*", "", VALID_TOML)
+        self.write(text)
+        self.assert_config_error("url_exceptions = []")
+        self.write(VALID_TOML.replace("agents_max_lines = 200\n", ""))
+        with self.assertRaises(project_config.ProjectConfigError) as ctx:
+            project_config.load_project_config(self.root)
+        self.assertNotIn("= []", str(ctx.exception))
+
     def test_guard_terms_keys_required_and_must_be_valid_regex(self):
         """Spec-0041 AC-2：identifiers、stack_terms 缺鍵、型別錯誤或非合法正規式時指出鍵名"""
         cases = [

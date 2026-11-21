@@ -164,6 +164,9 @@ def load_project_config(root: Path, sections: Optional[Iterable[str]] = None) ->
             raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 缺少區段 [{section}]")
         for key, kind in SCHEMA[section].items():
             if key not in table:
-                raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 缺少必要鍵 [{section}].{key}")
+                hint = ""
+                if kind in ("exception_list", "item_reason_list"):  # 表格陣列（[[...]]）清空後須明寫空陣列（Spec-0044）
+                    hint = f"；無項目時於 [{section}] 區段內（下一個區段標題之前）寫 {key} = []"
+                raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 缺少必要鍵 [{section}].{key}{hint}")
             _check_type(section, key, table[key], kind)
     return data
