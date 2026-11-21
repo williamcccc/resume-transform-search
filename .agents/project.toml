@@ -7,6 +7,8 @@
 # 閉環核心仍以 DDD 為前提（見 PORTING.md 適用範圍）。
 enabled = true
 # 原始碼掃描根目錄；enabled = false 時仍用於資源、例外、硬編碼與提示詞檢查。
+# 選填 package（Spec-0047）：src 目錄對應之 import 根名；未設定時由 src 推導，
+# src-layout 或四層位於倉庫根（src = "."、package = ""）時須宣告。本專案以 src.* 引用，不必設定。
 src = "src"
 domain = "src/domain"
 application = "src/application"

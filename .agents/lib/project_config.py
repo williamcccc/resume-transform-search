@@ -6,7 +6,8 @@ project_config.py
 讀取並驗證閉環專案設定 `.agents/project.toml`（Spec-0028）。
 
 設計原則：缺檔或缺鍵一律拋出 ProjectConfigError，不提供隱含預設值，
-避免移植到新專案時在不知情下沿用原專案的值。
+避免移植到新專案時在不知情下沿用原專案的值。OPTIONAL_SCHEMA 之選填鍵例外：
+其預設值由同一專案之其他鍵推導（如 layers.package 由 layers.src 推導），不沿用原專案的值。
 """
 
 import re
@@ -91,6 +92,17 @@ SCHEMA: Dict[str, Dict[str, str]] = {
 }
 
 
+# 選填鍵（Spec-0047）：缺鍵不報錯，有值時驗型別；預設值由使用端自同專案其他鍵推導
+OPTIONAL_SCHEMA: Dict[str, Dict[str, str]] = {
+    "layers": {
+        # layers.src 目錄對應之 Python 模組路徑（import 根名）；空字串表示各層目錄即頂層套件
+        "package": "module_path",
+    },
+}
+
+MODULE_PATH_PATTERN = re.compile(r"^(?:[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?$")
+
+
 class ProjectConfigError(Exception):
     """project.toml 缺檔、語法錯誤、缺鍵或型別不符。"""
 
@@ -103,6 +115,10 @@ def _check_type(section: str, key: str, value, kind: str) -> None:
         ok = isinstance(value, int) and not isinstance(value, bool)
     elif kind == "str":
         ok = isinstance(value, str) and value.strip() != ""
+    elif kind == "module_path":
+        if not (isinstance(value, str) and MODULE_PATH_PATTERN.match(value)):
+            raise ProjectConfigError(f"{where} 須為 Python 模組路徑（如 \"pkg\" 或 \"pkg.sub\"）或空字串")
+        return
     elif kind == "str_list":
         ok = isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
     elif kind == "regex_list":
@@ -149,8 +165,10 @@ def load_project_config(root: Path, sections: Optional[Iterable[str]] = None) ->
     if not path.is_file():
         raise ProjectConfigError(f"找不到專案設定檔 {CONFIG_REL_PATH.as_posix()}，請依 .agents/PORTING.md 建立")
     try:
-        with path.open("rb") as handle:
-            data = tomllib.load(handle)
+        # utf-8-sig：接受 Windows 編輯器寫入之 BOM（Spec-0047）
+        data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
+    except UnicodeDecodeError as err:
+        raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 不是 UTF-8 編碼: {err}") from err
     except tomllib.TOMLDecodeError as err:
         raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 語法錯誤: {err}") from err
 
@@ -169,4 +187,7 @@ def load_project_config(root: Path, sections: Optional[Iterable[str]] = None) ->
                     hint = f"；無項目時於 [{section}] 區段內（下一個區段標題之前）寫 {key} = []"
                 raise ProjectConfigError(f"{CONFIG_REL_PATH.as_posix()} 缺少必要鍵 [{section}].{key}{hint}")
             _check_type(section, key, table[key], kind)
+        for key, kind in OPTIONAL_SCHEMA.get(section, {}).items():
+            if key in table:
+                _check_type(section, key, table[key], kind)
     return data

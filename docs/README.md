@@ -63,6 +63,7 @@ flowchart LR
 | **0044** | 移植實測卡點修正：自我測試寫死 scheme、選用檔案斷鏈、表格陣列清空說明 | — | [Spec-0044](./specs/0044-porting-trial-fixes-spec.md) | `.agents/tests/test_core_links.py`、`.agents/tests/test_guardrail_gaps.py`、`.agents/tests/test_project_config.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0044](./qa_reports/0044-porting-trial-fixes-qa.md) |
 | **0045** | 第二次移植實測卡點修正：自我測試路徑假設、空清單誤判、空目錄致 CI 失敗 | — | [Spec-0045](./specs/0045-porting-trial-2-fixes-spec.md) | `.agents/tests/test_guardrail_gaps.py`、`.agents/tests/test_review_checklist_portable.py`、`.agents/tests/test_structure_checks.py` | [QA-0045](./qa_reports/0045-porting-trial-2-fixes-qa.md) |
 | **0046** | 核心自我測試去除實例值斷言、移植演練多組參數化 | — | [Spec-0046](./specs/0046-core-tests-instance-assumptions-spec.md) | `tests/e2e/test_portable_variants_e2e.py`、`tests/unit/test_project_instance_files.py`、`.agents/tests/test_guardrail_gaps.py` | [QA-0046](./qa_reports/0046-core-tests-instance-assumptions-qa.md) |
+| **0047** | 第三輪移植實測卡點修正：套件根名推導、原始碼掃描範圍、設定檔 BOM、pyproject 依賴掃描 | — | [Spec-0047](./specs/0047-porting-trial-3-fixes-spec.md) | `.agents/skills/code-review/scripts/audit_guardrails.py`、`.agents/skills/code-review/scripts/security_scan.py`、`.agents/lib/project_config.py`、`tests/e2e/test_portable_variants_e2e.py` | [QA-0047](./qa_reports/0047-porting-trial-3-fixes-qa.md) |
 
 ### 缺陷修正追溯清單
 

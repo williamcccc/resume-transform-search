@@ -296,6 +296,27 @@ class TestScan(unittest.TestCase):
         self.assertEqual(audit_calls[0][1:5], ["-r", "requirements.txt", "--format", "json"])
 
 
+    def test_pyproject_dependency_file_scanned_as_project_path(self):
+        """Spec-0047 AC-5：pyproject.toml 以所在目錄為 pip-audit 專案路徑；requirements 檔仍用 -r"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_root(tmp)
+            (root / "pyproject.toml").write_text('[project]\nname = "demo"\n', encoding="utf-8")
+            config = root / ".agents" / "project.toml"
+            text = config.read_text(encoding="utf-8")
+            self.assertIn('dependency_files = ["requirements.txt"]', text)
+            config.write_text(text.replace('dependency_files = ["requirements.txt"]',
+                                           'dependency_files = ["requirements.txt", "pyproject.toml"]'), encoding="utf-8")
+            runner = FakeRunner()
+            run_scan(root, runner)
+        audit_calls = [c[1:3] for c in runner.calls if "pip-audit" in c[0]]
+        self.assertEqual(audit_calls, [["-r", "requirements.txt"], [".", "--format"]])
+
+    def test_pip_audit_target(self):
+        self.assertEqual(ss.pip_audit_target("pyproject.toml"), ["."])
+        self.assertEqual(ss.pip_audit_target("pkg/pyproject.toml"), ["pkg"])
+        self.assertEqual(ss.pip_audit_target("requirements-dev.txt"), ["-r", "requirements-dev.txt"])
+
+
 class TestTriggerModes(unittest.TestCase):
     """Spec-0030 決議 10／AC-4b：程式碼與套件分開觸發，並定期完整掃描"""
 

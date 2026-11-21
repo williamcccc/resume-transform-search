@@ -62,14 +62,41 @@ def _module_name(rel_dir: str) -> str:
     return Path(rel_dir).as_posix().strip("/").replace("/", ".")
 
 
+def _default_package(src: str) -> str:
+    """未設定 layers.package 時由 layers.src 推導；src 為倉庫根（"."）時各層目錄即頂層套件。"""
+    return "" if Path(src).as_posix() in (".", "") else _module_name(src)
+
+
+def layer_module(layer_rel: str, src: str, package: str) -> str:
+    """分層目錄之 import 模組名：package + 該層相對 src 之路徑（Spec-0047）；不在 src 之下時以路徑直譯。"""
+    try:
+        rel = Path(layer_rel).relative_to(Path(src))
+    except ValueError:
+        return _module_name(layer_rel)
+    rel_module = _module_name(rel.as_posix()) if rel.parts else ""
+    return ".".join(part for part in (package, rel_module) if part)
+
+
+def internal_roots(package: str, layer_modules) -> set:
+    """專案內部之頂層模組名：package 第一段；package 為空時為各層之頂層名稱（Spec-0047）。"""
+    if package:
+        return {package.split(".")[0]}
+    return {module.split(".")[0] for module in layer_modules if module}
+
+
 LAYERS_ENABLED = _LAYERS["enabled"]
 SRC_DIR = ROOT_DIR / _LAYERS["src"]
 DOMAIN_DIR = ROOT_DIR / _LAYERS["domain"]
 APPLICATION_DIR = ROOT_DIR / _LAYERS["application"]
-SRC_PACKAGE = _module_name(_LAYERS["src"]).split(".")[0]
-DOMAIN_PACKAGE = _module_name(_LAYERS["domain"])
-INFRASTRUCTURE_PACKAGE = _module_name(_LAYERS["infrastructure"])
-INTERFACES_PACKAGE = _module_name(_LAYERS["interfaces"])
+# import 根名（Spec-0047）：src-layout（原始碼根目錄名不等於 import 根名）或扁平根目錄（""）須於 layers.package 宣告
+SRC_IMPORT_PACKAGE = _LAYERS.get("package", _default_package(_LAYERS["src"]))
+DOMAIN_PACKAGE = layer_module(_LAYERS["domain"], _LAYERS["src"], SRC_IMPORT_PACKAGE)
+APPLICATION_PACKAGE = layer_module(_LAYERS["application"], _LAYERS["src"], SRC_IMPORT_PACKAGE)
+INFRASTRUCTURE_PACKAGE = layer_module(_LAYERS["infrastructure"], _LAYERS["src"], SRC_IMPORT_PACKAGE)
+INTERFACES_PACKAGE = layer_module(_LAYERS["interfaces"], _LAYERS["src"], SRC_IMPORT_PACKAGE)
+INTERNAL_ROOTS = internal_roots(
+    SRC_IMPORT_PACKAGE, (DOMAIN_PACKAGE, APPLICATION_PACKAGE, INFRASTRUCTURE_PACKAGE, INTERFACES_PACKAGE)
+)
 APPLICATION_PARTS = Path(_LAYERS["application"]).parts
 CONFIG_MODULE_PATH = Path(CONFIG["config"]["module"])
 ENV_EXAMPLE_PATH = Path(CONFIG["config"]["env_example"])
@@ -78,12 +105,26 @@ URL_EXCEPTION_PATHS = {Path(item["path"]) for item in _GUARDRAILS["url_exception
 STDLIB_MODULES = set(sys.stdlib_module_names)
 
 
+def _in_package(module: str, package: str) -> bool:
+    return module == package or module.startswith(package + ".")
+
+
 def _is_outer_layer(module: str) -> bool:
     """模組是否屬於 Infrastructure 或 Interfaces 層。"""
-    return any(
-        module == package or module.startswith(package + ".")
-        for package in (INFRASTRUCTURE_PACKAGE, INTERFACES_PACKAGE)
-    )
+    return any(_in_package(module, package) for package in (INFRASTRUCTURE_PACKAGE, INTERFACES_PACKAGE))
+
+
+# 原始碼檢查永不掃描之目錄：閉環核心（src 為倉庫根時會落入範圍；Spec-0047）
+CORE_DIR_NAME = ".agents"
+
+
+def src_python_files(src_dir: Path = None) -> List[Path]:
+    """layers.src 下應受原始碼檢查之 .py：排除 __pycache__、ignore_scan_dirs 與閉環核心（Spec-0047）。"""
+    src_dir = SRC_DIR if src_dir is None else src_dir
+    if not src_dir.exists():
+        return []
+    skip = set(IGNORE_SCAN_DIRS) | {"__pycache__", CORE_DIR_NAME}
+    return sorted(p for p in src_dir.rglob("*.py") if not set(p.relative_to(src_dir).parts[:-1]) & skip)
 
 
 def _layer_python_files(layer_dir: Path) -> List[Path]:
@@ -110,12 +151,12 @@ def check_domain_purity() -> List[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root_mod = alias.name.split(".")[0]
-                    if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
+                    if root_mod not in STDLIB_MODULES and root_mod not in INTERNAL_ROOTS:
                         violations.append(
                             f"[P0 違規 - Domain 引入外部第三方套件] {rel_name}:{line_no} -> 'import {alias.name}'"
                         )
-                    elif root_mod == SRC_PACKAGE:
-                        if not alias.name.startswith(DOMAIN_PACKAGE):
+                    elif root_mod in INTERNAL_ROOTS:
+                        if not _in_package(alias.name, DOMAIN_PACKAGE):
                             violations.append(
                                 f"[P0 違規 - Domain 逆向依賴外層模組] {rel_name}:{line_no} -> 'import {alias.name}'"
                             )
@@ -125,12 +166,12 @@ def check_domain_purity() -> List[str]:
                     continue
                 if node.module:
                     root_mod = node.module.split(".")[0]
-                    if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
+                    if root_mod not in STDLIB_MODULES and root_mod not in INTERNAL_ROOTS:
                         violations.append(
                             f"[P0 違規 - Domain 引入外部第三方套件] {rel_name}:{line_no} -> 'from {node.module} import ...'"
                         )
-                    elif root_mod == SRC_PACKAGE:
-                        if not node.module.startswith(DOMAIN_PACKAGE):
+                    elif root_mod in INTERNAL_ROOTS:
+                        if not _in_package(node.module, DOMAIN_PACKAGE):
                             violations.append(
                                 f"[P0 違規 - Domain 逆向依賴外層模組] {rel_name}:{line_no} -> 'from {node.module} import ...'"
                             )
@@ -157,7 +198,7 @@ def check_application_dip() -> List[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root_mod = alias.name.split(".")[0]
-                    if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
+                    if root_mod not in STDLIB_MODULES and root_mod not in INTERNAL_ROOTS:
                         violations.append(
                             f"[P0 違規 - Application 引入外部第三方套件] {rel_name}:{line_no} -> 'import {alias.name}' (應用層僅能依賴 Domain 與標準庫)"
                         )
@@ -170,7 +211,7 @@ def check_application_dip() -> List[str]:
                     continue
                 if node.module:
                     root_mod = node.module.split(".")[0]
-                    if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
+                    if root_mod not in STDLIB_MODULES and root_mod not in INTERNAL_ROOTS:
                         violations.append(
                             f"[P0 違規 - Application 引入外部第三方套件] {rel_name}:{line_no} -> 'from {node.module} import ...' (應用層僅能依賴 Domain 與標準庫)"
                         )
@@ -189,7 +230,7 @@ def check_resource_lifecycle() -> List[str]:
     if not SRC_DIR.exists():
         return violations
 
-    for py_file in SRC_DIR.rglob("*.py"):
+    for py_file in src_python_files():
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception:
@@ -228,7 +269,7 @@ def check_exception_swallowing_and_chaining() -> Tuple[List[str], List[str]]:
     if not SRC_DIR.exists():
         return swallow_warnings, chaining_warnings
 
-    for py_file in SRC_DIR.rglob("*.py"):
+    for py_file in src_python_files():
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception:
@@ -313,7 +354,7 @@ def check_prompt_hardcoding() -> List[str]:
     if not SRC_DIR.exists():
         return p0_errors
 
-    for py_file in SRC_DIR.rglob("*.py"):
+    for py_file in src_python_files():
         rel_path = py_file.relative_to(ROOT_DIR)
 
         # 排除 prompts 載入器本身
@@ -347,7 +388,7 @@ def check_hardcoded_configuration() -> Tuple[List[str], List[str]]:
     if not SRC_DIR.exists():
         return p0_errors, p1_warnings
 
-    for py_file in SRC_DIR.rglob("*.py"):
+    for py_file in src_python_files():
         rel_path = py_file.relative_to(ROOT_DIR)
         is_config_module = (rel_path == CONFIG_MODULE_PATH)
 
@@ -523,7 +564,7 @@ def parse_env_example_keys(text: str) -> set:
 
 def _env_scan_files(config_path: Path) -> List[Path]:
     """環境變數偵測範圍：layers.src 下所有 .py，另含位於 src 之外的設定模組（Bug-0032）。"""
-    files = sorted(p for p in SRC_DIR.rglob("*.py") if "__pycache__" not in p.parts) if SRC_DIR.exists() else []
+    files = src_python_files()
     if config_path.is_file() and config_path not in files:
         files.append(config_path)
     return files
@@ -654,8 +695,8 @@ def check_eval_only_imports(src_dir: Path = SRC_DIR) -> List[str]:
     if not src_dir.exists():
         return violations
 
-    for py_file in sorted(src_dir.rglob("*.py")):
-        rel = py_file.relative_to(src_dir.parent).as_posix()
+    for py_file in src_python_files(src_dir):
+        rel = py_file.relative_to(ROOT_DIR if py_file.is_relative_to(ROOT_DIR) else src_dir.parent).as_posix()
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception as e:
