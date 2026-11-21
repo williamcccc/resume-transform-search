@@ -62,7 +62,7 @@ flowchart TD
 * **【領域層】**：定義 Entity 與 Protocol 介面（零外部 SDK 依賴）。
 * **【應用層】**：定義 Command/Result DTO，並設計依賴注入結構。
 * **【基礎設施層】**：外部套件串接方式、資源釋放（強制 Context Manager `with`）、例外鏈保留（`raise ... from err`）與日誌脫敏。
-* **【表現層】**：CLI 旗標設計，保證 100% 向下相容。
+* **【表現層】**：對外介面（CLI 參數、API 端點等）設計與向下相容策略。
 * **【測試計畫】**：規劃單元測試清單（正常情境 + 負面故障注入情境）。
 * **【QA 驗收案例矩陣】**：對照每條 AC 與 `NFR-*` 規劃 Step 4 驗收案例（範本第 7 節）。
 * **【品質評測】**：規格宣告屬品質評測範圍時，依 [quality-evaluation](../quality-evaluation/SKILL.md) 定義品質 AC 與標註資料來源。

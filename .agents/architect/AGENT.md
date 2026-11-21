@@ -53,7 +53,7 @@
    - 唯有零高風險架構債且測試矩陣齊備，方可放行 Gate 1 並交付 Developer。
 3. Step 7 文檔與 ADR 雙向同步：
    - 調度 .agents/skills/doc-sync/ 技能。
-   - 同步更新 REQUIREMENTS.md (CLI 指令與引數)、ARCHITECTURE.md (DDD 邊界與 Mermaid 時序圖)。
+   - 同步更新 REQUIREMENTS.md (對外介面：CLI 指令、API 端點與參數)、ARCHITECTURE.md (DDD 邊界與 Mermaid 時序圖)。
    - 將 docs/adr/ 草案正式轉為「已採納 (Accepted)」歸檔並更新 README.md 索引表。
    - 執行 python .agents/skills/doc-sync/scripts/verify_doc_sync.py 確保零文檔債。
    - Bug 軌為精簡同步：缺陷報告結案並登錄 docs/README.md 缺陷索引；不產出 ADR。

@@ -16,7 +16,7 @@ description: >-
 
 ```mermaid
 flowchart TD
-    Start["進入 Step 7: 文檔同步 (Doc Sync)<br>(已通過 Gate 2 代碼審查)"] --> Phase1["階段 1: 需求與命令對齊 (Requirements Sync)<br>• 核對 REQUIREMENTS.md 命令清單與參數說明<br>• 同步新增/調整之 CLI 引數、預設值與退出碼"]
+    Start["進入 Step 7: 文檔同步 (Doc Sync)<br>(已通過 Gate 2 代碼審查)"] --> Phase1["階段 1: 需求與命令對齊 (Requirements Sync)<br>• 核對 REQUIREMENTS.md 對外介面與參數說明<br>• 同步新增/調整之 CLI 引數、預設值與退出碼"]
     
     Phase1 --> Phase2["階段 2: 整潔架構與時序同步 (Architecture Sync)<br>• 核對 ARCHITECTURE.md DDD 四層職責<br>• 同步 Domain 模型、DTO 契約與 Use Case 時序圖"]
     
@@ -37,7 +37,7 @@ flowchart TD
 ### 階段 1：需求與命令對齊 (Requirements Sync)
 * **目標檔案**：[`REQUIREMENTS.md`](../../../REQUIREMENTS.md)
 * **檢核與同步要點**：
-  1. **CLI 參數對齊**：若本次異動新增或修改了命令列參數（本專案參數舉例見[專案概況](../../project/profile.md)），必須在 `REQUIREMENTS.md` 中詳細列出參數名稱、型別、預設值與使用範例。
+  1. **對外介面參數對齊**：若本次異動新增或修改了對外介面參數（CLI 參數、API 端點等）（本專案參數舉例見[專案概況](../../project/profile.md)），必須在 `REQUIREMENTS.md` 中詳細列出參數名稱、型別、預設值與使用範例。
   2. **業務驗收追溯**：將本次 PRD 中的主要驗收標準（AC）成果反映至需求文檔的「核心功能實作狀態」章節。
   3. **向下相容性聲明**：確認既有命令語法與範例依然有效，無非預期的破壞性更動。
 

@@ -7,13 +7,14 @@
 * **事實與答案**：專案概況與通用檢核清單的本專案具體標準，集中在 [project/](project/) 下的專案實例檔，移植時整份替換。
 
 **適用範圍**：閘門腳本與測試規範綁定 **Python 專案**——`audit_guardrails.py` 以 Python AST 掃描、`security_scan.py` 使用 Semgrep `p/python` 規則與 pip-audit、單元測試規範以 `unittest` 為準。其他語言的專案可沿用流程、角色、技能與檢核清單，但兩支閘門腳本與測試指令須自行替換。
+閉環核心（通用紅線 1、角色與技能）**以 DDD 四層與依賴反轉為前提**；非 DDD 專案可沿用流程與雙門禁，但須自行改寫紅線 1 與各技能之分層描述。
 
 ## 步驟
 
 1. **複製檔案**：`AGENTS.md`、`CLAUDE.md`（使用 Antigravity 時另加 `GEMINI.md`）、`.agents/`（含閉環自我測試 `.agents/tests/`）、`.claude/`。略過所有 `__pycache__/`。
 2. **刪除業務技能**：刪除 `project.toml` 的 `project.business_skills` 所列技能（`.agents/skills/` 與 `.claude/skills/` 下同名資料夾），再將清單改為新專案的業務技能（無則清空）。
 3. **改寫 `project.toml`**，逐鍵確認：
-   * `[layers]`：填入新專案的分層路徑；非 DDD 專案設 `enabled = false`，但 `src` 仍須指向原始碼根目錄。
+   * `[layers]`：填入新專案的分層路徑；`enabled = false` 只關閉自動分層檢查（如逐步導入 DDD 之專案），紅線 1 與技能之分層規範仍適用；`src` 仍須指向原始碼根目錄。
    * `[config]`：設定模組（集中讀取環境變數）與環境變數範本檔；原始碼以字串常值讀取的環境變數都須列於範本檔。
    * `[guardrails]`：連線 scheme、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
