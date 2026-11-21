@@ -97,6 +97,37 @@ class TestSecurityScopeDeclaration(unittest.TestCase):
         ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", table + "NFR-1：權杖 30 分鐘到期。"))])
         self.assertTrue(ok, out)
 
+    def test_single_letter_in_non_stride_table_is_not_a_threat_table(self):
+        """Spec-0048 AC-1：無 STRIDE 欄之表格首欄為 D／E 不算威脅表"""
+        table = "| # | 卡點 | 說明 |\n| :---: | :--- | :--- |\n| D | 依賴掃描 | 失敗 |\n| **E** | 表格 | 誤判 |\n"
+        ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", table + "- NFR-1：x"))])
+        self.assertFalse(ok)
+        self.assertIn("缺少 STRIDE 威脅表", out)
+
+    def test_stride_column_variants_pass(self):
+        """Spec-0048 AC-2：STRIDE 欄位於任一欄、表頭為「STRIDE 類別」、儲存格加粗皆認得"""
+        tables = (
+            "| STRIDE | 威脅 |\n| :---: | :--- |\n| S | 偽造 |\n",
+            "| 邊界 | 威脅 | STRIDE 類別 |\n| :--- | :--- | :---: |\n| API | 竄改 | **T** |\n",
+        )
+        for table in tables:
+            with self.subTest(table=table):
+                ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", table + "- NFR-1：x"))])
+                self.assertTrue(ok, out)
+
+    def test_stride_column_without_threat_rows_fails(self):
+        """Spec-0048 AC-2：只有表頭（空範本）或 STRIDE 欄非單一字母時不算"""
+        for table in ("| 邊界 | STRIDE | 威脅 |\n| :--- | :---: | :--- |\n| | | |\n",
+                      "| 邊界 | STRIDE | 威脅 |\n| :--- | :---: | :--- |\n| API | S、T | 多項 |\n"):
+            with self.subTest(table=table):
+                ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", table + "- NFR-1：x"))])
+                self.assertFalse(ok)
+
+    def test_markdown_tables_parsing(self):
+        text = ("前文\n| a | b \\| c |\n| --- | :---: |\n| 1 | 2 |\n\n"
+                "| 無分隔 | 列 |\n| x | y |\n\n| h |\n|:---:|\n| v |\n")
+        self.assertEqual(vds.markdown_tables(text), [(["a", "b \\| c"], [["1", "2"]]), (["h"], [["v"]])])
+
     def test_stride_letter_in_prose_is_not_a_threat_table(self):
         prose = "| 名稱 | 說明 |\n| :--- | :--- |\n| Redis | Stores Index |\n- NFR-1：x"
         ok, out = run_check([("0031-x.md", make_spec("安全評估範圍：是", prose))])

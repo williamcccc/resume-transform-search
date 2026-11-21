@@ -14,7 +14,7 @@
 1. **複製檔案**：`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`（工具薄層檔，未使用該工具時保留亦無害；核心文件有連結指向它們）、`.agents/`（含閉環自我測試 `.agents/tests/`）、`.claude/`。略過所有 `__pycache__/`。
 2. **刪除業務技能**：刪除 `project.toml` 的 `project.business_skills` 所列技能（`.agents/skills/` 與 `.claude/skills/` 下同名資料夾），再將清單改為新專案的業務技能（無則清空）。
 3. **改寫 `project.toml`**，逐鍵確認：
-   * `[layers]`：填入新專案的分層路徑；`enabled = false` 只關閉自動分層檢查（如逐步導入 DDD 之專案），紅線 1 與技能之分層規範仍適用；`src` 仍須指向原始碼根目錄。原始碼根目錄名與 import 根名不同時，以選填鍵 `package` 宣告 `src` 目錄對應之模組路徑：src-layout（如 `src = "lib/acme"`、以 `import acme` 引用）寫 `package = "acme"`；四層直接放在倉庫根目錄寫 `src = "."`、`package = ""`。未設定時由 `src` 路徑推導。`src` 下之 `ignore_scan_dirs` 目錄與 `.agents/` 不受原始碼檢查。`infrastructure`、`interfaces` 目錄可於首份規格前尚未建立（只驗 `src`、`domain`、`application` 存在）。
+   * `[layers]`：填入新專案的分層路徑；`enabled = false` 只關閉自動分層檢查（如逐步導入 DDD 之專案），紅線 1 與技能之分層規範仍適用；`src` 仍須指向原始碼根目錄。原始碼根目錄名與 import 根名不同時，以選填鍵 `package` 宣告 `src` 目錄對應之模組路徑：src-layout（如 `src = "lib/acme"`、以 `import acme` 引用）寫 `package = "acme"`；四層直接放在倉庫根目錄寫 `src = "."`、`package = ""`，此時根目錄下之頂層套件與模組（`ignore_scan_dirs` 與隱藏目錄除外）皆視為專案內部。未設定時由 `src` 路徑推導。`src` 下之 `ignore_scan_dirs` 目錄與 `.agents/` 不受原始碼檢查。`infrastructure`、`interfaces` 目錄可於首份規格前尚未建立（只驗 `src`、`domain`、`application` 存在）。
    * `[config]`：設定模組（集中讀取環境變數）與環境變數範本檔；原始碼以字串常值讀取的環境變數都須列於範本檔。
    * `[guardrails]`：連線 scheme（`url_schemes` 為空即停用寫死連線 URL 檢查，僅於確無外部連線時清空）、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。清空時刪除 `[[guardrails.url_exceptions]]` 表格，並於 `[guardrails]` 區段內（下一個區段標題之前）寫 `url_exceptions = []`。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。

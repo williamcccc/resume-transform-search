@@ -331,10 +331,42 @@ def check_quality_ac_directory(dir_path: Path) -> bool:
 
 # 安全與非功能需求 Gate 1 檢查（Spec-0030；框架見 feature-design/references/security_nfr_framework.md）
 SECURITY_SCOPE_PATTERN = re.compile(r"安全評估範圍[\s*]*[:：][\s*]*(是|否)")
-# 威脅表列：任一儲存格（含第一欄；Spec-0047）只含單一 STRIDE 字母（可加粗）
-STRIDE_ROW_PATTERN = re.compile(r"^\s*\|(?:.*\|)?\s*\**\s*[STRIDE]\s*\**\s*\|", re.MULTILINE)
+# 威脅列：表頭含「STRIDE」之欄，其儲存格只含單一 STRIDE 字母（可加粗）；欄位置不限（Spec-0048）
+STRIDE_CELL_PATTERN = re.compile(r"^\**\s*[STRIDE]\s*\**$")
+TABLE_SEPARATOR_PATTERN = re.compile(r"^:?-{3,}:?$")
 NFR_ID_PATTERN = re.compile(r"(?<![A-Za-z0-9])NFR-\d+")
 SECURITY_AC_ENFORCED_FROM = DOCS_CONFIG["security_ac_enforced_from"]
+
+
+def _table_cells(line: str) -> list:
+    """Markdown 表格列之儲存格（去除首尾 `|`；保留跳脫之 `\\|`）。"""
+    body = line.strip()
+    body = body[1:] if body.startswith("|") else body
+    body = body[:-1] if body.endswith("|") and not body.endswith("\\|") else body
+    return [cell.strip() for cell in re.split(r"(?<!\\)\|", body)]
+
+
+def markdown_tables(text: str) -> list:
+    """文中所有 Markdown 表格：每表為 (表頭儲存格, 資料列儲存格清單)；第 2 列須為分隔列。"""
+    tables, block = [], []
+    for line in text.splitlines() + [""]:
+        if line.lstrip().startswith("|"):
+            block.append(_table_cells(line))
+            continue
+        if len(block) >= 2 and block[1] and all(TABLE_SEPARATOR_PATTERN.match(c) for c in block[1]):
+            tables.append((block[0], block[2:]))
+        block = []
+    return tables
+
+
+def has_threat_table(text: str) -> bool:
+    """至少一個威脅列：表頭含「STRIDE」之欄，該欄儲存格只含單一 S/T/R/I/D/E 字母（Spec-0048）。"""
+    for header, rows in markdown_tables(text):
+        columns = [i for i, name in enumerate(header) if "STRIDE" in name]
+        for row in rows:
+            if any(i < len(row) and STRIDE_CELL_PATTERN.match(row[i]) for i in columns):
+                return True
+    return False
 
 
 def security_scope(text: str):
@@ -363,8 +395,8 @@ def check_security_ac_specs(specs: list, enforced_from: int = None) -> bool:
         if not scope:
             continue
         scoped += 1
-        if not STRIDE_ROW_PATTERN.search(text):
-            print(f"[FAIL] 規格宣告屬安全評估範圍，但缺少 STRIDE 威脅表（至少一列標註 S/T/R/I/D/E）: {name}")
+        if not has_threat_table(text):
+            print(f"[FAIL] 規格宣告屬安全評估範圍，但缺少 STRIDE 威脅表（表頭須有 STRIDE 欄，且至少一列該欄標註 S/T/R/I/D/E）: {name}")
             all_ok = False
         if not NFR_ID_PATTERN.search(text):
             print(f"[FAIL] 規格宣告屬安全評估範圍，但缺少 NFR-* 非功能驗收條件: {name}")

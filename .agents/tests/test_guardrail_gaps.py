@@ -234,6 +234,27 @@ class TestFlatRootPackage(ImportRootLayoutCase, unittest.TestCase):
         self.project.write("tools/job.py", 'f = open("x")\n')
         self.assert_p0("資源未受 Context Manager 管理", "job.py:1")
 
+    def test_application_may_import_root_level_internal_package(self):
+        """Spec-0048 AC-3：根目錄之非分層套件屬內部，與一般佈局 package 之下皆屬內部一致"""
+        self.project.write("shared/__init__.py", "")
+        self.project.write("shared/util.py", "def clamp(x: int) -> int:\n    return x\n")
+        self.project.write("application/uses_shared.py", "from shared.util import clamp\n")
+        code, out = self.project.run()
+        self.assertEqual(code, 0, out)
+
+    def test_domain_importing_root_level_internal_package_is_reverse_dependency(self):
+        self.project.write("shared/__init__.py", "")
+        self.project.write("domain/uses_shared.py", "import shared\n")
+        self.assert_p0("Domain 逆向依賴外層模組")
+        code, out = self.project.run()
+        self.assertNotIn("Domain 引入外部第三方套件", out)
+
+    def test_ignored_directory_name_is_not_internal(self):
+        """略過目錄（如工具虛擬環境）之名稱不因位於根目錄而被視為內部模組"""
+        self.project.write(f"{self.TOOLS_DIR}/__init__.py", "")
+        self.project.write("application/uses_tool.py", f"import {self.TOOLS_DIR}\n")
+        self.assert_p0("Application 引入外部第三方套件")
+
 
 class TestBug0031NestedLayerModules(GuardrailGapTestCase):
     """Bug-0031：Domain／Application 子資料夾內的違規模組須被檢出，訊息含相對路徑"""
