@@ -55,6 +55,7 @@ flowchart LR
 | **0036** | Gate 2 檢核清單通用化與 .agents 專案相依清理 | — | [Spec-0036](./specs/0036-portable-review-checklist-spec.md) | `.agents/tests/test_review_checklist_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0036](./qa_reports/0036-portable-review-checklist-qa.md) |
 | **0037** | 專案概況檔、閉環自我測試隨核心移植、AGENTS.md 紅線分區 | [ADR-0037](./adr/0037-agents-red-lines-generic-and-project-groups.md) | [Spec-0037](./specs/0037-project-profile-tests-and-red-lines-spec.md) | `tests/unit/test_project_instance_files.py`、`.agents/tests/`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0037](./qa_reports/0037-project-profile-tests-and-red-lines-qa.md) |
 | **0038** | 閉環殘留專案相依清理：敏感副檔名設定化、基準檔歸位、業務技能清單 | — | [Spec-0038](./specs/0038-closed-loop-residual-project-coupling-spec.md) | `.agents/tests/test_project_config.py`、`tests/unit/test_github_pre_publish_hygiene.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0038](./qa_reports/0038-closed-loop-residual-project-coupling-qa.md) |
+| **0039** | audit_guardrails.py 守門缺口修正（Bug-0031～0033） | — | [Spec-0039](./specs/0039-audit-guardrails-gap-fixes-spec.md) | `.agents/tests/test_guardrail_gaps.py`、`tests/unit/test_github_pre_publish_hygiene.py` | [QA-0039](./qa_reports/0039-audit-guardrails-gap-fixes-qa.md) |
 
 ### 缺陷修正追溯清單
 
@@ -63,9 +64,9 @@ flowchart LR
 | 編號 | 缺陷摘要 | 嚴重度 | 缺陷報告 | 回歸測試 | QA 報告 | 狀態 |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
 | **0029** | Web 儀表板 CORS 對任意來源放行，外站可跨站讀取履歷與對話 | S1 | [Bug-0029](./bugs/0029-cors-allow-any-origin.md) | `tests/unit/test_web_cors_same_origin.py` | [QA-0029](./qa_reports/0029-cors-allow-any-origin-qa.md) | 已結案 |
-| **0031** | DDD 分層檢查只掃 Domain／Application 第一層檔案，子資料夾模組漏檢 | S3 | [Bug-0031](./bugs/0031-layer-check-skips-nested-modules.md) | 待撰寫 | — | 待處理 |
-| **0032** | 環境變數同步檢查只認設定模組內的 `os.environ.get()`，其他檔案與其他寫法漏檢 | S3 | [Bug-0032](./bugs/0032-env-sync-check-narrow-detection.md) | 待撰寫 | — | 待處理 |
-| **0033** | 設定模組或 `.env.example` 不存在時，環境變數同步檢查靜默跳過 | S3 | [Bug-0033](./bugs/0033-env-sync-check-skips-missing-files.md) | 待撰寫 | — | 待處理 |
+| **0031** | DDD 分層檢查只掃 Domain／Application 第一層檔案，子資料夾模組漏檢 | S3 | [Bug-0031](./bugs/0031-layer-check-skips-nested-modules.md) | `.agents/tests/test_guardrail_gaps.py` | [QA-0039](./qa_reports/0039-audit-guardrails-gap-fixes-qa.md) | 已結案 |
+| **0032** | 環境變數同步檢查只認設定模組內的 `os.environ.get()`，其他檔案與其他寫法漏檢 | S3 | [Bug-0032](./bugs/0032-env-sync-check-narrow-detection.md) | `.agents/tests/test_guardrail_gaps.py` | [QA-0039](./qa_reports/0039-audit-guardrails-gap-fixes-qa.md) | 已結案 |
+| **0033** | 設定模組或 `.env.example` 不存在時，環境變數同步檢查靜默跳過 | S3 | [Bug-0033](./bugs/0033-env-sync-check-skips-missing-files.md) | `.agents/tests/test_guardrail_gaps.py` | [QA-0039](./qa_reports/0039-audit-guardrails-gap-fixes-qa.md) | 已結案 |
 
 ---
 

@@ -1,6 +1,6 @@
 # 缺陷報告：設定模組或 .env.example 不存在時，環境變數同步檢查靜默跳過
 
-> **編號**：0033｜**嚴重度**：S3｜**狀態**：已登錄，待處理（尚未進入 Step 1B 第 3 階段）
+> **編號**：0033｜**嚴重度**：S3｜**狀態**：已結案
 
 ## 1. 受理資訊
 * **現象**：[audit_guardrails.py](../../.agents/skills/code-review/scripts/audit_guardrails.py) 的 `check_git_hygiene_and_pii_guardrails()` 以 `if config_path.exists() and env_example_path.exists():` 包住環境變數同步檢查。`project.toml` 的 `config.module` 或 `config.env_example` 指向不存在的檔案時，整項檢查被跳過，不產生 P0、P1 或任何提示，Gate 2 視為通過。
@@ -26,7 +26,7 @@ E missing cfg  : []
 F missing ex   : []
 ```
 
-**紅燈回歸測試**：待修正時於 Step 1B 第 3 階段撰寫，於暫存目錄動態建構情境 E、F，不得讀取本機 `data/`、`resume/`。
+**紅燈回歸測試**：[test_guardrail_gaps.py](../../.agents/tests/test_guardrail_gaps.py) `TestBug0033MissingConfiguredPaths`（於暫存目錄建立最小假專案，以真實 CLI 執行 `audit_guardrails.py`）。`test:` commit `09ebf55` 失敗 4 項、`fix:` commit `0a528ab` 通過。
 
 ## 3. 根因分析（初判，修正時於 Step 1B 第 4 階段確認）
 * **真因**：以 `exists()` 條件包住檢查，檔案不存在時走「略過」分支而非「報錯」分支；防線失效時沒有輸出。
@@ -56,9 +56,9 @@ F missing ex   : []
 | 5 | 修正範圍跨越 3 個以上 DDD 層 | 否 |
 
 **簡化 Gate 1 簽核**（architect）：待修正時簽核
-- [ ] 修正只恢復既有規格行為，不新增行為
-- [ ] 影響面已列出：本專案兩檔皆存在，預期零新增違規；移植專案路徑錯誤時將由「通過」變為「失敗」
-- [ ] 無介面破壞，`audit_guardrails.py` 指令不變
+- [x] 修正只恢復既有規格行為，不新增行為
+- [x] 影響面已列出：本專案兩檔皆存在，預期零新增違規；移植專案路徑錯誤時將由「通過」變為「失敗」
+- [x] 無介面破壞，`audit_guardrails.py` 指令不變
 
 ## 5. 缺陷驗收條件 (BC)
 * **BC-1**：紅燈回歸測試在 `test:` commit 失敗，在 `fix:` commit 通過。
@@ -68,10 +68,10 @@ F missing ex   : []
 品質評測範圍：否
 
 ## 6. 結案
-* **修正流程與編號**：
-* **`test:` commit**：
-* **`fix:` commit**：
+* **修正流程與編號**：[Spec-0039](../specs/0039-audit-guardrails-gap-fixes-spec.md)（規範變更大改，governance.md）
+* **`test:` commit**：`09ebf55`
+* **`fix:` commit**：`0a528ab`
 * **PR**：
-* **QA 報告**：
-* **結案日期**：
+* **QA 報告**：[QA-0039](../qa_reports/0039-audit-guardrails-gap-fixes-qa.md)
+* **結案日期**：2026-11-21
 * **升級紀錄**（若有）：

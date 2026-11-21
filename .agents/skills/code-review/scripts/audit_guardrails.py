@@ -30,7 +30,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 # 確保 Windows 終端輸出 UTF-8 編碼，避免 cp950 拋出 UnicodeEncodeError
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -86,17 +86,23 @@ def _is_outer_layer(module: str) -> bool:
     )
 
 
+def _layer_python_files(layer_dir: Path) -> List[Path]:
+    """分層目錄下所有 .py 檔（含任意深度子資料夾，排除 __pycache__；Bug-0031）。"""
+    return sorted(p for p in layer_dir.rglob("*.py") if "__pycache__" not in p.parts)
+
+
 def check_domain_purity() -> List[str]:
     """檢查 Domain 層所有模組，確認零外部套件依賴與零外層模組依賴。"""
     violations = []
     if not LAYERS_ENABLED or not DOMAIN_DIR.exists():
         return violations
 
-    for py_file in DOMAIN_DIR.glob("*.py"):
+    for py_file in _layer_python_files(DOMAIN_DIR):
+        rel_name = py_file.relative_to(ROOT_DIR).as_posix()
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception as e:
-            violations.append(f"[Syntax Error] {py_file.name}: 無法解析語法樹 - {e}")
+            violations.append(f"[Syntax Error] {rel_name}: 無法解析語法樹 - {e}")
             continue
 
         for node in ast.walk(tree):
@@ -106,12 +112,12 @@ def check_domain_purity() -> List[str]:
                     root_mod = alias.name.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Domain 引入外部第三方套件] {py_file.name}:{line_no} -> 'import {alias.name}'"
+                            f"[P0 違規 - Domain 引入外部第三方套件] {rel_name}:{line_no} -> 'import {alias.name}'"
                         )
                     elif root_mod == SRC_PACKAGE:
                         if not alias.name.startswith(DOMAIN_PACKAGE):
                             violations.append(
-                                f"[P0 違規 - Domain 逆向依賴外層模組] {py_file.name}:{line_no} -> 'import {alias.name}'"
+                                f"[P0 違規 - Domain 逆向依賴外層模組] {rel_name}:{line_no} -> 'import {alias.name}'"
                             )
             elif isinstance(node, ast.ImportFrom):
                 if node.level > 0:
@@ -121,12 +127,12 @@ def check_domain_purity() -> List[str]:
                     root_mod = node.module.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Domain 引入外部第三方套件] {py_file.name}:{line_no} -> 'from {node.module} import ...'"
+                            f"[P0 違規 - Domain 引入外部第三方套件] {rel_name}:{line_no} -> 'from {node.module} import ...'"
                         )
                     elif root_mod == SRC_PACKAGE:
                         if not node.module.startswith(DOMAIN_PACKAGE):
                             violations.append(
-                                f"[P0 違規 - Domain 逆向依賴外層模組] {py_file.name}:{line_no} -> 'from {node.module} import ...'"
+                                f"[P0 違規 - Domain 逆向依賴外層模組] {rel_name}:{line_no} -> 'from {node.module} import ...'"
                             )
 
     return violations
@@ -138,11 +144,12 @@ def check_application_dip() -> List[str]:
     if not LAYERS_ENABLED or not APPLICATION_DIR.exists():
         return violations
 
-    for py_file in APPLICATION_DIR.glob("*.py"):
+    for py_file in _layer_python_files(APPLICATION_DIR):
+        rel_name = py_file.relative_to(ROOT_DIR).as_posix()
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except Exception as e:
-            violations.append(f"[Syntax Error] {py_file.name}: 無法解析語法樹 - {e}")
+            violations.append(f"[Syntax Error] {rel_name}: 無法解析語法樹 - {e}")
             continue
 
         for node in ast.walk(tree):
@@ -152,11 +159,11 @@ def check_application_dip() -> List[str]:
                     root_mod = alias.name.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Application 引入外部第三方套件] {py_file.name}:{line_no} -> 'import {alias.name}' (應用層僅能依賴 Domain 與標準庫)"
+                            f"[P0 違規 - Application 引入外部第三方套件] {rel_name}:{line_no} -> 'import {alias.name}' (應用層僅能依賴 Domain 與標準庫)"
                         )
                     elif _is_outer_layer(alias.name):
                         violations.append(
-                            f"[P0 違規 - Application 違反依賴反轉] {py_file.name}:{line_no} 直接引用外層模組: '{alias.name}'"
+                            f"[P0 違規 - Application 違反依賴反轉] {rel_name}:{line_no} 直接引用外層模組: '{alias.name}'"
                         )
             elif isinstance(node, ast.ImportFrom):
                 if node.level > 0:
@@ -165,11 +172,11 @@ def check_application_dip() -> List[str]:
                     root_mod = node.module.split(".")[0]
                     if root_mod not in STDLIB_MODULES and root_mod != SRC_PACKAGE:
                         violations.append(
-                            f"[P0 違規 - Application 引入外部第三方套件] {py_file.name}:{line_no} -> 'from {node.module} import ...' (應用層僅能依賴 Domain 與標準庫)"
+                            f"[P0 違規 - Application 引入外部第三方套件] {rel_name}:{line_no} -> 'from {node.module} import ...' (應用層僅能依賴 Domain 與標準庫)"
                         )
                     elif _is_outer_layer(node.module):
                         violations.append(
-                            f"[P0 違規 - Application 違反依賴反轉] {py_file.name}:{line_no} 直接引用外層模組: 'from {node.module}'"
+                            f"[P0 違規 - Application 違反依賴反轉] {rel_name}:{line_no} 直接引用外層模組: 'from {node.module}'"
                         )
 
     return violations
@@ -509,6 +516,67 @@ def workspace_path_pattern(root: Path) -> "re.Pattern[str]":
     return re.compile(prefix + r"[/\\]+" + body)
 
 
+def parse_env_example_keys(text: str) -> set:
+    """`.env.example` 中列出之變數名稱（含註解掉的 `# NAME=` 範例）。"""
+    return set(re.findall(r"^#?\s*([A-Z0-9_]+)=", text, re.MULTILINE))
+
+
+def _env_scan_files(config_path: Path) -> List[Path]:
+    """環境變數偵測範圍：layers.src 下所有 .py，另含位於 src 之外的設定模組（Bug-0032）。"""
+    files = sorted(p for p in SRC_DIR.rglob("*.py") if "__pycache__" not in p.parts) if SRC_DIR.exists() else []
+    if config_path.is_file() and config_path not in files:
+        files.append(config_path)
+    return files
+
+
+def collect_env_var_reads(files) -> Dict[str, List[str]]:
+    """以 AST 收集以字串常值讀取之環境變數：os.environ.get / os.getenv / os.environ[...]，
+    含 `from os import environ, getenv` 寫法。動態取名（變數、迴圈）無法靜態判定，不收集。
+    回傳 {變數名: [「相對路徑:行號」...]}（Bug-0032）。"""
+    reads: Dict[str, List[str]] = {}
+
+    def is_environ(node) -> bool:
+        return (isinstance(node, ast.Attribute) and node.attr == "environ"
+                and isinstance(node.value, ast.Name) and node.value.id == "os") or (
+            isinstance(node, ast.Name) and node.id in environ_names)
+
+    def literal(node):
+        return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
+
+    for path in files:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            continue
+        environ_names, getenv_names = set(), set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "os":
+                for alias in node.names:
+                    if alias.name == "environ":
+                        environ_names.add(alias.asname or alias.name)
+                    elif alias.name == "getenv":
+                        getenv_names.add(alias.asname or alias.name)
+        try:
+            rel = path.relative_to(ROOT_DIR).as_posix()
+        except ValueError:
+            rel = path.as_posix()
+        for node in ast.walk(tree):
+            name = None
+            if isinstance(node, ast.Call) and node.args:
+                func = node.func
+                if isinstance(func, ast.Attribute) and func.attr == "get" and is_environ(func.value):
+                    name = literal(node.args[0])
+                elif isinstance(func, ast.Attribute) and func.attr == "getenv" and isinstance(func.value, ast.Name) and func.value.id == "os":
+                    name = literal(node.args[0])
+                elif isinstance(func, ast.Name) and func.id in getenv_names:
+                    name = literal(node.args[0])
+            elif isinstance(node, ast.Subscript) and is_environ(node.value):
+                name = literal(node.slice)
+            if name:
+                reads.setdefault(name, []).append(f"{rel}:{getattr(node, 'lineno', '?')}")
+    return reads
+
+
 def check_git_hygiene_and_pii_guardrails() -> List[str]:
     """檢查版控邊界、環境範本、工作區路徑與已知隱私識別樣式。"""
     p0_errors = []
@@ -531,14 +599,14 @@ def check_git_hygiene_and_pii_guardrails() -> List[str]:
     config_path = ROOT_DIR / CONFIG_MODULE_PATH
     env_example_path = ROOT_DIR / ENV_EXAMPLE_PATH
     if config_path.exists() and env_example_path.exists():
-        cfg_text = config_path.read_text(encoding="utf-8")
         ex_text = env_example_path.read_text(encoding="utf-8")
-        cfg_keys = set(re.findall(r'os\.environ\.get\(\s*["\']([A-Z0-9_]+)["\']', cfg_text))
-        ex_keys = set(re.findall(r"^#?\s*([A-Z0-9_]+)=", ex_text, re.MULTILINE))
-        missing_keys = sorted(cfg_keys - ex_keys)
-        if missing_keys:
+        env_reads = collect_env_var_reads(_env_scan_files(config_path))
+        ex_keys = parse_env_example_keys(ex_text)
+        missing = sorted(name for name in env_reads if name not in ex_keys)
+        if missing:
+            detail = "、".join(f"{name}（{env_reads[name][0]}）" for name in missing)
             p0_errors.append(
-                f"[P0 違規 - .env.example 未同步環境變數] AppConfig 中的變數未列於 .env.example: {missing_keys}"
+                f"[P0 違規 - .env.example 未同步環境變數] 原始碼讀取之環境變數未列於 .env.example: {detail}"
             )
         if API_KEY_PATTERN.search(ex_text):
             p0_errors.append("[P0 違規 - .env.example 含真實金鑰] .env.example 嚴禁包含真實 API Key")
@@ -610,6 +678,27 @@ def check_eval_only_imports(src_dir: Path = SRC_DIR) -> List[str]:
     return violations
 
 
+def check_configured_paths() -> List[str]:
+    """設定指向的檔案與目錄必須存在；不存在時回報 P0，避免後續檢查靜默跳過（Bug-0033）。"""
+    errors = []
+    expected = [
+        ("layers.src", SRC_DIR, "dir"),
+        ("config.module", ROOT_DIR / CONFIG_MODULE_PATH, "file"),
+        ("config.env_example", ROOT_DIR / ENV_EXAMPLE_PATH, "file"),
+    ]
+    if LAYERS_ENABLED:
+        expected += [("layers.domain", DOMAIN_DIR, "dir"), ("layers.application", APPLICATION_DIR, "dir")]
+    for key, path, kind in expected:
+        exists = path.is_dir() if kind == "dir" else path.is_file()
+        if not exists:
+            rel = path.relative_to(ROOT_DIR).as_posix() if path.is_relative_to(ROOT_DIR) else path.as_posix()
+            label = "目錄" if kind == "dir" else "檔案"
+            errors.append(
+                f"[P0 違規 - 設定路徑不存在] project.toml 的 {key} 指向之{label}不存在: {rel}（相關檢查無法執行）"
+            )
+    return errors
+
+
 def main() -> int:
     print("=" * 70)
     print("🔍 啟動 Clean Architecture & DDD 防線靜態代碼稽核 (Code Review)")
@@ -618,6 +707,15 @@ def main() -> int:
 
     all_p0_errors = []
     all_p1_warnings = []
+
+    # 0. 設定路徑存在性（Bug-0033：缺檔或缺目錄不得讓其他檢查靜默跳過）
+    path_errs = check_configured_paths()
+    all_p0_errors.extend(path_errs)
+    if not path_errs:
+        print("✅ [Pass] 設定路徑驗證：layers 與 config 指向之目錄、檔案皆存在。")
+    else:
+        for err in path_errs:
+            print(f"❌ {err}")
 
     if LAYERS_ENABLED:
         # 1. Domain 純潔性檢查

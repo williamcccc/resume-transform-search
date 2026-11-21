@@ -14,7 +14,7 @@
 2. **刪除業務技能**：刪除 `project.toml` 的 `project.business_skills` 所列技能（`.agents/skills/` 與 `.claude/skills/` 下同名資料夾），再將清單改為新專案的業務技能（無則清空）。
 3. **改寫 `project.toml`**，逐鍵確認：
    * `[layers]`：填入新專案的分層路徑；非 DDD 專案設 `enabled = false`，但 `src` 仍須指向原始碼根目錄。
-   * `[config]`：唯一可讀環境變數的模組與環境變數範本檔。
+   * `[config]`：設定模組（集中讀取環境變數）與環境變數範本檔；原始碼以字串常值讀取的環境變數都須列於範本檔。
    * `[guardrails]`：連線 scheme、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
    * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。

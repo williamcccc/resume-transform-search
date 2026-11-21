@@ -43,19 +43,19 @@ class TestGitHubPrePublishHygiene(unittest.TestCase):
         self.assertTrue(config_path.exists())
         self.assertTrue(env_example_path.exists())
 
-        # 2. Act
-        config_text = config_path.read_text(encoding="utf-8")
+        # 2. Act：與 audit_guardrails 共用偵測函式（Bug-0032），涵蓋原始碼全部檔案與三種讀取寫法
+        scanner = self._load_audit_guardrails()
         env_example_text = env_example_path.read_text(encoding="utf-8")
+        env_reads = scanner.collect_env_var_reads(scanner._env_scan_files(config_path))
+        example_env_keys = scanner.parse_env_example_keys(env_example_text)
 
-        config_env_keys = set(re.findall(r'os\.environ\.get\(\s*["\']([A-Z0-9_]+)["\']', config_text))
-        example_env_keys = set(re.findall(r"^#?\s*([A-Z0-9_]+)=", env_example_text, re.MULTILINE))
-
-        # 3. Assert: 所有 AppConfig 讀取的環境變數都必須在 .env.example 中有記載
-        missing_in_example = config_env_keys - example_env_keys
+        # 3. Assert: 原始碼以字串常值讀取的環境變數都必須在 .env.example 中有記載
+        self.assertTrue(env_reads, "應至少偵測到設定模組讀取之環境變數")
+        missing_in_example = set(env_reads) - example_env_keys
         self.assertEqual(
             missing_in_example,
             set(),
-            f"AppConfig 中定義的環境變數未同步至 .env.example: {missing_in_example}",
+            f"原始碼讀取之環境變數未同步至 .env.example: {missing_in_example}",
         )
 
         # 確保 .env.example 不含真實 API 金鑰
