@@ -1,6 +1,6 @@
 """
 品質驗收條件 Gate 1 檢查白箱單元測試（doc-sync / verify_doc_sync.py）
-全部為記憶體內的虛構規格文字，零網路、零 docs/ 與 data/ 讀取。
+全部為記憶體內的虛構規格文字，零網路、零讀取 docs/ 與本機敏感目錄（`privacy.sensitive_dirs`）。
 """
 import contextlib
 import importlib.util

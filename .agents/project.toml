@@ -120,7 +120,7 @@ identifiers = [
     '履歷', '候選人', '求職', '招募', 'resume', 'Resume', 'AppConfig',
     'convert_to_md', 'index_to_redis', 'search_resumes', 'idx:resumes', '_escape_redis_tag',
     'GeminiJudgeService', 'RedisVectorStore', 'IVectorStore', 'IQualityValidator', 'IEmbeddingService', 'ResumeChunk',
-    'PyMuPDF', 'pymupdf', '\b768\b', '(?<!功能)切片', 'src\.domain', '\bsrc/',
+    'PyMuPDF', 'pymupdf', '\b768\b', '(?<!功能)切片', 'src\.domain', '\bsrc/', '(?<![\w/.])data/',
 ]
 # stack_terms：本專案技術元件名；須技術中立之核心檢核清單不得出現，其他核心文件可作通用舉例
 stack_terms = ['Redis', 'Gemini', 'PDF', 'Docx', 'DOCX']

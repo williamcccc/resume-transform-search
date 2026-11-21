@@ -63,7 +63,9 @@ def _rewrite_project_toml(text: str) -> str:
     # Spec-0038：業務技能刪除後清空清單
     text = re.sub(r"business_skills = \[[^\]]*\]", "business_skills = []", text)
     # Spec-0041：守護字詞改為新專案的識別字與技術元件名
-    text = re.sub(r"identifiers = \[[^\]]*\]", lambda _: r"identifiers = ['demo_widget', '\bapp/']", text)
+    # 清單項目為正規式、可能含 ]，故比對至行首之 ]（多行陣列）
+    text = re.sub(r"^identifiers = \[.*?^\]", lambda _: r"identifiers = ['demo_widget', '\bapp/']", text,
+                  count=1, flags=re.MULTILINE | re.DOTALL)
     text = re.sub(r"stack_terms = \[[^\]]*\]", "stack_terms = ['DemoDB']", text)
     return text
 

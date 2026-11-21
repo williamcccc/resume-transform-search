@@ -1,7 +1,7 @@
 """audit_guardrails.py 守門缺口回歸測試（Spec-0039：Bug-0031、Bug-0032、Bug-0033）。
 
-每個案例在暫存目錄建立最小假專案（複製閘門腳本與 lib，改寫 project.toml 為 app/ 分層），
-以真實 CLI 執行 audit_guardrails.py。內容全為合成資料，不讀取本機 data/ 或 resume/。
+每個案例在暫存目錄建立最小假專案（複製閘門腳本與 lib，改寫 project.toml 為假專案原始碼目錄之分層），
+以真實 CLI 執行 audit_guardrails.py。內容全為合成資料，不讀取本機敏感目錄（`privacy.sensitive_dirs`）。
 屬閉環核心自我測試，移植後仍須通過。
 """
 import re

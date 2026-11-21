@@ -1,6 +1,6 @@
 """project_config 與閘門腳本設定化之白箱單元測試（Spec-0028）。
 
-設定檔一律於暫存目錄動態建構，不讀取本機 data/ 或 resume/。
+設定檔一律於暫存目錄動態建構，不讀取本機敏感目錄（`privacy.sensitive_dirs`）。
 """
 import importlib.util
 import re
