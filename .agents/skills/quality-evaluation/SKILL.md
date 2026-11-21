@@ -31,7 +31,7 @@ description: >-
 
 ## 三、評測資料集格式
 
-資料以 JSONL 存於 `tests/eval/data/`，每行一筆。資料一律使用虛構內容，例如 `王小明`、`sample_resume_01.md`，不得含真實履歷或個資。
+資料以 JSONL 存於 `tests/eval/data/`，每行一筆。資料一律使用虛構內容，例如 `王小明`、`sample_01.md`，不得含真實個資（類型見[專案概況](../../project/profile.md)第 4 節）。
 
 檢索資料範例：
 
@@ -42,7 +42,7 @@ description: >-
 抽取資料範例：
 
 ```json
-{"doc_id": "sample_resume_01", "expected": {"name": "王小明", "years_experience": 6, "skills": ["python", "kubernetes"]}}
+{"doc_id": "sample_01", "expected": {"name": "王小明", "years_experience": 6, "skills": ["python", "kubernetes"]}}
 ```
 
 標註時應記錄標註者與日期，資料集變更時更新版本號。
@@ -51,7 +51,7 @@ description: >-
 
 ### 4.1 撰寫 rubric
 
-每個維度列出 1 到 5 分各自的具體情況，避免「好」「差」等模糊描述。例如面試題的相關性：5 分為完全根據履歷中的具體經歷提問；3 分為與履歷有關但過於籠統；1 分為與履歷無關的通用題。
+每個維度列出 1 到 5 分各自的具體情況，避免「好」「差」等模糊描述。例如摘要的忠實度：5 分為每個陳述都能在原文找到依據；3 分為大致正確但有未經原文支持的推論；1 分為出現與原文矛盾或捏造的內容。
 
 ### 4.2 評審 prompt 結構
 
@@ -86,7 +86,7 @@ description: >-
 
 ## 七、禁忌
 
-- 不使用真實履歷或個資作為評測資料。
+- 不使用真實個資作為評測資料。
 - 不在單元測試中呼叫 LLM，或讀取 `tests/eval/data/` 的真實內容。
 - 不為了提高分數而修改 rubric 或資料集，除非有記錄在案的原因。
 - 不把 LLM 評審分數視為絕對真值，必須先經過人工校準。

@@ -11,13 +11,13 @@
 ```python
 import unittest
 from unittest.mock import Mock
-from app.domain.interfaces import IDataStore, IEmbeddingService  # 示意：換成專案的 Domain 契約檔
+from app.domain.interfaces import IDataStore, IEmbedder  # 示意：換成專案的 Domain 契約檔
 
 class TestSearchUseCase(unittest.TestCase):
     def setUp(self):
         # 1. Arrange: 建立 Protocol Mock 實例
         self.mock_store = Mock(spec=IDataStore)
-        self.mock_embedding_service = Mock(spec=IEmbeddingService)
+        self.mock_embedding_service = Mock(spec=IEmbedder)
 
         # 設定預設行為（向量維度取自設定，勿在測試中另寫一份）
         self.mock_embedding_service.get_embedding.return_value = [0.1] * EMBEDDING_DIM
