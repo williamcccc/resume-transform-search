@@ -21,6 +21,8 @@ verify_doc_sync.py
 11. 規格須宣告「安全評估範圍：是/否」（自 [docs].security_ac_enforced_from 之編號起強制）；
     宣告為「是」者須含 STRIDE 威脅表與至少一條 NFR-* 驗收條件（Spec-0030）。
 12. 閉環通用核心檔（安全與非功能需求框架、安全掃描腳本）必須存在，移植時不得刪除。
+13. 規格須含「假設清單」：宣告「需求澄清：已執行/略過」，表格「來源」欄限定五值
+    （自 [docs].assumptions_enforced_from 之編號起強制；Spec-0049）。
 
 結束碼：0 通過；1 有 FAIL；2 專案設定檔缺漏或錯誤（含 [security] 特徵與 not_applicable 理由）。
 """
@@ -412,6 +414,79 @@ def check_security_ac_directory(dir_path: Path) -> bool:
     return check_security_ac_specs(_read_specs(dir_path))
 
 
+# 需求澄清與假設清單 Gate 1 檢查（Spec-0049；規則見 feature-design/references/requirement_clarification.md）
+ASSUMPTION_SOURCES = ("程式碼", "規範", "使用者原話", "使用者確認", "使用者授權")
+CLARIFICATION_PATTERN = re.compile(r"需求澄清[\s*]*[:：][\s*]*(已執行|略過)")
+ASSUMPTIONS_ENFORCED_FROM = DOCS_CONFIG["assumptions_enforced_from"]
+
+
+def extract_assumption_section(text: str) -> str:
+    """取出標題含「假設清單」之段落，至下一個同級或更高層級標題為止；找不到時回傳空字串。"""
+    in_fence = False
+    level = None
+    body = []
+    for line in text.splitlines():
+        if _FENCE_PATTERN.match(line):
+            in_fence = not in_fence
+        heading = None if in_fence else _HEADING_PATTERN.match(line)
+        if level is None:
+            if heading and len(heading.group(1)) >= 2 and "假設清單" in heading.group(2):
+                level = len(heading.group(1))
+            continue
+        if heading and len(heading.group(1)) <= level:
+            break
+        body.append(line)
+    return "\n".join(body)
+
+
+def assumption_problems(text: str) -> list:
+    """回傳假設清單之缺漏說明；空清單表示合格。"""
+    section = extract_assumption_section(text)
+    if not section:
+        return ["缺少「假設清單」章節"]
+    problems = []
+    if not CLARIFICATION_PATTERN.search(section):
+        problems.append("缺少「需求澄清：已執行／略過」宣告")
+    tables = [(header, rows) for header, rows in markdown_tables(section) if "來源" in header]
+    if not tables:
+        return problems + ["假設清單缺少含「來源」欄之表格"]
+    rows_seen = 0
+    for header, rows in tables:
+        column = header.index("來源")
+        for row in rows:
+            rows_seen += 1
+            value = row[column].strip("* ") if column < len(row) else ""
+            if value not in ASSUMPTION_SOURCES:
+                problems.append(f"假設來源「{value or '（空白）'}」不合法，須為 {'、'.join(ASSUMPTION_SOURCES)} 之一")
+    if rows_seen == 0:
+        problems.append("假設清單表格無資料列")
+    return problems
+
+
+def check_assumption_specs(specs: list, enforced_from: int = None) -> bool:
+    """編號 >= enforced_from 之規格須含合格之假設清單；較早的規格不檢查（不回溯）。"""
+    enforced_from = ASSUMPTIONS_ENFORCED_FROM if enforced_from is None else enforced_from
+    all_ok = True
+    checked = 0
+    for name, text in specs:
+        match = re.match(r"^(\d{4})-", name)
+        if not match or int(match.group(1)) < enforced_from:
+            continue
+        checked += 1
+        for problem in assumption_problems(text):
+            print(f"[FAIL] {problem}: {name}")
+            all_ok = False
+    if all_ok:
+        print(f"[PASS] 需求澄清宣告與假設清單檢查通過（自編號 {enforced_from:04d} 起強制；受檢規格 {checked} 個）")
+    return all_ok
+
+
+def check_assumption_directory(dir_path: Path) -> bool:
+    if not dir_path.exists():
+        return True
+    return check_assumption_specs(_read_specs(dir_path))
+
+
 # 閉環通用核心檔：不帶專案專屬標記，移植時不得刪除（Spec-0030 AC-1；Spec-0034 C6 擴充）
 CORE_FILES = (
     Path(".agents/skills/feature-design/references/security_nfr_framework.md"),
@@ -663,9 +738,10 @@ def main():
     ok14 = check_required_instance_files()
     ok15 = check_project_markers()
     ok16 = check_business_skills(PROJECT_CONFIG["project"]["business_skills"])
+    ok17 = check_assumption_directory(DOCS_SPECS_DIR)
     check_agents_size(agents_text)
 
-    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10, ok11, ok12, ok13, ok14, ok15, ok16)):
+    if all((ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, ok10, ok11, ok12, ok13, ok14, ok15, ok16, ok17)):
         print("\n>>> [SUCCESS] 核心文檔、ADR、規格書與 QA 報告檢驗全數合格 (100% In Sync) <<<\n")
         sys.exit(0)
     else:

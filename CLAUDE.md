@@ -39,4 +39,5 @@
    - 新增或修改 Skill 時只改正本；若變更 `name`/`description` 或新增 Skill，須同步更新對應轉接檔。
    - 專案之 `code-review` 技能於 Claude Code 中命名為 `gate2-code-review`，以避免與 Claude Code 內建 `/code-review` 指令衝突。
    - 流程檔（`.agents/workflows/*.md`）不設轉接層，依 AGENTS.md 分流表以 Read 讀取。
-5. **角色子 Agent 轉接層**：`.claude/agents/<role>.md` 僅含 frontmatter（`name`、`description`、`model`）與讀取 `.agents/<role>/AGENT.md` 之指示，**僅於使用者明確要求多代理協作時派工**；子 Agent 已自動載入 AGENTS.md，轉接檔嚴禁指示重複讀取。`model` 須與第 1 項分級表之角色預設值一致。
+5. **需求澄清提問 (feature-design 階段 1.5)**：主對話以 `AskUserQuestion` 呈現澄清問題（含子 Agent 回報之問題；每題一個 question，建議選項置首並標示 `(Recommended)`）。規則正本見 [requirement_clarification.md](.agents/skills/feature-design/references/requirement_clarification.md)。
+6. **角色子 Agent 轉接層**：`.claude/agents/<role>.md` 僅含 frontmatter（`name`、`description`、`model`）與讀取 `.agents/<role>/AGENT.md` 之指示，**僅於使用者明確要求多代理協作時派工**；子 Agent 已自動載入 AGENTS.md，轉接檔嚴禁指示重複讀取。`model` 須與第 1 項分級表之角色預設值一致。

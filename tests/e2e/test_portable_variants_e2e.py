@@ -126,7 +126,8 @@ def _common(config):
     """各變體共用：清除原專案指紋與例外、門檻自 1 起、掃描範圍改為假專案。"""
     config.setdefault("privacy", {})["forbidden_hash_prefixes"] = []
     config.setdefault("project", {})["business_skills"] = []
-    config.setdefault("docs", {}).update({"quality_ac_enforced_from": 1, "security_ac_enforced_from": 1})
+    config.setdefault("docs", {}).update({"quality_ac_enforced_from": 1, "security_ac_enforced_from": 1,
+                                             "assumptions_enforced_from": 1})
     config.setdefault("guardrails", {}).setdefault("required_gitignore", [".env"])
     return config
 

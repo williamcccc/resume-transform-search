@@ -60,6 +60,7 @@ stack_terms = []
 [docs]
 quality_ac_enforced_from = 1
 security_ac_enforced_from = 1
+assumptions_enforced_from = 1
 agents_max_lines = 200
 
 [security]
@@ -175,6 +176,15 @@ class TestLoadProjectConfig(unittest.TestCase):
                 self.write(VALID_TOML.replace(old, new, 1))
                 self.assert_config_error(fragment)
 
+    def test_assumptions_enforced_from_required_int(self):
+        """Spec-0049：assumptions_enforced_from 缺鍵或非整數時指出區段與鍵"""
+        self.write(VALID_TOML)
+        self.assertEqual(project_config.load_project_config(self.root)["docs"]["assumptions_enforced_from"], 1)
+        for new in ("", "assumptions_enforced_from = \"1\"\n"):
+            with self.subTest(new=new):
+                self.write(VALID_TOML.replace("assumptions_enforced_from = 1\n", new, 1))
+                self.assert_config_error("[docs].assumptions_enforced_from")
+
     def test_missing_spec0038_keys_raise(self):
         """Spec-0038 AC-1、AC-5：sensitive_extensions、business_skills 缺鍵時指出區段與鍵"""
         cases = [
@@ -234,7 +244,7 @@ class TestLoadProjectConfig(unittest.TestCase):
 
     def test_only_requested_sections_are_validated(self):
         self.write(VALID_TOML.split("[layers]")[0]
-                   + "[docs]\nquality_ac_enforced_from = 1\nsecurity_ac_enforced_from = 1\nagents_max_lines = 10\n")
+                   + "[docs]\nquality_ac_enforced_from = 1\nsecurity_ac_enforced_from = 1\nassumptions_enforced_from = 1\nagents_max_lines = 10\n")
         data = project_config.load_project_config(self.root, ("docs",))
         self.assertEqual(data["docs"]["agents_max_lines"], 10)
         self.assert_config_error("缺少區段 [layers]", ("layers",))

@@ -21,7 +21,7 @@
 
 ### 1. 上游接收合約 (Input Contract)
 * **來源**：使用者業務需求（簡短指令、Issue），或 Bug 軌升級而來的案件（附原缺陷報告）。缺陷回報本身由 developer 走 Step 1B（`bug-triage`），architect 僅於第 6 階段簽核。
-* **動作**：不得直接寫程式碼，先調用 `feature-design` 探測既有代碼模組。
+* **動作**：不得直接寫程式碼，先調用 `feature-design` 探測既有代碼模組，再依其階段 1.5（規則見 `requirement_clarification.md`）判定是否向使用者澄清。
 
 ### 2. 下游交付合約 (Output Contract ➔ 交付給 `developer`)
 * **交付格式**：嚴格遵循 `AGENTS.md` 規範之標準「狀態交接 DTO (Context Handoff Schema)」。
@@ -46,7 +46,8 @@
 1. 恪守 DDD Clean Architecture 與依賴反轉 (DIP) 原則。
 2. Step 1 規格化與架構前審 (Gate 1)：
    - 調度 .agents/skills/feature-design/ 技能。
-   - 探測既有代碼，依據 prd_template.md 產出明確之 PRD (明訂 In/Out Scope 與 AC 驗收標準)。
+   - 探測既有代碼，依據 requirement_clarification.md 判定是否先向使用者澄清。
+   - 依據 prd_template.md 產出明確之 PRD (明訂 In/Out Scope、AC 驗收標準與附來源之假設清單)。
    - 依據 security_nfr_framework.md 執行安全與非功能需求評估：範圍宣告、ISO 25010 宣告、STRIDE 威脅表、NFR-* 驗收條件；安全殘餘風險先判定嚴重度，S1 不得延後。
    - 依據 arch_review_checklist.md 進行 8 大架構維度衝擊評估（本專案通過標準見 .agents/project/arch_review_criteria.md），重大決策草擬 docs/adr/。
    - 依據 tech_spec_template.md 產出技術規格書與【QA 測試案例矩陣】。

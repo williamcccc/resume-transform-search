@@ -65,6 +65,7 @@ flowchart LR
 | **0046** | 核心自我測試去除實例值斷言、移植演練多組參數化 | — | [Spec-0046](./specs/0046-core-tests-instance-assumptions-spec.md) | `tests/e2e/test_portable_variants_e2e.py`、`tests/unit/test_project_instance_files.py`、`.agents/tests/test_guardrail_gaps.py` | [QA-0046](./qa_reports/0046-core-tests-instance-assumptions-qa.md) |
 | **0047** | 第三輪移植實測卡點修正：套件根名推導、原始碼掃描範圍、設定檔 BOM、pyproject 依賴掃描 | — | [Spec-0047](./specs/0047-porting-trial-3-fixes-spec.md) | `.agents/skills/code-review/scripts/audit_guardrails.py`、`.agents/skills/code-review/scripts/security_scan.py`、`.agents/lib/project_config.py`、`tests/e2e/test_portable_variants_e2e.py` | [QA-0047](./qa_reports/0047-porting-trial-3-fixes-qa.md) |
 | **0048** | STRIDE 威脅表以欄名判定、扁平根目錄內部模組判定 | — | [Spec-0048](./specs/0048-stride-table-and-flat-internal-modules-spec.md) | `.agents/skills/doc-sync/scripts/verify_doc_sync.py`、`.agents/skills/code-review/scripts/audit_guardrails.py` | [QA-0048](./qa_reports/0048-stride-table-and-flat-internal-modules-qa.md) |
+| **0049** | feature-design 新增需求澄清階段與假設清單 | — | [Spec-0049](./specs/0049-requirement-clarification-spec.md) | `.agents/skills/feature-design/`、`.agents/skills/doc-sync/scripts/verify_doc_sync.py` | [QA-0049](./qa_reports/0049-requirement-clarification-qa.md) |
 
 ### 缺陷修正追溯清單
 

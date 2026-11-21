@@ -134,6 +134,8 @@ stack_terms = ['Redis', 'Gemini', 'PDF', 'Docx', 'DOCX']
 quality_ac_enforced_from = 23
 # 規格編號達此值起，須宣告「安全評估範圍」且缺漏即 FAIL（Spec-0030；新專案設為 1）
 security_ac_enforced_from = 31
+# 規格編號達此值起，須含「假設清單」（需求澄清宣告與來源欄）且缺漏即 FAIL（Spec-0049；新專案設為 1）
+assumptions_enforced_from = 49
 # AGENTS.md 行數上限，超過時 WARN
 agents_max_lines = 200
 
