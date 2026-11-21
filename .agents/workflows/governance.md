@@ -1,7 +1,7 @@
 # 規範變更流程 (Governance Track)
 
-> **適用**：修改 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，或 `.agents/**` 下的角色、技能、流程檔、範本、檢核清單，以及對應的 `.claude/**` 轉接層與 `docs/templates/` 鏡像，且不改 `src/`。流程檔本身寫錯也走本流程，不走 Bug 軌。
-> 同時修改 `src/` 時，依 `src/` 的性質走 [feature.md](./feature.md) 或 [bug.md](./bug.md)，規範部分併入其 Step 7，並套用本檔 G4 檢查清單。
+> **適用**：修改 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，或 `.agents/**` 下的角色、技能、流程檔、範本、檢核清單，以及對應的 `.claude/**` 轉接層與 `docs/templates/` 鏡像，且不改原始碼（`layers.src`）。流程檔本身寫錯也走本流程，不走 Bug 軌。
+> 同時修改原始碼時，依其性質走 [feature.md](./feature.md) 或 [bug.md](./bug.md)，規範部分併入其 Step 7，並套用本檔 G4 檢查清單。
 > **本檔只寫編排**；文件同步與驗證的作業細節以 [doc-sync](../skills/doc-sync/SKILL.md) 為準。
 
 ## 步驟

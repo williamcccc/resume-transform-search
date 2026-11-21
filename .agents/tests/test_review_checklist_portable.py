@@ -1,8 +1,10 @@
 """Gate 2 檢核清單通用化與 .agents 專案相依清理之文件結構測試（Spec-0036）；閉環核心自我測試（Spec-0037），移植後仍須通過。
 
-只讀取版控中的規範文件，不讀取本機 data/ 或 resume/。
+只讀取版控中的規範文件，不讀取本機敏感目錄。本專案字詞讀自 `project.toml` 的
+`[project].identifiers` 與 `stack_terms`（Spec-0041），移植後即守護新專案字詞。
 """
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -10,7 +12,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AGENTS_DIR = PROJECT_ROOT / ".agents"
 CHECKLIST = AGENTS_DIR / "skills" / "code-review" / "references" / "review_checklist.md"
 PORTING = AGENTS_DIR / "PORTING.md"
-PROJECT_TERMS = re.compile(r"Redis|Gemini|履歷|候選人|PDF|Docx|DOCX|切片|resume_content|convert_to_md|AppConfig")
+with (AGENTS_DIR / "project.toml").open("rb") as _handle:
+    _PROJECT = tomllib.load(_handle)["project"]
+# 本專案識別字與技術元件名（技術中立之核心檢核清單皆不得出現）
+PROJECT_TERMS = re.compile("|".join(f"(?:{t})" for t in (*_PROJECT["identifiers"], *_PROJECT["stack_terms"])))
 CATEGORY = re.compile(r"^### (\d)\. ", re.MULTILINE)
 UPGRADE_RULE_FILES = (
     AGENTS_DIR / "workflows" / "bug.md",
@@ -42,7 +47,7 @@ class TestReviewChecklistPortable(unittest.TestCase):
             with self.subTest(path=path.name):
                 text = path.read_text(encoding="utf-8")
                 self.assertIn("設定模組（`config.module`）新增環境變數", text)
-                self.assertNotIn("`AppConfig` 環境變數", text)
+                self.assertEqual(PROJECT_TERMS.findall(text), [])
 
     def test_doc_sync_and_qa_testing_free_of_project_terms(self):
         """AC-3：doc_sync_checklist 與 qa-testing 技能不含本專案元件名稱"""
@@ -52,7 +57,7 @@ class TestReviewChecklistPortable(unittest.TestCase):
         ):
             with self.subTest(path=path.name):
                 text = path.read_text(encoding="utf-8")
-                self.assertEqual(re.findall(r"IVectorStore|IEmbeddingService|Redis|Gemini|候選人|PDF", text), [])
+                self.assertEqual(PROJECT_TERMS.findall(text), [])
 
     def test_porting_declares_python_scope_and_lists_instance_files(self):
         """AC-4：PORTING.md 宣告 Python 適用範圍並列出兩份實例檔（舉例中性化後已無「選擇性中性化」步驟）"""

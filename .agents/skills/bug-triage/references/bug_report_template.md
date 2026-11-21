@@ -35,7 +35,7 @@ AssertionError: ...
 ## 3. 根因分析
 * **真因**：
 * **所屬 DDD 層**：domain / application / infrastructure / interfaces
-* **位置**：`src/...py:行號`
+* **位置**：`<layers.src>/...py:行號`
 * **逃逸分析**：測試缺口 / 斷言過弱 / 規格缺口 / 防線缺口 —— 說明既有測試或防線為何沒抓到。
 * **防線改善建議**（屬防線缺口時填寫，另案處理）：
 * **教訓歸屬**：通用 / 專案專屬 —— 失效層：範圍宣告 / 威脅建模 / 標準對照 / 工具規則 / 規範缺漏（判定方式見 `.agents/skills/feature-design/references/security_nfr_framework.md` 第七節）；通用者記錄回寫之規範變更編號：
@@ -44,7 +44,7 @@ AssertionError: ...
 
 | 預計修改檔案 | 修改性質 |
 | :--- | :--- |
-| `src/...py` | |
+| `<layers.src>/...py` | |
 
 **升級條件檢查**：
 

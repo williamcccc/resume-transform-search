@@ -32,7 +32,7 @@ def make_spec(scope_line, ac_lines, extra=""):
     return f"""# 規格
 ## 1. PRD
 ### 1.1 背景
-履歷檢索需要改善排序。
+文件檢索需要改善排序。
 ### 1.5 驗收標準 (AC)
 {scope_line}
 {ac_lines}

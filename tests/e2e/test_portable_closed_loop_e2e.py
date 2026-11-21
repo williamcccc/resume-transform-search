@@ -62,6 +62,9 @@ def _rewrite_project_toml(text: str) -> str:
     text = re.sub(r'tools_venv = "[^"]*"', f'tools_venv = "{TOOLS_VENV.as_posix()}"', text)
     # Spec-0038：業務技能刪除後清空清單
     text = re.sub(r"business_skills = \[[^\]]*\]", "business_skills = []", text)
+    # Spec-0041：守護字詞改為新專案的識別字與技術元件名
+    text = re.sub(r"identifiers = \[[^\]]*\]", lambda _: r"identifiers = ['demo_widget', '\bapp/']", text)
+    text = re.sub(r"stack_terms = \[[^\]]*\]", "stack_terms = ['DemoDB']", text)
     return text
 
 
@@ -219,6 +222,32 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-3000:])
         self.assertIn("OK", proc.stderr)
+
+    def run_core_test(self, pattern):
+        return subprocess.run(
+            [sys.executable, "-X", "utf8", "-m", "unittest", "discover", "-s", ".agents/tests", "-p", pattern],
+            cwd=self.root, capture_output=True, text=True, encoding="utf-8", timeout=300,
+        )
+
+    def test_a6_guard_terms_follow_new_project_instance(self):
+        """Spec-0041 AC-1：移植後守護字詞讀自新專案設定；核心文件寫入新專案識別字或技術元件名即失敗"""
+        self.assertEqual(self.config["project"]["identifiers"], ["demo_widget", r"\bapp/"])
+        cases = (
+            (".agents/workflows/bug.md", "\n補充：見 `app/demo_widget.py`。\n", "test_neutral_examples.py"),
+            (".agents/skills/code-review/references/review_checklist.md", "\n- [ ] DemoDB 連線\n",
+             "test_review_checklist_portable.py"),
+        )
+        for rel, extra, test_file in cases:
+            with self.subTest(file=rel):
+                path = self.root / rel
+                original = path.read_text(encoding="utf-8")
+                path.write_text(original + extra, encoding="utf-8")
+                try:
+                    proc = self.run_core_test(test_file)
+                finally:
+                    path.write_text(original, encoding="utf-8")
+                self.assertNotEqual(proc.returncode, 0, proc.stderr[-2000:])
+                self.assertIn("FAIL", proc.stderr)
 
     def test_p2_original_fingerprints_absent_after_porting(self):
         original = tomllib.loads((PROJECT_ROOT / ".agents" / "project.toml").read_text(encoding="utf-8"))
