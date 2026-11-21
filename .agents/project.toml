@@ -102,8 +102,9 @@ safe_filename_stems = [
     "corrupt", "invalid", "fixture", "candidate", "document", "source", "output",
     "converted", "file", "input", "resume", "sample_resume", "candidate_one",
 ]
-# 存放敏感原始檔的目錄名稱；引用其下 .pdf/.docx/.doc/.md 實際檔名即視為隱私線索
-sensitive_dirs = ["resume", "resumes", "markdown_out", "markdown_output", "output_md"]
+# 存放真實原始檔或其產出的目錄名稱（路徑任一層命中即算）；引用其下 .pdf/.docx/.doc/.md 實際檔名即視為隱私線索。
+# 只列直接存放檔案的目錄：根目錄 data/ 不列（tests/eval/data/ 為合成評測資料，列入會誤報），改列其下子目錄。
+sensitive_dirs = ["resume", "resumes", "markdown_out", "markdown_output", "output_md", "quarantine"]
 # 敏感目錄下引用以下副檔名之實際檔名即視為隱私線索（不含點）
 sensitive_extensions = ["pdf", "docx", "doc", "md"]
 # 「人名-關鍵字」形式的個人檔名關鍵字
