@@ -29,8 +29,8 @@
 紅線編號 1–7 為固定識別碼（歷史文件以編號引用），依適用範圍分為兩組。
 
 #### 通用紅線（任何專案適用）
-* **紅線 1｜依賴反轉 (DIP)**：Use Case 只能呼叫 Domain 契約檔（`layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）定義的 Protocol 契約，外部實體工具必須透過依賴注入（Dependency Injection）組裝傳入。
-* **紅線 6｜Twelve-Factor 配置治理與零硬編碼防線 (No Hardcoding & Config Decoupling)**：所有外部服務連線、機密憑證、安全配額、重試策略與演算法閥值，嚴禁在業務程式碼中硬編碼；金鑰嚴禁納入 Git 版控；連線字串統一由設定模組（`config.module`，本專案為 `AppConfig`）與 `.env` 注入；代碼嚴禁寫死本機絕對路徑；Gate 2 代碼審查時強制執行 AST 掃描阻斷。
+* **紅線 1｜依賴反轉 (DIP)**：Use Case 只能呼叫 Domain 契約檔（`layers.domain_interfaces`）定義的 Protocol 契約，外部實體工具必須透過依賴注入（Dependency Injection）組裝傳入。
+* **紅線 6｜Twelve-Factor 配置治理與零硬編碼防線 (No Hardcoding & Config Decoupling)**：所有外部服務連線、機密憑證、安全配額、重試策略與演算法閥值，嚴禁在業務程式碼中硬編碼；金鑰嚴禁納入 Git 版控；連線字串統一由設定模組（`config.module`）與 `.env` 注入；代碼嚴禁寫死本機絕對路徑；Gate 2 代碼審查時強制執行 AST 掃描阻斷。
 * **紅線 7｜Git 版控衛生、零個資 (Zero-PII) 與跨平台路徑防線 (Git Hygiene & Privacy Guardrails)**：
   - **零真實個資與真實企業名殘留**：程式碼、API 參數說明（如 Swagger `description`）、單元測試、CLI `--help` 範例、Prompt 模板與工程文檔（`docs/`）中，**嚴禁出現任何真實個資、真實檔名或源自真實案例之特定企業名稱**（一律使用通用虛構名稱或通用工程術語）。單元測試嚴禁讀取本機敏感目錄（`privacy.sensitive_dirs`）實體檔案，必須 100% 於記憶體動態建構（如 `BytesIO`）。本專案之敏感資料類型見下方「紅線 7 本專案補充」。
   - **零本機絕對路徑與文檔相對路徑化**：代碼、測試與專案內文檔（`docs/`、`.agents/`、根目錄 `.md`）嚴禁寫死本機磁碟絕對路徑，代碼一律使用 `Path(__file__).resolve()` 動態定位，版控文檔一律使用專案相對路徑鏈接。
@@ -43,6 +43,7 @@
   - 向量索引寫入具備冪等性（入庫前清除同候選人舊切片）。
 * **紅線 4｜四層品管防線不可繞過**：所有檔案轉換產出必須經過確定性品管閥（`MarkdownQualityValidator`）檢核，低於 65 分必須自動隔離（Quarantine）。
 * **紅線 5｜Token 能效與無效重複呼叫防禦 (Token Economics & Zero-Waste)**：批次向量化或轉檔必須具備內容 Hash 增量比對，未變更檔案重複執行時嚴禁調用外部 API（達成 0 Token 消耗）；健康文字文件優先採 Text-First 策略，嚴禁無條件渲染圖片浪費多模態 Token。
+* **紅線 1、6 本專案對應**：Domain 契約檔為 `src/domain/interfaces.py`；設定模組為 `src/infrastructure/config.py` 的 `AppConfig`。
 * **紅線 7 本專案補充（敏感資料類型與目錄）**：程式碼、API 參數說明（如 Swagger `description`）、單元測試、CLI `--help` 範例、Prompt 模板（`prompts/*.md`）與工程文檔（`docs/`）中，**嚴禁出現任何真實求職者姓名、聯絡資訊、真實履歷檔名或源自真實履歷案例之特定企業名稱**（一律使用通用虛構名稱如 `王小明`、`sample_resume.md` 或通用工程術語）。單元測試嚴禁讀取本機 `data/` 或 `resume/` 實體檔案，必須 100% 於記憶體動態建構（如 `BytesIO`）。
 * **本專案執行環境**：Python 3.13 on Windows。
 

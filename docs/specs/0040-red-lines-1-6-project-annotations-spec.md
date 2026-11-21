@@ -1,6 +1,6 @@
 # 提案與規格書：紅線 1、6 之「本專案為」附註移入本專案紅線小節
 
-> **狀態**：G1 提案（待 G2 使用者核准）｜**類型**：規範變更（大改：修改 AGENTS.md 第 1 節架構紅線，須 ADR）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：[AGENTS.md](../../AGENTS.md) 第 1 節、[test_neutral_examples.py](../../.agents/tests/test_neutral_examples.py)、`docs/adr/`，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，3 項待決事項全數採建議；QA 見 [QA-0040](../qa_reports/0040-red-lines-1-6-project-annotations-qa.md)；決策見 [ADR-0040](../adr/0040-red-lines-1-6-project-values-moved.md)）｜**類型**：規範變更（大改：修改 AGENTS.md 第 1 節架構紅線，須 ADR）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：[AGENTS.md](../../AGENTS.md) 第 1 節、[test_neutral_examples.py](../../.agents/tests/test_neutral_examples.py)、`docs/adr/`，不涉及 `src/`
 
 ## 一、動機
 

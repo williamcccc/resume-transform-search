@@ -33,6 +33,7 @@
 | **[ADR-0022](./0022-recruitment-relaxation-human-in-the-loop.md)** | 招募助手放寬條件之人工決策（LangGraph interrupt） | 已採納 (Accepted) | 2026-11 | `LangGraph`, `Human-in-the-Loop`, `Interrupt`, `Audit` |
 | **[ADR-0028](./0028-portable-closed-loop-project-config.md)** | 閉環專案專屬值集中於 project.toml，規範文字以標記區分專屬規則 | 已採納 (Accepted) | 2026-11 | `Governance`, `Portability`, `Config`, `Guardrails` |
 | **[ADR-0037](./0037-agents-red-lines-generic-and-project-groups.md)** | AGENTS.md 紅線分為通用與本專案兩組，專案事實集中於實例檔 | 已採納 (Accepted) | 2026-11 | `Governance`, `Portability`, `Red Lines` |
+| **[ADR-0040](./0040-red-lines-1-6-project-values-moved.md)** | 紅線 1、6 之本專案值移入本專案紅線小節 | 已採納 (Accepted) | 2026-11 | `Governance`, `Portability`, `Red Lines` |
 
 ---
 
