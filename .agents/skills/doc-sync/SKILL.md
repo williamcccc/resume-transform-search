@@ -44,8 +44,8 @@ flowchart TD
 ### 階段 2：整潔架構與時序同步 (Architecture Sync)
 * **目標檔案**：[`ARCHITECTURE.md`](../../../ARCHITECTURE.md)
 * **檢核與同步要點**：
-  1. **DDD 領域實體與 DTO**：若有新增或擴充的資料模型（如 `ResumeChunk`, `SearchQuery`, `QualityReport`），必須同步更新文檔中的實體欄位定義與職責說明。
-  2. **依賴反轉 Protocol 契約**：若在 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 `src/domain/interfaces.py`）增修了協定介面，需於基礎設施章節記錄對應的實作類別。
+  1. **DDD 領域實體與 DTO**：若有新增或擴充的實體、值物件或 DTO，必須同步更新文檔中的實體欄位定義與職責說明。
+  2. **依賴反轉 Protocol 契約**：若在 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`）增修了協定介面，需於基礎設施章節記錄對應的實作類別。
   3. **Mermaid 流程與時序圖**：若調度流程有異動，必須更新 Markdown 內嵌的 Mermaid `flowchart` 或 `sequenceDiagram`，維持可視化架構與代碼完全相符。
 
 ### 階段 3：ADR 生命週期歸檔 (ADR Lifecycle Sync)

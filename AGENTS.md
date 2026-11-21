@@ -18,7 +18,7 @@
 系統四層結構有嚴格的單向依賴關係，內層抽象絕不可依賴外層技術細節（各層路徑之正本為 [`.agents/project.toml`](.agents/project.toml) 的 `[layers]`；本專案專屬之紅線集中於下方「本專案紅線」，其餘專案事實位於 [`.agents/project/`](.agents/project/profile.md)，移植見 [PORTING.md](.agents/PORTING.md)）：
 
 ```
-src/
+<layers.src>/
 ├── domain/            # 【領域層】：純業務模型與契約介面。嚴禁 import 任何第三方外部 SDK
 ├── application/       # 【應用層】：Use Cases 與流程調度。依賴 Domain 介面，以 DTO 進行輸入/輸出，協調核心業務
 ├── infrastructure/    # 【基礎設施層】：外部技術實作。負責實作 Domain 介面（外部服務、資料庫、檔案解析等）
@@ -96,8 +96,8 @@ src/
 
 本節補充閉環中「品質」面的驗收，適用於涉及檢索排序、結構化抽取或 LLM 生成的功能，以及 `prompts/` 與模型設定的變更；無檢索、抽取或 LLM 生成功能之專案可整節刪除。
 
-1. **Step 1 驗收條件必須含品質指標**：PRD 的 AC 除功能行為外，凡影響檢索、排序、抽取或生成結果者，必須定義可量化的品質目標（例如 Recall@K 下限、欄位 F1、評審分數門檻），並說明標註資料來源。每份規格須於驗收標準段落宣告 `品質評測範圍：是` 或 `品質評測範圍：否`；宣告為「是」而未見品質 AC 者，Gate 1 不得通過（`verify_doc_sync.py` 自 `docs.quality_ac_enforced_from` 所設編號起強制檢查，本專案為 0023）。
-2. **標註資料須為合成資料**：評測資料集一律使用虛構內容（例如 `王小明`），不得含真實履歷或真實個資，存放於 `tests/eval/data/`。
+1. **Step 1 驗收條件必須含品質指標**：PRD 的 AC 除功能行為外，凡影響檢索、排序、抽取或生成結果者，必須定義可量化的品質目標（例如 Recall@K 下限、欄位 F1、評審分數門檻），並說明標註資料來源。每份規格須於驗收標準段落宣告 `品質評測範圍：是` 或 `品質評測範圍：否`；宣告為「是」而未見品質 AC 者，Gate 1 不得通過（`verify_doc_sync.py` 自 `docs.quality_ac_enforced_from` 所設編號起強制檢查）。
+2. **標註資料須為合成資料**：評測資料集一律使用虛構內容（例如 `王小明`），不得含真實個資，存放於 `tests/eval/data/`。
 3. **Step 3 指標函式須有單元測試**：Recall@K、Precision@K、MRR、nDCG@K、欄位 F1 等計算函式，須以手算小例子做白箱單元測試，並覆蓋空相關集合、重複 ID、K 超過結果數等邊界。
 4. **Step 4 品質評測獨立執行**：真實評測資料上的檢索指標與 LLM 評審位於 `tests/eval/`，不納入 `unittest` 與 CI，由人工觸發；QA 報告須記錄 Token 消耗與分數變化。
 5. **Prompt 或模型變更須有前後比較**：修改 `prompts/` 或模型設定時，須以同一批評測資料比較前後分數；分數下降不得合併，除非有明確理由並經 Gate 2 核准。
@@ -138,7 +138,7 @@ src/
 6. **狀態記憶三態治理矩陣 (Memory Management: Retain / Summarize / Discard)**：
    - **保留 (Retain)**：PRD、技術規格書、最終審計報告等契約文件，強制以可點擊鏈接形式保留引用，零重複拷貝。
    - **總結 (Summarize)**：失敗根因、對抗測試結論、品質評分，由當前 Agent 提煉為 3~5 行結構化摘要，捨棄流水帳日誌。
-   - **捨棄 (Discard)**：中間測試腳本、PDF 頁面 PNG 二進位圖、歷史會話中的修辭、無關除錯 print，任務結束立即解構釋放。
+   - **捨棄 (Discard)**：中間測試腳本、圖片等二進位中間產物、歷史會話中的修辭、無關除錯 print，任務結束立即解構釋放。
 7. **標準狀態交接 DTO (Context Handoff Schema)**：
    - Agent 之間（如 `architect` ➔ `developer` ➔ `gatekeeper`）派工與回報，統一採用緊湊結構化交接包：
      ```json
@@ -170,5 +170,5 @@ src/
 
 1. **環境標準**：路徑處理一律使用 `pathlib.Path` 物件，檔案編碼一律為 UTF-8；執行環境見第 1 節「本專案紅線」。
 2. **對話溝通**：回覆一律採用**繁體中文（正體中文）**。
-3. **鏈接格式**：所有引用的檔案路徑或代碼符號，必須使用 Markdown 可點擊鏈接格式（如 `[runner.py](src/interfaces/cli/runner.py)`）。
+3. **鏈接格式**：所有引用的檔案路徑或代碼符號，必須使用 Markdown 可點擊鏈接格式（如 `[AGENTS.md](AGENTS.md)`）。
 4. **交付報告**：交付時必須附帶標準的 **QA 實測摘要** 與 **Code Review 雙門禁審查結果摘要**。

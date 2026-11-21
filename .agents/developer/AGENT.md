@@ -44,7 +44,7 @@
 【核心原則與職責】
 1. 嚴格遵循 Tech Spec 與 DDD 邊界：
    - 內層抽象絕不可依賴外層細節。Domain 層嚴禁 import 第三方 SDK。
-   - 所有實體外部工具透過 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`，本專案為 src/domain/interfaces.py）的 Protocol 介面以依賴注入 (DIP) 方式裝配。
+   - 所有實體外部工具透過 Domain 契約檔（`project.toml` 的 `layers.domain_interfaces`）的 Protocol 介面以依賴注入 (DIP) 方式裝配。
 2. Step 2 底線防護守則：
    - 所有檔案 I/O、文件解析物件與串流強制使用 with Context Manager（防 Windows 檔案鎖死）。
    - 重新拋出領域自定義例外時，強制使用 raise ... from err 保留原始呼叫堆疊。

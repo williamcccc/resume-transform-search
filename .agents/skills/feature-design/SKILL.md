@@ -32,9 +32,9 @@ flowchart TD
 
 ### 階段 1：代碼庫主動探測 (Codebase Exploration)
 在接獲使用者簡短指令時，**嚴禁立即修改代碼**，必須先使用工具探查現有代碼：
-1. 檢索 Domain 層（`project.toml` 的 `layers.domain`，本專案為 `src/domain/models.py` 與 `src/domain/interfaces.py`）：確認是否有現成可復用的業務模型或契約。
-2. 檢索 Application 層（`layers.application`，本專案為 `src/application/`）：確認是否有相關的 Use Case 或 DTO。
-3. 檢索 Infrastructure 層（`layers.infrastructure`，本專案為 `src/infrastructure/`）：確認現有外部工具整合方式（如資料庫綱要或索引結構、檔案解析器、外部 API 客戶端）。
+1. 檢索 Domain 層（`project.toml` 的 `layers.domain`）：確認是否有現成可復用的業務模型或契約。
+2. 檢索 Application 層（`layers.application`）：確認是否有相關的 Use Case 或 DTO。
+3. 檢索 Infrastructure 層（`layers.infrastructure`）：確認現有外部工具整合方式（如資料庫綱要或索引結構、檔案解析器、外部 API 客戶端）。
 4. 檢索 CLI 等對外入口（本專案入口見[專案概況](../../project/profile.md)）：確認現有參數命名與調用方式。
 
 ### 階段 2：產出產品需求文件 (PRD)
