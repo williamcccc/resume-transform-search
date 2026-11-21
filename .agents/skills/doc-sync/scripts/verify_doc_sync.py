@@ -36,8 +36,8 @@ sys.path.insert(0, str(ROOT_DIR / ".agents" / "lib"))
 from project_config import ProjectConfigError, load_project_config  # noqa: E402
 
 try:
-    # [security] 一併驗證：特徵缺鍵或 not_applicable 缺理由時以結束碼 2 中止（Spec-0030 AC-2）
-    DOCS_CONFIG = load_project_config(ROOT_DIR, ("docs", "security", "security.tools"))["docs"]
+    # [security]、[project] 一併驗證：缺鍵、型別錯誤或 not_applicable 缺理由時以結束碼 2 中止（Spec-0030 AC-2、Spec-0038）
+    DOCS_CONFIG = load_project_config(ROOT_DIR, ("docs", "security", "security.tools", "project"))["docs"]
 except ProjectConfigError as _config_err:
     print(f"[FAIL] 專案設定錯誤: {_config_err}")
     sys.exit(2)

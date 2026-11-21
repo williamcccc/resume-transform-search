@@ -87,6 +87,14 @@
       "location": "requirements-dev.txt:opentelemetry-api==1.37.0",
       "reason": "掃描工具 semgrep 鎖定之相依版本；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 更新相依後升級",
       "expires": "2027-02-20"
+    },
+    {
+      "fingerprint": "pip-audit:fp558db9f876c4e454",
+      "tool": "pip-audit",
+      "rule": "CVE-2026-132276",
+      "location": "requirements-dev.txt:wcmatch==8.5.2",
+      "reason": "掃描工具 semgrep 之相依套件；工具隔離於 .venv-tools，不進入執行期環境。待 semgrep 支援 wcmatch 11.2 後升級",
+      "expires": "2027-02-20"
     }
   ]
 }

@@ -44,8 +44,14 @@ SCHEMA: Dict[str, Dict[str, str]] = {
         "safe_email_domains": "str_list",
         "safe_filename_stems": "str_list",
         "sensitive_dirs": "str_list",
+        # 敏感目錄下視為隱私線索之副檔名（不含點；Spec-0038）
+        "sensitive_extensions": "str_list",
         "personal_filename_keywords": "str_list",
         "locale_patterns": "str_list",
+    },
+    # 專案組成（Spec-0038）：移植時依此清單刪除業務技能
+    "project": {
+        "business_skills": "str_list",
     },
     "docs": {
         "quality_ac_enforced_from": "int",

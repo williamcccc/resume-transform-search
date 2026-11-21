@@ -104,10 +104,16 @@ safe_filename_stems = [
 ]
 # 存放敏感原始檔的目錄名稱；引用其下 .pdf/.docx/.doc/.md 實際檔名即視為隱私線索
 sensitive_dirs = ["resume", "resumes", "markdown_out", "markdown_output", "output_md"]
+# 敏感目錄下引用以下副檔名之實際檔名即視為隱私線索（不含點）
+sensitive_extensions = ["pdf", "docx", "doc", "md"]
 # 「人名-關鍵字」形式的個人檔名關鍵字
 personal_filename_keywords = ["CV", "resume"]
 # 啟用的地區樣式組（audit_guardrails.py 內建）：tw_mobile、tw_landline、tw_id
 locale_patterns = ["tw_mobile", "tw_landline", "tw_id"]
+
+[project]
+# 本專案業務技能（.agents/skills/ 與 .claude/skills/ 下同名資料夾）；移植時依此清單刪除後清空
+business_skills = ["resume-vector-indexing", "resume-vector-search"]
 
 [docs]
 # 規格編號達此值起，須宣告「品質評測範圍」且缺漏即 FAIL
@@ -154,7 +160,7 @@ dependency_files = ["requirements.txt", "requirements-eval.txt", "requirements-d
 # 依賴套件新增已知漏洞之等級（pip-audit 不提供嚴重度）
 dependency_level = "P1"
 # 既有發現基準檔：只阻斷新增發現；每筆須有理由與到期日
-baseline = ".agents/security_baseline.json"
+baseline = ".agents/project/security_baseline.json"
 # 觸發方式（Spec-0030 決議 10）：預設差異掃描——Semgrep 只掃相對 diff_base 之變更檔，
 # pip-audit 只在 dependency_files 變更時執行；上次完整掃描超過下列天數即自動完整掃描
 diff_base = "main"
