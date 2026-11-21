@@ -53,6 +53,7 @@ flowchart LR
 | **0034** | ASVS 章節歸屬自動檢查（提案，待核准） | — | [Spec-0034](./specs/0034-asvs-chapter-coverage-check-spec.md) | — | — |
 | **0035** | 架構前審 8 大維度通用化（問題放核心，答案放專案） | — | [Spec-0035](./specs/0035-portable-arch-review-checklist-spec.md) | `tests/unit/test_arch_review_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0035](./qa_reports/0035-portable-arch-review-checklist-qa.md) |
 | **0036** | Gate 2 檢核清單通用化與 .agents 專案相依清理 | — | [Spec-0036](./specs/0036-portable-review-checklist-spec.md) | `tests/unit/test_review_checklist_portable.py`、`tests/e2e/test_portable_closed_loop_e2e.py` | [QA-0036](./qa_reports/0036-portable-review-checklist-qa.md) |
+| **0037** | 專案概況檔、閉環自我測試隨核心移植、AGENTS.md 紅線分區（提案，待核准） | — | [Spec-0037](./specs/0037-project-profile-tests-and-red-lines-spec.md) | — | — |
 
 ### 缺陷修正追溯清單
 
