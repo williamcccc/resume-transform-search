@@ -221,8 +221,8 @@ class TestLoadProjectConfig(unittest.TestCase):
         self.assert_config_error("未定義的設定區段", ("nope",))
 
     def test_repository_config_is_valid(self):
+        # Spec-0046：只驗設定可載入與理由非空；實例值（如 layers.enabled）屬專案側測試
         data = project_config.load_project_config(PROJECT_ROOT)
-        self.assertTrue(data["layers"]["enabled"])
         for item in data["guardrails"]["url_exceptions"]:
             self.assertTrue(item["reason"].strip())
         for item in data["security"]["not_applicable"]:

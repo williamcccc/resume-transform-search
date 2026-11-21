@@ -163,12 +163,10 @@ class TestNeutralExamples(unittest.TestCase):
         self.assertEqual(stripped.count("\n"), doc.count("\n"))
         self.assertEqual([word for _, word in find_identifiers(stripped, pattern)], ["本專案為"])
 
-    def test_agents_md_project_section_keeps_red_line_values(self):
-        """Spec-0040：紅線 1、6 本專案值移入本專案紅線小節，通用紅線不含附註。"""
+    def test_agents_md_has_project_section_and_no_annotations_outside(self):
+        """Spec-0040、Spec-0046：AGENTS.md 有本專案紅線小節，其外無「本專案為」附註（小節內容屬專案實例，不在核心驗證）。"""
         text = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        section = PROJECT_RED_LINE_SECTION.search(text)
-        self.assertIsNotNone(section)
-        self.assertIn("紅線 1、6 本專案對應", section.group(0))
+        self.assertIsNotNone(PROJECT_RED_LINE_SECTION.search(text))
         self.assertNotIn("本專案為", strip_project_red_lines(text))
 
 
