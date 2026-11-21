@@ -1,6 +1,6 @@
 # 提案與規格書：核心自我測試去除實例值斷言、移植演練多組參數化
 
-> **狀態**：G1 提案（待 G2 使用者核准）｜**類型**：規範變更（大改：修改核心自我測試與移植演練）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/tests/`、`tests/unit/test_project_instance_files.py`、`tests/e2e/`，不涉及 `src/`、不修改紅線與驗證腳本
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，2 項待決事項全數採建議；QA 見 [QA-0046](../qa_reports/0046-core-tests-instance-assumptions-qa.md)）｜**類型**：規範變更（大改：修改核心自我測試與移植演練）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`.agents/tests/`、`tests/unit/test_project_instance_files.py`、`tests/e2e/`，不涉及 `src/`、不修改紅線與驗證腳本
 
 ## 一、動機
 

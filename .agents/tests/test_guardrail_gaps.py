@@ -30,6 +30,9 @@ def _rewrite_config(text: str) -> str:
     for key, value in MINI_LAYOUT:
         text, count = re.subn(rf"^{key} = .*$", f'{key} = "{value}"', text, count=1, flags=re.MULTILINE)
         assert count == 1, f"project.toml 缺少鍵 {key}"
+    # Spec-0046：假專案一律啟用分層檢查，不沿用實例之開關；需停用之測試自行改寫
+    text, count = re.subn(r"^enabled = (true|false)$", "enabled = true", text, count=1, flags=re.MULTILINE)
+    assert count == 1, "project.toml 缺少鍵 enabled"
     text = re.sub(r"forbidden_hash_prefixes = \[[^\]]*\]", "forbidden_hash_prefixes = []", text)
     text = re.sub(r"\[\[guardrails\.url_exceptions\]\]\n(?:[^\[\n].*\n)*", "", text)
     if not re.search(r"^url_exceptions\s*=", text, re.MULTILINE):  # 已移植之專案設定可能已有此鍵
@@ -115,6 +118,22 @@ class TestNonDefaultInstanceLayout(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             code, out = MiniProject(Path(tmp) / "demo_proj", source).run()
         self.assertEqual(code, 0, out)
+
+
+class TestInstanceLayersDisabled(unittest.TestCase):
+    """Spec-0046 AC-2：實例設定停用分層時，假專案仍啟用分層，分層違規照常檢出"""
+
+    def test_mini_project_enables_layers_regardless_of_instance(self):
+        source = (AGENTS_DIR / "project.toml").read_text(encoding="utf-8")
+        source = re.sub(r"^enabled = true$", "enabled = false", source, count=1, flags=re.MULTILINE)
+        with tempfile.TemporaryDirectory() as tmp:
+            project = MiniProject(Path(tmp) / "demo_proj", source)
+            code, out = project.run()
+            self.assertEqual(code, 0, out)
+            project.write("app/domain/leak.py", "import requests\n")
+            code, out = project.run()
+        self.assertEqual(code, 1, out)
+        self.assertIn("app/domain/leak.py", out)
 
 
 class TestBug0031NestedLayerModules(GuardrailGapTestCase):

@@ -4,6 +4,7 @@
 本檔屬專案測試，移植時不隨核心帶走。只讀取版控中的規範文件，不讀取本機 data/ 或 resume/。
 """
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -43,6 +44,20 @@ class TestProjectInstanceFiles(unittest.TestCase):
         for fragment in ("25MB", "30 頁", "10x", "上限數值的文件正本", "<resume_content>", "Text-First", "80 字元"):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, text)
+
+    def test_project_red_lines_map_red_lines_1_and_6(self):
+        """Spec-0040、Spec-0046：本專案紅線小節列出紅線 1、6 之本專案對應值（自核心測試移入）"""
+        text = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        section = re.search(r"^#### 本專案紅線.*?(?=^---$)", text, re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(section)
+        self.assertIn("紅線 1、6 本專案對應", section.group(0))
+        for value in ("src/domain/interfaces.py", "src/infrastructure/config.py", "AppConfig"):
+            self.assertIn(value, section.group(0))
+
+    def test_layers_enabled_for_this_project(self):
+        """Spec-0046：本專案採 DDD 四層並啟用自動分層檢查（自核心測試移入）"""
+        with (AGENTS_DIR / "project.toml").open("rb") as handle:
+            self.assertTrue(tomllib.load(handle)["layers"]["enabled"])
 
     def test_profile_covers_project_facts(self):
         """Spec-0037 AC-1：專案概況檔涵蓋入口、主要流程、持久化結構、敏感資料類型、測試環境"""
