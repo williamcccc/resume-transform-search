@@ -1,6 +1,6 @@
 # 提案與規格書：閉環結構自動檢查（ASVS 章節歸屬、專案實例檔、專屬標記、業務技能）
 
-> **狀態**：提案（G1，待核准；尚未實作）｜**類型**：規範變更（大改：修改驗證腳本）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`verify_doc_sync.py`、`.agents/lib/project_config.py`、`.agents/project.toml`、[security_nfr_framework.md](../../.agents/skills/feature-design/references/security_nfr_framework.md)、`.agents/tests/` 與移植演練，不涉及 `src/`
+> **狀態**：已實作（G2：使用者於 2026-11-21 核准，7 項待決事項全數採建議；QA 見 [QA-0034](../qa_reports/0034-asvs-chapter-coverage-check-qa.md)）｜**類型**：規範變更（大改：修改驗證腳本）｜**流程**：[governance.md](../../.agents/workflows/governance.md)｜**影響範圍**：`verify_doc_sync.py`、`.agents/lib/project_config.py`、`.agents/project.toml`、[security_nfr_framework.md](../../.agents/skills/feature-design/references/security_nfr_framework.md)、`.agents/tests/` 與移植演練，不涉及 `src/`
 >
 > **修訂紀錄**：2026-11-20 初版（ASVS 章節歸屬 C1–C4）；2026-11-21 擴充，納入 [Spec-0035](./0035-portable-arch-review-checklist-spec.md) 決議 4、[Spec-0036](./0036-portable-review-checklist-spec.md) 決議 6 併入之腳本檢查，並對應 [Spec-0037](./0037-project-profile-tests-and-red-lines-spec.md)、[Spec-0038](./0038-closed-loop-residual-project-coupling-spec.md) 之後的現況（C5–C8）。
 
@@ -74,7 +74,7 @@ C7 排除行內程式碼，是因為 [PORTING.md](../../.agents/PORTING.md) 以�
 | 6 | C5 必備實例檔清單放哪裡 | 寫在 `verify_doc_sync.py` 常數（實例檔名稱是核心與實例之間的契約，移植時不變） | 新增 `project.toml` 鍵（每個專案可自訂，但契約可被改掉） |
 | 7 | C7 允許的標記位置 | 只允許 AGENTS.md「本專案紅線」小節標題 1 處 | 允許任意處但計數不得增加（以基準數比對） |
 
-## 七、驗收標準（草案，G2 核准後定稿）
+## 七、驗收標準
 
 * **AC-1**：對照表缺一章、重複一章、或適用條件欄不屬三類之一時，`verify_doc_sync.py` 回報 FAIL 並指出章節。
 * **AC-2**：技術條件章節未於 `project.toml` 宣告時回報 FAIL 並指出章節；`not_applicable` 提及 V1–V17 以外之編號時回報 FAIL。

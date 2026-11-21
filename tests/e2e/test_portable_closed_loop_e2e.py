@@ -160,6 +160,19 @@ class TestPortableClosedLoopE2E(unittest.TestCase):
         self.assertFalse((self.root / ".agents" / "project" / "security_baseline.json").exists())
         self.assertFalse((self.root / ".agents" / "security_baseline.json").exists())
 
+    def test_a5_structure_checks_guard_ported_project(self):
+        """Spec-0034 AC-3、AC-6：移植後結構檢查通過；誤刪實例檔或業務技能清單殘留時 FAIL"""
+        code, out = self.run_script(VERIFY_REL)
+        self.assertEqual(code, 0, out)
+        self.assertIn("ASVS 章節歸屬完整", out)
+        self.assertIn("專案實例檔齊備", out)
+        (self.root / PROFILE_REL).unlink()
+        self.set_config("business_skills = []", 'business_skills = ["resume-vector-search"]')
+        code, out = self.run_script(VERIFY_REL)
+        self.assertEqual(code, 1, out)
+        self.assertIn(".agents/project/profile.md", out)
+        self.assertIn("business_skills 列出之技能不存在", out)
+
     def test_p1_ported_project_passes_both_gates(self):
         code, out = self.run_script(VERIFY_REL)
         self.assertEqual(code, 0, out)

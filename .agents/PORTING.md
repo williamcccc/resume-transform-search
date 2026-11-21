@@ -18,7 +18,7 @@
    * `[guardrails]`：連線 scheme、金鑰格式、提示詞片語、評測專用套件、`.gitignore` 必備項目、掃描略過目錄；`url_exceptions` 清空或改填新專案的例外（每筆附 `reason`）。
    * `[privacy]`：**`forbidden_hash_prefixes` 必須清空**（那是原專案受保護身分的指紋）；`sensitive_dirs`、`sensitive_extensions`（敏感目錄下的檔案副檔名）、`personal_filename_keywords`、`safe_filename_stems` 依新專案的敏感資料改寫；`locale_patterns` 依地區選用。
    * `[docs]`：`quality_ac_enforced_from` 與 `security_ac_enforced_from` 皆改為 `1`（新專案從第一份規格起強制）。
-   * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`；第四節適用條件為「技術」的章節（如 V9、V10、V17），新專案未使用該技術者須逐章登錄。
+   * `[security]`：**逐項回答專案特徵**（網路暴露範圍、Web 介面、API、LLM、個資、不受信任檔案、多使用者）與 `asvs_level`；適用標準由 [security_nfr_framework.md](skills/feature-design/references/security_nfr_framework.md) 第四節自動對照，不必重寫檢核項目。`not_applicable` 清空後依新專案填寫，每筆附 `reason`；第四節適用條件為「技術」的章節（如 V9、V10、V17），新專案有使用者列於 `tech_chapters_in_use`，未使用者於 `not_applicable` 逐章登錄。
    * `[security.tools]`：`scan_paths` 改為新專案的原始碼與入口檔，`dependency_files` 改為新專案的需求檔；`baseline` 指向 `project/` 下的基準檔（見第 4 步）。`diff_base` 改為新專案的主分支名稱；`full_scan_max_age_days` 依需要調整（預設 7 天）。
 4. **替換專案實例檔**：[project/](project/) 下的檔案是原專案的具體標準，整份替換為新專案內容；新專案尚無程式碼時可先留空表或只留類別標題，隨首份規格與首次審查補齊。核心檢核清單不必改寫。
    * [security_baseline.json](project/security_baseline.json)：原專案的安全掃描既有發現，**直接刪除**，於第 6 步首次掃描後重建。
@@ -47,4 +47,4 @@
 
    最後一行是閉環核心的自我測試（隨 `.agents/` 一併複製，驗證閘門腳本與規範結構）；新專案的 CI 建議加入同一步。
 
-   結束碼 2 表示 `project.toml` 缺鍵或格式錯誤，訊息會指出缺少的鍵。
+   結束碼 2 表示 `project.toml` 缺鍵或格式錯誤，訊息會指出缺少的鍵。`verify_doc_sync.py` 另會檢查閉環結構（Spec-0034）：ASVS 技術章節皆已宣告、第 4 步的必備實例檔存在、核心只保留 AGENTS.md「本專案紅線」一處專屬標記、`business_skills` 與實際技能資料夾一致；FAIL 訊息會指出章節、檔案或行號。

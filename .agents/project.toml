@@ -137,6 +137,9 @@ handles_pii = true               # 處理個人資料
 processes_untrusted_files = true # 解析使用者提供之檔案
 multi_user = false               # 多使用者或需區分身分
 
+# 有使用之「技術」條件 ASVS 章節（如 "V9"）；技術章節須列於此或下方 not_applicable 之一（Spec-0034，verify_doc_sync.py 檢查）
+tech_chapters_in_use = []
+
 # 不適用之標準章節；每筆必填 reason。只登錄「技術條件章節未使用」或「特徵判定適用但另有理由排除」者
 # （規則見 security_nfr_framework.md 第四節）；依特徵已判定不適用者不必登錄。特徵改變時須重新檢視
 [[security.not_applicable]]
