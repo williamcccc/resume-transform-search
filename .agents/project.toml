@@ -15,7 +15,7 @@ interfaces = "src/interfaces"
 domain_interfaces = "src/domain/interfaces.py"
 
 [config]
-# 唯一可讀環境變數的模組；其 os.environ.get() 變數須全數列於 env_example。
+# 設定模組（集中讀取環境變數）；原始碼以字串常值讀取之環境變數須全數列於 env_example（Spec-0039）。
 module = "src/infrastructure/config.py"
 env_example = ".env.example"
 

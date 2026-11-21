@@ -30,7 +30,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 # 確保 Windows 終端輸出 UTF-8 編碼，避免 cp950 拋出 UnicodeEncodeError
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -516,6 +516,67 @@ def workspace_path_pattern(root: Path) -> "re.Pattern[str]":
     return re.compile(prefix + r"[/\\]+" + body)
 
 
+def parse_env_example_keys(text: str) -> set:
+    """`.env.example` 中列出之變數名稱（含註解掉的 `# NAME=` 範例）。"""
+    return set(re.findall(r"^#?\s*([A-Z0-9_]+)=", text, re.MULTILINE))
+
+
+def _env_scan_files(config_path: Path) -> List[Path]:
+    """環境變數偵測範圍：layers.src 下所有 .py，另含位於 src 之外的設定模組（Bug-0032）。"""
+    files = sorted(p for p in SRC_DIR.rglob("*.py") if "__pycache__" not in p.parts) if SRC_DIR.exists() else []
+    if config_path.is_file() and config_path not in files:
+        files.append(config_path)
+    return files
+
+
+def collect_env_var_reads(files) -> Dict[str, List[str]]:
+    """以 AST 收集以字串常值讀取之環境變數：os.environ.get / os.getenv / os.environ[...]，
+    含 `from os import environ, getenv` 寫法。動態取名（變數、迴圈）無法靜態判定，不收集。
+    回傳 {變數名: [「相對路徑:行號」...]}（Bug-0032）。"""
+    reads: Dict[str, List[str]] = {}
+
+    def is_environ(node) -> bool:
+        return (isinstance(node, ast.Attribute) and node.attr == "environ"
+                and isinstance(node.value, ast.Name) and node.value.id == "os") or (
+            isinstance(node, ast.Name) and node.id in environ_names)
+
+    def literal(node):
+        return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
+
+    for path in files:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            continue
+        environ_names, getenv_names = set(), set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "os":
+                for alias in node.names:
+                    if alias.name == "environ":
+                        environ_names.add(alias.asname or alias.name)
+                    elif alias.name == "getenv":
+                        getenv_names.add(alias.asname or alias.name)
+        try:
+            rel = path.relative_to(ROOT_DIR).as_posix()
+        except ValueError:
+            rel = path.as_posix()
+        for node in ast.walk(tree):
+            name = None
+            if isinstance(node, ast.Call) and node.args:
+                func = node.func
+                if isinstance(func, ast.Attribute) and func.attr == "get" and is_environ(func.value):
+                    name = literal(node.args[0])
+                elif isinstance(func, ast.Attribute) and func.attr == "getenv" and isinstance(func.value, ast.Name) and func.value.id == "os":
+                    name = literal(node.args[0])
+                elif isinstance(func, ast.Name) and func.id in getenv_names:
+                    name = literal(node.args[0])
+            elif isinstance(node, ast.Subscript) and is_environ(node.value):
+                name = literal(node.slice)
+            if name:
+                reads.setdefault(name, []).append(f"{rel}:{getattr(node, 'lineno', '?')}")
+    return reads
+
+
 def check_git_hygiene_and_pii_guardrails() -> List[str]:
     """檢查版控邊界、環境範本、工作區路徑與已知隱私識別樣式。"""
     p0_errors = []
@@ -538,14 +599,14 @@ def check_git_hygiene_and_pii_guardrails() -> List[str]:
     config_path = ROOT_DIR / CONFIG_MODULE_PATH
     env_example_path = ROOT_DIR / ENV_EXAMPLE_PATH
     if config_path.exists() and env_example_path.exists():
-        cfg_text = config_path.read_text(encoding="utf-8")
         ex_text = env_example_path.read_text(encoding="utf-8")
-        cfg_keys = set(re.findall(r'os\.environ\.get\(\s*["\']([A-Z0-9_]+)["\']', cfg_text))
-        ex_keys = set(re.findall(r"^#?\s*([A-Z0-9_]+)=", ex_text, re.MULTILINE))
-        missing_keys = sorted(cfg_keys - ex_keys)
-        if missing_keys:
+        env_reads = collect_env_var_reads(_env_scan_files(config_path))
+        ex_keys = parse_env_example_keys(ex_text)
+        missing = sorted(name for name in env_reads if name not in ex_keys)
+        if missing:
+            detail = "、".join(f"{name}（{env_reads[name][0]}）" for name in missing)
             p0_errors.append(
-                f"[P0 違規 - .env.example 未同步環境變數] AppConfig 中的變數未列於 .env.example: {missing_keys}"
+                f"[P0 違規 - .env.example 未同步環境變數] 原始碼讀取之環境變數未列於 .env.example: {detail}"
             )
         if API_KEY_PATTERN.search(ex_text):
             p0_errors.append("[P0 違規 - .env.example 含真實金鑰] .env.example 嚴禁包含真實 API Key")
